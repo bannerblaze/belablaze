@@ -1,0 +1,370 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useSignIn } from "@clerk/nextjs";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Mail, Zap, Loader2, AlertCircle, KeyRound, Eye, EyeOff, CheckCircle2, ArrowLeft,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+type Step = "email" | "code" | "password" | "done";
+
+const STEPS = ["email", "code", "password"] as const;
+
+function StepDot({ active, done }: { active: boolean; done: boolean }) {
+  return (
+    <div
+      className={cn(
+        "w-2 h-2 rounded-full transition-all duration-300",
+        done ? "bg-[#B8EB23]" : active ? "bg-[#B8EB23]/60" : "bg-white/[0.12]"
+      )}
+    />
+  );
+}
+
+interface FieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label: string;
+  icon: React.ReactNode;
+  error?: string;
+  right?: React.ReactNode;
+}
+
+function Field({ label, icon, error, right, ...props }: FieldProps) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-xs font-semibold text-white/50 flex items-center gap-1.5">
+        {icon}
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          {...props}
+          className={cn(
+            "w-full h-11 px-3 rounded-xl bg-white/[0.04] border text-sm text-white placeholder-white/20 focus:outline-none transition-all",
+            right ? "pr-10" : "",
+            error
+              ? "border-red-400/40 focus:border-red-400/60"
+              : "border-white/[0.08] focus:border-[#B8EB23]/50 focus:bg-white/[0.06]"
+          )}
+        />
+        {right && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">{right}</div>
+        )}
+      </div>
+      {error && (
+        <p className="text-xs text-red-400 flex items-center gap-1.5">
+          <AlertCircle className="w-3 h-3 flex-shrink-0" />
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function ForgotPasswordForm() {
+  const { signIn } = useSignIn();
+  const router = useRouter();
+
+  const [step, setStep] = useState<Step>("email");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const stepIndex = STEPS.indexOf(step as (typeof STEPS)[number]);
+
+  const handleEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!signIn || !email.trim()) { setError("Ingresa tu correo electrónico"); return; }
+    setError("");
+    setLoading(true);
+    try {
+      const { error: idErr } = await signIn.create({ identifier: email });
+      if (idErr) {
+        setError(idErr.message || "Correo no encontrado en nuestro sistema");
+        return;
+      }
+      const { error: sendErr } = await signIn.resetPasswordEmailCode.sendCode();
+      if (sendErr) {
+        setError(sendErr.message || "No se pudo enviar el código");
+        return;
+      }
+      setStep("code");
+    } catch {
+      setError("Error de conexión. Intenta de nuevo.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!signIn || code.length < 6) { setError("Ingresa el código de 6 dígitos"); return; }
+    setError("");
+    setLoading(true);
+    try {
+      const { error: codeErr } = await signIn.resetPasswordEmailCode.verifyCode({ code });
+      if (codeErr) {
+        setError(codeErr.message || "Código inválido o expirado");
+        return;
+      }
+      setStep("password");
+    } catch {
+      setError("Error al verificar el código.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!signIn) return;
+    if (password.length < 8) { setError("La contraseña debe tener al menos 8 caracteres"); return; }
+    if (password !== confirmPassword) { setError("Las contraseñas no coinciden"); return; }
+    setError("");
+    setLoading(true);
+    try {
+      const { error: pwErr } = await signIn.resetPasswordEmailCode.submitPassword({
+        password,
+        signOutOfOtherSessions: true,
+      });
+      if (pwErr) {
+        setError(pwErr.message || "Error al cambiar la contraseña");
+        return;
+      }
+      const { error: finalErr } = await signIn.finalize();
+      if (finalErr) {
+        setError(finalErr.message || "Error al iniciar sesión");
+        return;
+      }
+      setStep("done");
+      setTimeout(() => router.push("/dashboard"), 1800);
+    } catch {
+      setError("Error de conexión. Intenta de nuevo.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+      className="mx-auto w-full max-w-[420px]"
+    >
+      <div className="rounded-2xl border border-white/[0.07] bg-[#111111] p-8 shadow-2xl shadow-black/60">
+        {/* Logo */}
+        <div className="flex items-center gap-2.5 mb-8">
+          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#B8EB23] shadow-[0_0_20px_rgba(184,235,35,0.35)]">
+            <Zap className="w-5 h-5 text-black" strokeWidth={2.5} />
+          </div>
+          <div className="flex flex-col leading-none">
+            <span className="text-[15px] font-bold tracking-tight text-white">
+              Bela<span className="text-[#B8EB23]">Blaze</span>
+            </span>
+            <span className="text-[9px] text-white/35 tracking-widest uppercase font-medium mt-0.5">
+              by BannerBlaze
+            </span>
+          </div>
+        </div>
+
+        {/* Step indicator */}
+        {step !== "done" && (
+          <div className="flex items-center gap-1.5 mb-6">
+            {STEPS.map((s, i) => (
+              <StepDot key={s} active={i === stepIndex} done={i < stepIndex} />
+            ))}
+            <span className="text-xs text-white/25 ml-1.5">Paso {stepIndex + 1} de 3</span>
+          </div>
+        )}
+
+        <AnimatePresence mode="wait" initial={false}>
+          {/* ── Step 1: Email ── */}
+          {step === "email" && (
+            <motion.div key="email" initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.2 }}>
+              <div className="mb-6">
+                <div className="w-11 h-11 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mb-4">
+                  <KeyRound className="w-5 h-5 text-white/60" />
+                </div>
+                <h1 className="text-xl font-bold text-white tracking-tight">Recuperar contraseña</h1>
+                <p className="text-sm text-white/40 mt-1">
+                  Ingresa tu correo y te enviaremos un código de verificación
+                </p>
+              </div>
+              {error && (
+                <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+                  className="flex items-start gap-2.5 p-3 rounded-xl bg-red-400/[0.08] border border-red-400/20 text-red-400 text-sm mb-5"
+                >
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  {error}
+                </motion.div>
+              )}
+              <form onSubmit={handleEmail} className="space-y-4">
+                <Field
+                  label="Correo electrónico"
+                  icon={<Mail className="w-3.5 h-3.5" />}
+                  type="email"
+                  placeholder="tu@empresa.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  autoFocus
+                />
+                <button type="submit" disabled={!signIn || loading}
+                  className="w-full h-11 rounded-xl bg-[#B8EB23] hover:bg-[#caf23a] text-black font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_24px_rgba(184,235,35,0.2)]"
+                >
+                  {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Enviar código
+                </button>
+              </form>
+            </motion.div>
+          )}
+
+          {/* ── Step 2: Code ── */}
+          {step === "code" && (
+            <motion.div key="code" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.2 }}>
+              <div className="mb-6">
+                <h1 className="text-xl font-bold text-white tracking-tight">Código de verificación</h1>
+                <p className="text-sm text-white/40 mt-1">
+                  Revisa <span className="text-white/70 font-medium">{email}</span> e ingresa el código
+                </p>
+              </div>
+              {error && (
+                <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+                  className="flex items-start gap-2.5 p-3 rounded-xl bg-red-400/[0.08] border border-red-400/20 text-red-400 text-sm mb-5"
+                >
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  {error}
+                </motion.div>
+              )}
+              <form onSubmit={handleCode} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-white/50">Código de 6 dígitos</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="000000"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                    autoFocus
+                    className="w-full h-14 px-4 rounded-xl bg-white/[0.04] border border-white/[0.08] text-2xl text-white placeholder-white/20 focus:outline-none focus:border-[#B8EB23]/50 transition-all text-center tracking-[0.4em] font-mono"
+                  />
+                </div>
+                <button type="submit" disabled={!signIn || loading || code.length < 6}
+                  className="w-full h-11 rounded-xl bg-[#B8EB23] hover:bg-[#caf23a] text-black font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_24px_rgba(184,235,35,0.2)]"
+                >
+                  {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Verificar código
+                </button>
+              </form>
+              <button type="button" onClick={() => { setStep("email"); setCode(""); setError(""); }}
+                className="w-full mt-4 text-xs text-white/30 hover:text-white transition-colors flex items-center justify-center gap-1.5"
+              >
+                <ArrowLeft className="w-3 h-3" />
+                Cambiar correo electrónico
+              </button>
+            </motion.div>
+          )}
+
+          {/* ── Step 3: New Password ── */}
+          {step === "password" && (
+            <motion.div key="password" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.2 }}>
+              <div className="mb-6">
+                <h1 className="text-xl font-bold text-white tracking-tight">Nueva contraseña</h1>
+                <p className="text-sm text-white/40 mt-1">Elige una contraseña segura para tu cuenta</p>
+              </div>
+              {error && (
+                <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+                  className="flex items-start gap-2.5 p-3 rounded-xl bg-red-400/[0.08] border border-red-400/20 text-red-400 text-sm mb-5"
+                >
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  {error}
+                </motion.div>
+              )}
+              <form onSubmit={handlePassword} className="space-y-4">
+                <Field
+                  label="Nueva contraseña"
+                  icon={<KeyRound className="w-3.5 h-3.5" />}
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Mínimo 8 caracteres"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoFocus
+                  right={
+                    <button type="button" onClick={() => setShowPassword((v) => !v)}
+                      className="text-white/30 hover:text-white/60 transition-colors" tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  }
+                />
+                <Field
+                  label="Confirmar contraseña"
+                  icon={<KeyRound className="w-3.5 h-3.5" />}
+                  type={showConfirm ? "text" : "password"}
+                  placeholder="Repite tu nueva contraseña"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  error={confirmPassword && password !== confirmPassword ? "Las contraseñas no coinciden" : undefined}
+                  right={
+                    <button type="button" onClick={() => setShowConfirm((v) => !v)}
+                      className="text-white/30 hover:text-white/60 transition-colors" tabIndex={-1}
+                    >
+                      {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  }
+                />
+                <button type="submit" disabled={!signIn || loading || password !== confirmPassword || password.length < 8}
+                  className="w-full h-11 rounded-xl bg-[#B8EB23] hover:bg-[#caf23a] text-black font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_24px_rgba(184,235,35,0.2)]"
+                >
+                  {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Cambiar contraseña
+                </button>
+              </form>
+            </motion.div>
+          )}
+
+          {/* ── Done ── */}
+          {step === "done" && (
+            <motion.div key="done" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }} className="text-center py-4">
+              <motion.div
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
+                className="w-14 h-14 rounded-2xl bg-[#B8EB23]/10 border border-[#B8EB23]/25 flex items-center justify-center mx-auto mb-5"
+              >
+                <CheckCircle2 className="w-7 h-7 text-[#B8EB23]" />
+              </motion.div>
+              <h1 className="text-xl font-bold text-white">¡Contraseña actualizada!</h1>
+              <p className="text-sm text-white/40 mt-2">Iniciando sesión automáticamente…</p>
+              <div className="mt-5 flex justify-center">
+                <Loader2 className="w-5 h-5 text-[#B8EB23]/60 animate-spin" />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {step !== "done" && (
+          <p className="text-center text-xs text-white/30 mt-6">
+            <Link href="/sign-in" className="text-white/50 hover:text-[#B8EB23] transition-colors flex items-center justify-center gap-1.5">
+              <ArrowLeft className="w-3 h-3" />
+              Volver al inicio de sesión
+            </Link>
+          </p>
+        )}
+      </div>
+      <p className="text-center text-[11px] text-white/20 mt-5">
+        Plataforma DOOH para equipos de alto rendimiento
+      </p>
+    </motion.div>
+  );
+}

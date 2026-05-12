@@ -1,0 +1,304 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  EXECUTIVE
+  CLIENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum CampaignStatus {
+  DRAFT
+  PENDING_APPROVAL
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum AdStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  ACTIVE
+  PAUSED
+  EXPIRED
+}
+
+enum ScreenStatus {
+  ONLINE
+  OFFLINE
+  MAINTENANCE
+  RESERVED
+}
+
+enum ScreenType {
+  LED_INDOOR
+  LED_OUTDOOR
+  LCD
+  PROJECTION
+  INTERACTIVE
+}
+
+enum AdFormat {
+  IMAGE
+  VIDEO
+  HTML5
+  INTERACTIVE
+}
+
+enum LogAction {
+  CREATE
+  UPDATE
+  DELETE
+  APPROVE
+  REJECT
+  PUBLISH
+  PAUSE
+  LOGIN
+  LOGOUT
+}
+
+model User {
+  id          String     @id @default(cuid())
+  email       String     @unique
+  name        String
+  avatar      String?
+  role        UserRole   @default(CLIENT)
+  status      UserStatus @default(ACTIVE)
+  clerkId     String?    @unique
+  phone       String?
+  position    String?
+  companyId   String?
+  lastLoginAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  company     Client?     @relation(fields: [companyId], references: [id])
+  campaigns   Campaign[]
+  approvals   AdApproval[]
+  logs        Log[]
+
+  @@index([email])
+  @@index([role])
+  @@index([companyId])
+}
+
+model Client {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  logo         String?
+  industry     String?
+  website      String?
+  email        String
+  phone        String?
+  address      String?
+  city         String?
+  country      String   @default("Colombia")
+  taxId        String?
+  isActive     Boolean  @default(true)
+  creditLimit  Float    @default(0)
+  balance      Float    @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users        User[]
+  campaigns    Campaign[]
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+model Screen {
+  id              String       @id @default(cuid())
+  name            String
+  code            String       @unique
+  type            ScreenType   @default(LED_OUTDOOR)
+  status          ScreenStatus @default(ONLINE)
+  city            String
+  address         String
+  latitude        Float?
+  longitude       Float?
+  width           Int
+  height          Int
+  resolutionWidth Int          @default(1920)
+  resolutionHeight Int         @default(1080)
+  dailyTraffic    Int          @default(0)
+  pricePerSecond  Float        @default(0)
+  isActive        Boolean      @default(true)
+  orientation     String       @default("landscape")
+  thumbnail       String?
+  notes           String?
+  lastPingAt      DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  campaignScreens CampaignScreen[]
+  adSchedules     AdSchedule[]
+
+  @@index([city])
+  @@index([status])
+  @@index([isActive])
+}
+
+model Campaign {
+  id           String         @id @default(cuid())
+  name         String
+  description  String?
+  status       CampaignStatus @default(DRAFT)
+  clientId     String
+  userId       String
+  budget       Float
+  spent        Float          @default(0)
+  startDate    DateTime
+  endDate      DateTime
+  targetCities String[]
+  targetAudience Json?
+  impressionsGoal Int?
+  impressions  Int            @default(0)
+  conversions  Int            @default(0)
+  engagements  Int            @default(0)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  client       Client         @relation(fields: [clientId], references: [id])
+  user         User           @relation(fields: [userId], references: [id])
+  ads          Ad[]
+  screens      CampaignScreen[]
+
+  @@index([clientId])
+  @@index([status])
+  @@index([startDate, endDate])
+}
+
+model CampaignScreen {
+  id         String   @id @default(cuid())
+  campaignId String
+  screenId   String
+  createdAt  DateTime @default(now())
+
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  screen     Screen   @relation(fields: [screenId], references: [id])
+
+  @@unique([campaignId, screenId])
+}
+
+model Ad {
+  id           String     @id @default(cuid())
+  title        String
+  description  String?
+  status       AdStatus   @default(DRAFT)
+  format       AdFormat   @default(IMAGE)
+  campaignId   String
+  fileUrl      String?
+  thumbnailUrl String?
+  duration     Int        @default(15)
+  ctaUrl       String?
+  ctaText      String?
+  qrUrl        String?
+  qrEnabled    Boolean    @default(false)
+  rejectionNote String?
+  impressions  Int        @default(0)
+  clicks       Int        @default(0)
+  qrScans      Int        @default(0)
+  engagements  Int        @default(0)
+  ctr          Float      @default(0)
+  startDate    DateTime?
+  endDate      DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  campaign     Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  approvals    AdApproval[]
+  schedules    AdSchedule[]
+  metrics      Metric[]
+
+  @@index([campaignId])
+  @@index([status])
+}
+
+model AdApproval {
+  id        String   @id @default(cuid())
+  adId      String
+  userId    String
+  approved  Boolean
+  note      String?
+  createdAt DateTime @default(now())
+
+  ad        Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([adId])
+}
+
+model AdSchedule {
+  id        String   @id @default(cuid())
+  adId      String
+  screenId  String
+  startTime String
+  endTime   String
+  daysOfWeek Int[]
+  frequency Int      @default(1)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ad        Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
+  screen    Screen   @relation(fields: [screenId], references: [id])
+
+  @@index([adId])
+  @@index([screenId])
+}
+
+model Metric {
+  id          String   @id @default(cuid())
+  adId        String
+  screenId    String?
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  qrScans     Int      @default(0)
+  engagements Int      @default(0)
+  dwellTime   Float    @default(0)
+  date        DateTime @default(now())
+  hour        Int?
+  createdAt   DateTime @default(now())
+
+  ad          Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
+
+  @@index([adId])
+  @@index([date])
+  @@index([screenId])
+}
+
+model Log {
+  id         String    @id @default(cuid())
+  userId     String?
+  action     LogAction
+  entity     String
+  entityId   String?
+  oldData    Json?
+  newData    Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+
+  user       User?     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
+}

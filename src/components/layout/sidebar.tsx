@@ -1,0 +1,243 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  LayoutDashboard, Megaphone, MonitorPlay, BarChart3,
+  ClipboardCheck, Settings, ChevronLeft, Zap, Bell, Layers,
+  Building2, LogOut,
+} from "lucide-react";
+import { cn, getInitials } from "@/lib/utils";
+import { useAppStore } from "@/store";
+import { useUser, useClerk } from "@clerk/nextjs";
+
+type UserRole = "admin" | "ejecutivo" | "cliente";
+
+interface NavItem {
+  href: string;
+  icon: React.ElementType;
+  label: string;
+  exact?: boolean;
+  badge?: number;
+  roles?: UserRole[];
+}
+
+const navItems: NavItem[] = [
+  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", exact: true },
+  { href: "/campaigns", icon: Layers, label: "Campañas" },
+  { href: "/ads", icon: Megaphone, label: "Anuncios" },
+  { href: "/screens", icon: MonitorPlay, label: "Pantallas", roles: ["admin", "ejecutivo"] },
+  { href: "/analytics", icon: BarChart3, label: "Analytics" },
+  { href: "/approvals", icon: ClipboardCheck, label: "Aprobaciones", badge: 2, roles: ["admin", "ejecutivo"] },
+  { href: "/clients", icon: Building2, label: "Clientes", roles: ["admin"] },
+  { href: "/settings", icon: Settings, label: "Configuración" },
+];
+
+function Avatar({ imageUrl, name, size = "sm" }: { imageUrl?: string; name: string; size?: "sm" | "md" }) {
+  const dim = size === "sm" ? "w-8 h-8 text-xs" : "w-9 h-9 text-xs";
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt={name}
+        className={cn(dim, "rounded-full object-cover ring-1 ring-white/10 flex-shrink-0")}
+      />
+    );
+  }
+  return (
+    <div className={cn(
+      dim,
+      "rounded-full bg-gradient-to-br from-[#B8EB23] to-[#8FBA10] flex items-center justify-center text-black font-bold flex-shrink-0"
+    )}>
+      {getInitials(name)}
+    </div>
+  );
+}
+
+export function Sidebar() {
+  const pathname = usePathname();
+  const { sidebarCollapsed, toggleSidebar } = useAppStore();
+  const { user } = useUser();
+  const { signOut } = useClerk();
+
+  const displayName = user?.fullName ?? user?.firstName ?? "Usuario";
+  const role = ((user?.publicMetadata as { role?: UserRole })?.role) ?? "ejecutivo";
+
+  const roleLabel: Record<UserRole, string> = {
+    admin: "Administrador",
+    ejecutivo: "Ejecutivo",
+    cliente: "Cliente",
+  };
+
+  const isActive = (href: string, exact?: boolean) => {
+    if (exact) return pathname === href;
+    return pathname.startsWith(href);
+  };
+
+  const visibleItems = navItems.filter(
+    (item) => !item.roles || item.roles.includes(role)
+  );
+
+  return (
+    <motion.aside
+      initial={false}
+      animate={{ width: sidebarCollapsed ? 72 : 240 }}
+      transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+      className="relative flex flex-col h-screen bg-[#0f0f0f] border-r border-white/[0.06] flex-shrink-0 overflow-hidden z-30"
+    >
+      {/* Logo */}
+      <div className="flex items-center gap-3 px-5 pt-7 pb-5 border-b border-white/[0.06] flex-shrink-0">
+        <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#B8EB23] flex-shrink-0 glow-brand-sm">
+          <Zap className="w-5 h-5 text-black" strokeWidth={2.5} />
+        </div>
+        <AnimatePresence initial={false}>
+          {!sidebarCollapsed && (
+            <motion.div
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -8 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="flex flex-col leading-none">
+                <span className="text-[15px] font-bold tracking-tight text-white">
+                  Bela<span className="text-[#B8EB23]">Blaze</span>
+                </span>
+                <span className="text-[10px] text-white/40 tracking-widest uppercase font-medium mt-0.5">
+                  by BannerBlaze
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
+        {visibleItems.map((item) => {
+          const active = isActive(item.href, item.exact);
+          return (
+            <Link key={item.href} href={item.href}>
+              <div
+                className={cn(
+                  "relative flex items-center gap-3.5 px-3.5 py-2.5 rounded-lg transition-all duration-150 group cursor-pointer",
+                  active
+                    ? "bg-[#B8EB23]/10 text-[#B8EB23]"
+                    : "text-white/50 hover:text-white hover:bg-white/[0.05]"
+                )}
+              >
+                {active && (
+                  <motion.div
+                    layoutId="sidebar-active"
+                    className="absolute inset-0 rounded-lg bg-[#B8EB23]/10"
+                    transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                  />
+                )}
+                <div className="relative flex-shrink-0">
+                  <item.icon
+                    className={cn("w-5 h-5 flex-shrink-0", active ? "text-[#B8EB23]" : "")}
+                    strokeWidth={active ? 2.5 : 1.8}
+                  />
+                  {item.badge && !sidebarCollapsed && (
+                    <span className="absolute -top-1 -right-1.5 flex items-center justify-center w-3.5 h-3.5 text-[8px] font-bold rounded-full bg-[#B8EB23] text-black leading-none">
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
+                <AnimatePresence initial={false}>
+                  {!sidebarCollapsed && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                      className="flex items-center justify-between flex-1 min-w-0"
+                    >
+                      <span className="text-sm font-medium truncate">{item.label}</span>
+                      {item.badge && (
+                        <span className="flex-shrink-0 flex items-center justify-center w-[18px] h-[18px] text-[9px] font-bold rounded-full bg-[#B8EB23] text-black leading-none">
+                          {item.badge}
+                        </span>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Tooltip when collapsed */}
+                {sidebarCollapsed && (
+                  <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-[#1e1e1e] border border-white/10 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl">
+                    {item.label}
+                    {item.badge && (
+                      <span className="ml-2 inline-flex items-center justify-center w-3.5 h-3.5 text-[8px] font-bold rounded-full bg-[#B8EB23] text-black leading-none">
+                        {item.badge}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Footer: User + Controls */}
+      <div className="border-t border-white/[0.06] p-3 space-y-1">
+        {/* Notifications link */}
+        <Link href="/settings">
+          <div className={cn(
+            "flex items-center gap-3.5 px-3.5 py-2.5 rounded-lg cursor-pointer transition-all group",
+            "text-white/40 hover:text-white hover:bg-white/[0.05]"
+          )}>
+            <Bell className="w-5 h-5 flex-shrink-0" strokeWidth={1.8} />
+            {!sidebarCollapsed && <span className="text-sm font-medium">Notificaciones</span>}
+          </div>
+        </Link>
+
+        {/* User row */}
+        <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-white/[0.04] transition-all group">
+          <Avatar
+            imageUrl={user?.imageUrl ?? undefined}
+            name={displayName}
+          />
+          <AnimatePresence initial={false}>
+            {!sidebarCollapsed && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="flex-1 min-w-0"
+              >
+                <p className="text-sm font-medium text-white truncate leading-none">{displayName}</p>
+                <p className="text-[11px] text-white/40 mt-0.5 truncate">{roleLabel[role] ?? role}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          {!sidebarCollapsed && (
+            <button
+              onClick={() => signOut({ redirectUrl: "/sign-in" })}
+              title="Cerrar sesión"
+              className="flex-shrink-0 p-1 rounded-lg text-white/20 hover:text-red-400/80 hover:bg-red-400/[0.07] transition-all"
+            >
+              <LogOut className="w-4 h-4" strokeWidth={1.8} />
+            </button>
+          )}
+        </div>
+
+        {/* Collapse button */}
+        <button
+          onClick={toggleSidebar}
+          className="w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-lg text-white/30 hover:text-white hover:bg-white/[0.05] transition-all cursor-pointer"
+        >
+          <motion.div animate={{ rotate: sidebarCollapsed ? 180 : 0 }} transition={{ duration: 0.25 }}>
+            <ChevronLeft className="w-5 h-5 flex-shrink-0" strokeWidth={1.8} />
+          </motion.div>
+          {!sidebarCollapsed && (
+            <span className="text-xs font-medium">Colapsar menú</span>
+          )}
+        </button>
+      </div>
+    </motion.aside>
+  );
+}

@@ -1,0 +1,195 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import { motion } from "framer-motion";
+import Link from "next/link";
+import {
+  Plus, Search, Filter, MoreHorizontal, ArrowUpRight,
+  TrendingUp, DollarSign, Layers, Eye, X,
+} from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { StatusBadge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { MetricCard } from "@/components/ui/metric-card";
+import { mockCampaigns } from "@/lib/mock-data";
+import {
+  formatCurrency, formatNumber, formatDate,
+  formatRelativeTime, truncate, cn,
+} from "@/lib/utils";
+
+const STATUS_TABS = [
+  { value: "all", label: "Todas" },
+  { value: "ACTIVE", label: "Activas" },
+  { value: "PENDING_APPROVAL", label: "Pendientes" },
+  { value: "DRAFT", label: "Borradores" },
+  { value: "PAUSED", label: "Pausadas" },
+  { value: "COMPLETED", label: "Completadas" },
+];
+
+export default function CampaignsPage() {
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
+
+  const filtered = useMemo(() => {
+    let list = [...mockCampaigns];
+    if (search) list = list.filter((c) =>
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.client?.name?.toLowerCase().includes(search.toLowerCase())
+    );
+    if (status !== "all") list = list.filter((c) => c.status === status);
+    return list;
+  }, [search, status]);
+
+  const totalBudget = mockCampaigns.reduce((s, c) => s + c.budget, 0);
+  const totalSpent = mockCampaigns.reduce((s, c) => s + c.spent, 0);
+  const totalImpressions = mockCampaigns.reduce((s, c) => s + c.impressions, 0);
+  const activeCount = mockCampaigns.filter((c) => c.status === "ACTIVE").length;
+
+  return (
+    <div className="p-6 space-y-5 max-w-[1400px]">
+      {/* Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <MetricCard title="Total campañas" value={mockCampaigns.length} icon={<Layers className="w-5 h-5" />} index={0} />
+        <MetricCard title="Campañas activas" value={activeCount} icon={<TrendingUp className="w-5 h-5" />} highlight index={1} />
+        <MetricCard title="Presupuesto total" value={formatCurrency(totalBudget)} icon={<DollarSign className="w-5 h-5" />} index={2} />
+        <MetricCard title="Impresiones totales" value={totalImpressions} delta={18.4} icon={<Eye className="w-5 h-5" />} index={3} />
+      </div>
+
+      {/* Table card */}
+      <Card>
+        {/* Toolbar */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 border-b border-white/[0.06]">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+            <input
+              type="text"
+              placeholder="Buscar campaña o cliente..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-9 h-9 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#B8EB23]/40 transition-all"
+            />
+            {search && (
+              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Status tabs */}
+          <div className="flex items-center gap-1 overflow-x-auto">
+            {STATUS_TABS.map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => setStatus(tab.value)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all",
+                  status === tab.value
+                    ? "bg-[#B8EB23]/10 text-[#B8EB23] border border-[#B8EB23]/20"
+                    : "text-white/40 hover:text-white border border-transparent"
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <Link href="/campaigns/new" className="ml-auto flex-shrink-0">
+            <Button variant="brand" size="sm" icon={<Plus className="w-4 h-4" />}>
+              Nueva campaña
+            </Button>
+          </Link>
+        </div>
+
+        {/* Cards grid */}
+        <div className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {filtered.map((campaign, i) => {
+              const pct = campaign.budget > 0 ? Math.min(100, Math.round((campaign.spent / campaign.budget) * 100)) : 0;
+              const remainingBudget = campaign.budget - campaign.spent;
+              const daysLeft = Math.max(0, Math.ceil(
+                (new Date(campaign.endDate).getTime() - Date.now()) / 86400000
+              ));
+
+              return (
+                <motion.div
+                  key={campaign.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: i * 0.05 }}
+                >
+                  <Link href={`/campaigns/${campaign.id}`}>
+                    <div className="group rounded-xl border border-white/[0.06] bg-[#111111] hover:border-white/10 hover:bg-[#141414] transition-all cursor-pointer p-4 space-y-4">
+                      {/* Header */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-white leading-snug group-hover:text-[#B8EB23] transition-colors">
+                            {campaign.name}
+                          </p>
+                          <p className="text-xs text-white/40 mt-0.5">{campaign.client?.name}</p>
+                        </div>
+                        <StatusBadge status={campaign.status} size="sm" showDot />
+                      </div>
+
+                      {/* Budget progress */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-white/50">Presupuesto usado</span>
+                          <span className={cn("font-semibold", pct > 90 ? "text-red-400" : "text-white")}>
+                            {pct}%
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${pct}%` }}
+                            transition={{ duration: 0.8, delay: 0.2 + i * 0.05 }}
+                            className={cn(
+                              "h-full rounded-full",
+                              pct > 90 ? "bg-red-400" : pct > 70 ? "bg-yellow-400" : "bg-[#B8EB23]"
+                            )}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-white/30">
+                          <span>{formatCurrency(campaign.spent)} gastado</span>
+                          <span>{formatCurrency(campaign.budget)} total</span>
+                        </div>
+                      </div>
+
+                      {/* Stats row */}
+                      <div className="grid grid-cols-3 gap-2 pt-1 border-t border-white/[0.06]">
+                        {[
+                          { label: "Impresiones", value: formatNumber(campaign.impressions, true) },
+                          { label: "Conversiones", value: formatNumber(campaign.conversions, true) },
+                          { label: "Días restantes", value: campaign.status === "COMPLETED" ? "—" : `${daysLeft}d` },
+                        ].map((stat) => (
+                          <div key={stat.label} className="text-center">
+                            <p className="text-sm font-bold text-white">{stat.value}</p>
+                            <p className="text-[10px] text-white/35 mt-0.5">{stat.label}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Footer */}
+                      <div className="flex items-center justify-between pt-1 border-t border-white/[0.04]">
+                        <span className="text-[11px] text-white/30">
+                          {formatDate(campaign.startDate, "dd MMM")} → {formatDate(campaign.endDate, "dd MMM yyyy")}
+                        </span>
+                        <ArrowUpRight className="w-4 h-4 text-white/20 group-hover:text-[#B8EB23] transition-colors" />
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
+              );
+            })}
+          </div>
+
+          {filtered.length === 0 && (
+            <div className="py-16 text-center">
+              <p className="text-sm text-white/30">No se encontraron campañas.</p>
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+}
