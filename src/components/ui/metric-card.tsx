@@ -39,7 +39,7 @@ export function MetricCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.06, ease: [0.4, 0, 0.2, 1] }}
       className={cn(
-        "relative rounded-xl border p-6 overflow-hidden group transition-all duration-200",
+        "relative rounded-xl border p-4 lg:p-5 overflow-hidden group transition-all duration-200",
         highlight
           ? "bg-[#B8EB23]/[0.04] border-[#B8EB23]/20 hover:border-[#B8EB23]/35 hover:bg-[#B8EB23]/[0.07]"
           : "bg-[#111111] border-white/[0.06] hover:border-white/10 hover:bg-[#141414]"
@@ -76,11 +76,11 @@ export function MetricCard({
           )}
         </div>
 
-        <div className="mt-5">
+        <div className="mt-4">
           <div className="flex items-end gap-1.5">
             <span className={cn(
               "font-bold tracking-tight",
-              compact ? "text-2xl" : "text-3xl",
+              compact ? "text-xl lg:text-2xl" : "text-2xl lg:text-3xl",
               highlight ? "text-[#B8EB23]" : "text-white"
             )}>
               {typeof value === "number" ? formatNumber(value, true) : value}

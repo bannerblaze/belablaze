@@ -5,6 +5,7 @@ import type { User, Notification, DashboardMetrics } from "@/types";
 interface AppState {
   user: User | null;
   sidebarCollapsed: boolean;
+  mobileSidebarOpen: boolean;
   notifications: Notification[];
   unreadCount: number;
   metrics: DashboardMetrics | null;
@@ -14,6 +15,8 @@ interface AppState {
   setUser: (user: User | null) => void;
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
+  toggleMobileSidebar: () => void;
+  setMobileSidebarOpen: (open: boolean) => void;
   addNotification: (notification: Omit<Notification, "id" | "read" | "createdAt">) => void;
   markNotificationRead: (id: string) => void;
   markAllRead: () => void;
@@ -28,6 +31,7 @@ export const useAppStore = create<AppState>()(
       (set) => ({
         user: null,
         sidebarCollapsed: false,
+        mobileSidebarOpen: false,
         notifications: [],
         unreadCount: 0,
         metrics: null,
@@ -39,6 +43,9 @@ export const useAppStore = create<AppState>()(
           set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
         setSidebarCollapsed: (collapsed) =>
           set({ sidebarCollapsed: collapsed }),
+        toggleMobileSidebar: () =>
+          set((state) => ({ mobileSidebarOpen: !state.mobileSidebarOpen })),
+        setMobileSidebarOpen: (open) => set({ mobileSidebarOpen: open }),
         addNotification: (notification) =>
           set((state) => {
             const newNotif: Notification = {

@@ -1,379 +1,66 @@
-"use client";
-
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  CheckCircle2, XCircle, Clock, Eye, ChevronDown,
-  ChevronUp, MessageSquare, Video, Image, Zap, Code,
-  ClipboardCheck, AlertTriangle, Info,
-} from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { StatusBadge, Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Suspense } from "react";
+import { connection } from "next/server";
+import { ApprovalsClient } from "./_client";
 import { mockAds, mockCampaigns } from "@/lib/mock-data";
-import { formatRelativeTime, formatDate, getFormatConfig, truncate, cn } from "@/lib/utils";
-import type { Ad } from "@/types";
-import { toast } from "sonner";
 
-const FORMAT_ICONS: Record<string, React.ReactNode> = {
-  IMAGE: <Image className="w-4 h-4" />,
-  VIDEO: <Video className="w-4 h-4" />,
-  HTML5: <Code className="w-4 h-4" />,
-  INTERACTIVE: <Zap className="w-4 h-4" />,
-};
+function ApprovalsSkeleton() {
+  return (
+    <div className="p-6 space-y-5 max-w-[900px]">
+      <div className="h-10 w-64 rounded-lg bg-white/[0.05] animate-pulse" />
+      <div className="h-14 rounded-xl bg-white/[0.03] animate-pulse" />
+      <div className="h-12 w-72 rounded-xl bg-white/[0.04] animate-pulse" />
+      <div className="space-y-3">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-20 rounded-xl bg-white/[0.03] animate-pulse" />
+        ))}
+      </div>
+    </div>
+  );
+}
 
-function ReviewCard({ ad, onApprove, onReject }: {
-  ad: Ad;
-  onApprove: (id: string) => void;
-  onReject: (id: string, note: string) => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const [rejecting, setRejecting] = useState(false);
-  const [note, setNote] = useState("");
+async function ApprovalsData() {
+  await connection();
+  const hasDb = !!process.env.DATABASE_URL;
 
-  const campaign = mockCampaigns.find((c) => c.id === ad.campaignId);
-  const formatCfg = getFormatConfig(ad.format);
+  if (!hasDb) {
+    const pending = mockAds.filter((a) => a.status === "PENDING_REVIEW").map((a) => ({
+      ...a,
+      campaign: mockCampaigns.find((c) => c.id === a.campaignId),
+    }));
+    const approved = mockAds.filter((a) => a.status === "APPROVED" || a.status === "ACTIVE").map((a) => ({
+      ...a,
+      campaign: mockCampaigns.find((c) => c.id === a.campaignId),
+    }));
+    const rejected = mockAds.filter((a) => a.status === "REJECTED").map((a) => ({
+      ...a,
+      campaign: mockCampaigns.find((c) => c.id === a.campaignId),
+    }));
 
-  const handleReject = () => {
-    if (!note.trim()) {
-      toast.error("Escribe un motivo de rechazo antes de continuar.");
-      return;
-    }
-    onReject(ad.id, note);
-    setRejecting(false);
-    setNote("");
-  };
+    return (
+      <ApprovalsClient
+        initialPending={pending as Parameters<typeof ApprovalsClient>[0]["initialPending"]}
+        initialApproved={approved as Parameters<typeof ApprovalsClient>[0]["initialApproved"]}
+        initialRejected={rejected as Parameters<typeof ApprovalsClient>[0]["initialRejected"]}
+      />
+    );
+  }
+
+  const { getAdsForApprovals } = await import("@/services/ads.service");
+  const { pending, approved, rejected } = await getAdsForApprovals();
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.97 }}
-      transition={{ duration: 0.25 }}
-      className="rounded-xl border border-yellow-400/15 bg-[#111111] overflow-hidden"
-    >
-      {/* Header */}
-      <div
-        className="flex items-start gap-4 p-4 cursor-pointer hover:bg-white/[0.02] transition-colors"
-        onClick={() => setExpanded(!expanded)}
-      >
-        {/* Format icon */}
-        <div className="w-10 h-10 rounded-xl bg-yellow-400/10 flex items-center justify-center text-yellow-400 flex-shrink-0">
-          {FORMAT_ICONS[ad.format]}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-white">{ad.title}</p>
-              <p className="text-xs text-white/40 mt-0.5">{campaign?.name} · {campaign?.client?.name}</p>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <StatusBadge status={ad.status} size="sm" />
-              {expanded ? <ChevronUp className="w-4 h-4 text-white/30" /> : <ChevronDown className="w-4 h-4 text-white/30" />}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 mt-2">
-            <span className="flex items-center gap-1 text-[11px] text-white/40">
-              {FORMAT_ICONS[ad.format]}
-              <span className="ml-1">{formatCfg.label}</span>
-            </span>
-            <span className="text-white/20">·</span>
-            <span className="text-[11px] text-white/40">{ad.duration}s</span>
-            {ad.qrEnabled && (
-              <>
-                <span className="text-white/20">·</span>
-                <Badge variant="info" size="sm">QR habilitado</Badge>
-              </>
-            )}
-            <span className="text-white/20">·</span>
-            <span className="text-[11px] text-white/35">Enviado {formatRelativeTime(ad.createdAt)}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Expanded detail */}
-      <AnimatePresence initial={false}>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <div className="border-t border-white/[0.06] p-4 space-y-4">
-              {/* Preview mockup */}
-              <div className="rounded-xl bg-[#0A0A0A] border border-white/[0.08] h-32 flex items-center justify-center overflow-hidden relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/5 to-transparent" />
-                <div className="relative z-10 text-center">
-                  <div className="w-12 h-12 rounded-xl bg-yellow-400/10 flex items-center justify-center text-yellow-400 mx-auto mb-2">
-                    {FORMAT_ICONS[ad.format]}
-                  </div>
-                  <p className="text-xs text-white/30">Preview no disponible — archivo pendiente</p>
-                </div>
-                {/* Info chips */}
-                <div className="absolute top-2 left-2 flex gap-1.5">
-                  {ad.duration && (
-                    <span className="text-[10px] font-mono bg-black/60 text-white/50 px-2 py-0.5 rounded-md">
-                      {ad.duration}s
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Details grid */}
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                {[
-                  { label: "CTA", value: ad.ctaText || "—" },
-                  { label: "URL destino", value: ad.ctaUrl ? truncate(ad.ctaUrl, 30) : "—" },
-                  { label: "Inicio", value: ad.startDate ? formatDate(ad.startDate) : "—" },
-                  { label: "Fin", value: ad.endDate ? formatDate(ad.endDate) : "—" },
-                ].map(({ label, value }) => (
-                  <div key={label}>
-                    <p className="text-white/35 mb-0.5">{label}</p>
-                    <p className="text-white/80 font-medium">{value}</p>
-                  </div>
-                ))}
-              </div>
-
-              {ad.description && (
-                <div>
-                  <p className="text-[11px] text-white/35 mb-1">Descripción</p>
-                  <p className="text-xs text-white/60 leading-relaxed">{ad.description}</p>
-                </div>
-              )}
-
-              {/* Checklist */}
-              <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] space-y-2">
-                <p className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-2">
-                  Lista de verificación
-                </p>
-                {[
-                  { ok: !!ad.title, label: "Título definido" },
-                  { ok: !!ad.format, label: "Formato especificado" },
-                  { ok: ad.duration > 0, label: "Duración válida (> 0s)" },
-                  { ok: !!ad.startDate && !!ad.endDate, label: "Fechas de publicación" },
-                  { ok: !ad.qrEnabled || !!ad.qrUrl, label: "QR configurado correctamente" },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-2">
-                    {item.ok
-                      ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
-                      : <AlertTriangle className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0" />}
-                    <span className={cn("text-xs", item.ok ? "text-white/60" : "text-yellow-400")}>{item.label}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Rejection form */}
-              <AnimatePresence>
-                {rejecting && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    className="space-y-2"
-                  >
-                    <label className="text-xs text-white/50 font-medium flex items-center gap-1.5">
-                      <MessageSquare className="w-3.5 h-3.5" />
-                      Motivo del rechazo (visible para el cliente)
-                    </label>
-                    <textarea
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                      placeholder="Ej: El material no cumple con la resolución mínima requerida (mín. 1920×1080). Por favor reenvía en 4K."
-                      rows={3}
-                      className="w-full px-3 py-2 rounded-lg bg-white/[0.04] border border-red-400/30 text-sm text-white placeholder-white/25 focus:outline-none focus:border-red-400/50 resize-none transition-all"
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Actions */}
-              <div className="flex items-center gap-2 pt-1">
-                {!rejecting ? (
-                  <>
-                    <Button
-                      variant="brand"
-                      size="sm"
-                      icon={<CheckCircle2 className="w-4 h-4" />}
-                      onClick={() => onApprove(ad.id)}
-                    >
-                      Aprobar anuncio
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      icon={<XCircle className="w-4 h-4" />}
-                      onClick={() => setRejecting(true)}
-                    >
-                      Rechazar
-                    </Button>
-                    <Button variant="ghost" size="sm" icon={<Eye className="w-4 h-4" />}>
-                      Vista previa
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      icon={<XCircle className="w-4 h-4" />}
-                      onClick={handleReject}
-                    >
-                      Confirmar rechazo
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => { setRejecting(false); setNote(""); }}
-                    >
-                      Cancelar
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+    <ApprovalsClient
+      initialPending={pending as Parameters<typeof ApprovalsClient>[0]["initialPending"]}
+      initialApproved={approved as Parameters<typeof ApprovalsClient>[0]["initialApproved"]}
+      initialRejected={rejected as Parameters<typeof ApprovalsClient>[0]["initialRejected"]}
+    />
   );
 }
 
 export default function ApprovalsPage() {
-  const [ads, setAds] = useState<Ad[]>(mockAds);
-
-  const pending = ads.filter((a) => a.status === "PENDING_REVIEW");
-  const approved = ads.filter((a) => a.status === "APPROVED" || a.status === "ACTIVE");
-  const rejected = ads.filter((a) => a.status === "REJECTED");
-
-  const handleApprove = (id: string) => {
-    setAds((prev) => prev.map((a) => a.id === id ? { ...a, status: "APPROVED" } : a));
-    toast.success("Anuncio aprobado. Pasará a programación.");
-  };
-
-  const handleReject = (id: string, note: string) => {
-    setAds((prev) => prev.map((a) => a.id === id ? { ...a, status: "REJECTED", rejectionNote: note } : a));
-    toast.error("Anuncio rechazado. El cliente será notificado.");
-  };
-
-  const [tab, setTab] = useState<"pending" | "approved" | "rejected">("pending");
-
-  const TABS = [
-    { key: "pending" as const, label: "Pendientes", count: pending.length, color: "yellow" },
-    { key: "approved" as const, label: "Aprobados", count: approved.length, color: "green" },
-    { key: "rejected" as const, label: "Rechazados", count: rejected.length, color: "red" },
-  ];
-
-  const currentList = tab === "pending" ? pending : tab === "approved" ? approved : rejected;
-
   return (
-    <div className="p-6 space-y-5 max-w-[900px]">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <div className="w-10 h-10 rounded-xl bg-yellow-400/10 flex items-center justify-center text-yellow-400">
-          <ClipboardCheck className="w-5 h-5" />
-        </div>
-        <div>
-          <h2 className="text-lg font-bold text-white">Sistema de Aprobaciones</h2>
-          <p className="text-xs text-white/40 mt-0.5">Revisa y aprueba los anuncios antes de publicarse</p>
-        </div>
-      </div>
-
-      {/* Workflow steps */}
-      <div className="flex items-center gap-2 p-4 rounded-xl bg-[#111111] border border-white/[0.06]">
-        {[
-          { label: "Cliente sube anuncio", icon: <Image className="w-3.5 h-3.5" />, active: true },
-          { label: "En revisión", icon: <Clock className="w-3.5 h-3.5" />, active: true },
-          { label: "Admin aprueba / rechaza", icon: <ClipboardCheck className="w-3.5 h-3.5" />, active: tab === "pending" },
-          { label: "Publicación programada", icon: <CheckCircle2 className="w-3.5 h-3.5" />, active: false },
-        ].map((step, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <div className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium",
-              step.active ? "bg-[#B8EB23]/10 text-[#B8EB23]" : "bg-white/[0.04] text-white/30"
-            )}>
-              {step.icon}
-              <span className="hidden sm:inline">{step.label}</span>
-            </div>
-            {i < 3 && <div className="w-4 h-px bg-white/[0.08] flex-shrink-0" />}
-          </div>
-        ))}
-      </div>
-
-      {/* Tabs */}
-      <div className="flex items-center gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/[0.06] w-fit">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-              tab === t.key ? "bg-white/[0.08] text-white" : "text-white/40 hover:text-white"
-            )}
-          >
-            {t.label}
-            <span className={cn(
-              "flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-bold",
-              t.color === "yellow" ? "bg-yellow-400/20 text-yellow-400" :
-              t.color === "green" ? "bg-green-400/20 text-green-400" :
-              "bg-red-400/20 text-red-400"
-            )}>
-              {t.count}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {/* List */}
-      <div className="space-y-3">
-        <AnimatePresence mode="popLayout">
-          {currentList.map((ad) => (
-            tab === "pending" ? (
-              <ReviewCard key={ad.id} ad={ad} onApprove={handleApprove} onReject={handleReject} />
-            ) : (
-              <motion.div
-                key={ad.id}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="flex items-center gap-4 p-4 rounded-xl border border-white/[0.06] bg-[#111111]"
-              >
-                <div className={cn(
-                  "w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0",
-                  ad.status === "REJECTED" ? "bg-red-400/10 text-red-400" : "bg-green-400/10 text-green-400"
-                )}>
-                  {ad.status === "REJECTED" ? <XCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white">{ad.title}</p>
-                  <p className="text-xs text-white/40 mt-0.5">
-                    {mockCampaigns.find(c => c.id === ad.campaignId)?.name}
-                  </p>
-                  {ad.rejectionNote && (
-                    <p className="text-xs text-red-400/70 mt-1 italic">"{truncate(ad.rejectionNote, 80)}"</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <StatusBadge status={ad.status} size="sm" />
-                  <span className="text-xs text-white/30">{formatRelativeTime(ad.updatedAt)}</span>
-                </div>
-              </motion.div>
-            )
-          ))}
-        </AnimatePresence>
-
-        {currentList.length === 0 && (
-          <div className="py-16 text-center">
-            <CheckCircle2 className="w-10 h-10 text-white/10 mx-auto mb-3" />
-            <p className="text-sm text-white/30">
-              {tab === "pending" ? "No hay anuncios pendientes. ¡Todo al día!" : `No hay anuncios ${tab === "approved" ? "aprobados" : "rechazados"}.`}
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
+    <Suspense fallback={<ApprovalsSkeleton />}>
+      <ApprovalsData />
+    </Suspense>
   );
 }

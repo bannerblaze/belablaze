@@ -199,6 +199,11 @@ body {
   background-size: 40px 40px;
 }
 
+/* iOS safe area bottom padding */
+.pb-safe {
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+
 /* Horizontal scroll with hide scrollbar */
 .scroll-x {
   overflow-x: auto;
