@@ -22,23 +22,25 @@ interface EmptyStateProps {
   compact?: boolean;
 }
 
+function ActionButton({
+  label, href, onClick, variant = "primary",
+}: {
+  label: string;
+  href?: string;
+  onClick?: () => void;
+  variant?: "primary" | "secondary";
+}) {
+  const cls = variant === "primary"
+    ? "px-4 py-2 rounded-lg bg-[#B8EB23] text-black text-sm font-semibold hover:bg-[#D4F564] transition-all shadow-[0_0_20px_rgba(184,235,35,0.15)]"
+    : "px-4 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white/60 text-sm font-medium hover:bg-white/[0.06] hover:text-white transition-all";
+
+  if (href) return <Link href={href} className={cls}>{label}</Link>;
+  return <button onClick={onClick} className={cls}>{label}</button>;
+}
+
 export function EmptyState({
   icon, title, description, action, secondaryAction, className, compact,
 }: EmptyStateProps) {
-  const ActionButton = ({ label, href, onClick, variant = "primary" }: {
-    label: string;
-    href?: string;
-    onClick?: () => void;
-    variant?: "primary" | "secondary";
-  }) => {
-    const cls = variant === "primary"
-      ? "px-4 py-2 rounded-lg bg-[#B8EB23] text-black text-sm font-semibold hover:bg-[#D4F564] transition-all shadow-[0_0_20px_rgba(184,235,35,0.15)]"
-      : "px-4 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white/60 text-sm font-medium hover:bg-white/[0.06] hover:text-white transition-all";
-
-    if (href) return <Link href={href} className={cls}>{label}</Link>;
-    return <button onClick={onClick} className={cls}>{label}</button>;
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -80,7 +82,7 @@ export function EmptyState({
 }
 
 // Pre-built empty states for common use cases
-export function NoCampaignsEmpty({ onNew }: { onNew?: () => void }) {
+export function NoCampaignsEmpty() {
   return (
     <EmptyState
       icon={
@@ -95,7 +97,7 @@ export function NoCampaignsEmpty({ onNew }: { onNew?: () => void }) {
   );
 }
 
-export function NoAdsEmpty({ onNew }: { onNew?: () => void }) {
+export function NoAdsEmpty() {
   return (
     <EmptyState
       icon={
@@ -165,6 +167,30 @@ export function NoSearchResults({ query }: { query: string }) {
       }
       title={`Sin resultados para "${query}"`}
       description="Intenta con otros términos de búsqueda o ajusta los filtros aplicados."
+    />
+  );
+}
+
+export function NoPermissionEmpty({
+  title = "Acceso restringido",
+  description = "Necesitas permisos de ADMIN o EJECUTIVO para acceder a esta sección. Pídele al administrador de tu organización que actualice tu rol.",
+  currentRole,
+}: {
+  title?: string;
+  description?: string;
+  currentRole?: string;
+}) {
+  return (
+    <EmptyState
+      icon={
+        <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m12 0H4.5a1.5 1.5 0 0 0-1.5 1.5v7.5a1.5 1.5 0 0 0 1.5 1.5h15a1.5 1.5 0 0 0 1.5-1.5v-7.5a1.5 1.5 0 0 0-1.5-1.5Z" />
+        </svg>
+      }
+      title={title}
+      description={currentRole ? `${description} Tu rol actual es ${currentRole}.` : description}
+      action={{ label: "Volver al dashboard", href: "/dashboard" }}
+      secondaryAction={{ label: "Configuración", href: "/settings" }}
     />
   );
 }

@@ -6,7 +6,7 @@ import { cn, formatNumber, formatPercent, getDeltaColor } from "@/lib/utils";
 
 interface MetricCardProps {
   title: string;
-  value: string | number;
+  value: string | number | React.ReactNode;
   delta?: number;
   deltaLabel?: string;
   icon: React.ReactNode;
@@ -83,7 +83,7 @@ export function MetricCard({
               compact ? "text-xl lg:text-2xl" : "text-2xl lg:text-3xl",
               highlight ? "text-[#B8EB23]" : "text-white"
             )}>
-              {typeof value === "number" ? formatNumber(value, true) : value}
+              {typeof value === "number" ? formatNumber(value, true) : value as React.ReactNode}
             </span>
             {suffix && <span className="text-sm text-white/40 mb-1">{suffix}</span>}
           </div>

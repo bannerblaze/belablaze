@@ -2,23 +2,30 @@
 
 import { motion } from "framer-motion";
 import {
-  Eye, TrendingUp, DollarSign, Zap, MonitorPlay,
+  Eye, DollarSign, Zap,
   ClipboardCheck, QrCode, Activity, ArrowUpRight,
-  CheckCircle2, XCircle, AlertCircle, Circle,
+  CheckCircle2, XCircle, AlertCircle, Circle, Radio,
 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
 import { StatusBadge, Badge } from "@/components/ui/badge";
+import { AnimatedNumber } from "@/components/ui/animated-number";
 import { RealtimeChart } from "@/components/dashboard/realtime-chart";
 import { CampaignStatusChart } from "@/components/dashboard/campaign-status-chart";
+import { useRealtimeMetrics } from "@/hooks/use-realtime";
 import {
   formatCurrency, formatNumber, formatRelativeTime,
   formatDate, getStatusConfig, truncate,
 } from "@/lib/utils";
 import Link from "next/link";
 import type { DashboardMetrics, ChartDataPoint } from "@/types";
+import { useAppStore } from "@/store";
 
-const stagger = (i: number) => ({ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.4, delay: i * 0.08 } });
+const stagger = (i: number) => ({
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.4, delay: i * 0.08 },
+});
 
 function ActivityIcon({ action }: { action: string }) {
   const icons: Record<string, React.ReactNode> = {
@@ -29,6 +36,15 @@ function ActivityIcon({ action }: { action: string }) {
     PAUSE: <Circle className="w-3.5 h-3.5 text-orange-400" />,
   };
   return <>{icons[action] ?? <Circle className="w-3.5 h-3.5 text-white/30" />}</>;
+}
+
+function LiveBadge() {
+  return (
+    <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[#B8EB23]/10 border border-[#B8EB23]/20">
+      <Radio className="w-2.5 h-2.5 text-[#B8EB23] animate-pulse" />
+      <span className="text-[9px] font-bold tracking-widest uppercase text-[#B8EB23]">Live</span>
+    </div>
+  );
 }
 
 type ActivityItem = {
@@ -66,7 +82,17 @@ interface DashboardClientProps {
   userName: string;
 }
 
-export function DashboardClient({ metrics: m, chartData, recentActivity, campaigns, screens, userName }: DashboardClientProps) {
+export function DashboardClient({
+  metrics: initialMetrics,
+  chartData,
+  recentActivity,
+  campaigns,
+  screens,
+  userName,
+}: DashboardClientProps) {
+  const m = useRealtimeMetrics(initialMetrics);
+  const isRealtime = useAppStore((s) => s.isRealtime);
+
   const pendingApprovalsCount = m.pendingApprovals;
   const onlineCount = m.screensOnline;
   const activeCampaigns = campaigns.filter((c) => c.status === "ACTIVE");
@@ -94,9 +120,10 @@ export function DashboardClient({ metrics: m, chartData, recentActivity, campaig
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {isRealtime && <LiveBadge />}
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#B8EB23]/10 border border-[#B8EB23]/20 text-[#B8EB23] text-xs font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-[#B8EB23] animate-pulse" />
-            {onlineCount} pantallas en vivo
+            <AnimatedNumber value={onlineCount} format="number" /> pantallas en vivo
           </div>
           {pendingApprovalsCount > 0 && (
             <Link href="/approvals">
@@ -109,12 +136,41 @@ export function DashboardClient({ metrics: m, chartData, recentActivity, campaig
         </div>
       </motion.div>
 
-      {/* Metric Cards */}
+      {/* Metric Cards — animated numbers, realtime data */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5">
-        <MetricCard title="Impresiones" value={m.totalImpressions} delta={m.impressionsDelta} icon={<Eye className="w-5 h-5" />} iconBg="bg-[#B8EB23]/10" highlight index={0} />
-        <MetricCard title="Campañas activas" value={m.activeCampaigns} delta={m.campaignsDelta} icon={<Activity className="w-5 h-5" />} iconBg="bg-blue-500/10" index={1} />
-        <MetricCard title="Ingresos del mes" value={formatCurrency(m.totalRevenue)} delta={m.revenueDelta} icon={<DollarSign className="w-5 h-5" />} iconBg="bg-green-500/10" index={2} />
-        <MetricCard title="Escaneos QR" value={m.qrScans} delta={m.qrScansDelta} icon={<QrCode className="w-5 h-5" />} iconBg="bg-purple-500/10" index={3} />
+        <MetricCard
+          title="Impresiones"
+          value={<AnimatedNumber value={m.totalImpressions} />}
+          delta={m.impressionsDelta}
+          icon={<Eye className="w-5 h-5" />}
+          iconBg="bg-[#B8EB23]/10"
+          highlight
+          index={0}
+        />
+        <MetricCard
+          title="Campañas activas"
+          value={<AnimatedNumber value={m.activeCampaigns} format="number" />}
+          delta={m.campaignsDelta}
+          icon={<Activity className="w-5 h-5" />}
+          iconBg="bg-blue-500/10"
+          index={1}
+        />
+        <MetricCard
+          title="Ingresos del mes"
+          value={formatCurrency(m.totalRevenue)}
+          delta={m.revenueDelta}
+          icon={<DollarSign className="w-5 h-5" />}
+          iconBg="bg-green-500/10"
+          index={2}
+        />
+        <MetricCard
+          title="Escaneos QR"
+          value={<AnimatedNumber value={m.qrScans} />}
+          delta={m.qrScansDelta}
+          icon={<QrCode className="w-5 h-5" />}
+          iconBg="bg-purple-500/10"
+          index={3}
+        />
       </div>
 
       {/* Chart + Campaign status */}
@@ -125,10 +181,13 @@ export function DashboardClient({ metrics: m, chartData, recentActivity, campaig
               title="Rendimiento en tiempo real"
               subtitle="Últimos 30 días"
               action={
-                <div className="hidden sm:flex items-center gap-3 text-xs text-white/40">
-                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#B8EB23]" />Impresiones</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-400" />Clicks</span>
-                  <span className="hidden md:flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-400" />Engagements</span>
+                <div className="flex items-center gap-3">
+                  {isRealtime && <LiveBadge />}
+                  <div className="hidden sm:flex items-center gap-3 text-xs text-white/40">
+                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#B8EB23]" />Impresiones</span>
+                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-400" />Clicks</span>
+                    <span className="hidden md:flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-400" />Engagements</span>
+                  </div>
                 </div>
               }
             />
@@ -176,7 +235,7 @@ export function DashboardClient({ metrics: m, chartData, recentActivity, campaig
         </motion.div>
       </div>
 
-      {/* Bottom: Campaigns table + Screens + Activity */}
+      {/* Bottom: Campaigns + Screens + Activity */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
         {/* Campaigns table */}
         <motion.div {...stagger(3)} className="xl:col-span-7">
@@ -266,12 +325,13 @@ export function DashboardClient({ metrics: m, chartData, recentActivity, campaig
               <CardContent className="pt-4 grid grid-cols-2 gap-2.5">
                 {screens.slice(0, 4).map((screen) => {
                   const cfg = getStatusConfig(screen.status);
+                  const isOnline = screen.status === "ONLINE";
                   return (
                     <div
                       key={screen.id}
                       className="flex items-center gap-2.5 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/10 transition-all"
                     >
-                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot} ${screen.status === "ONLINE" ? "animate-pulse-brand" : ""}`} />
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot} ${isOnline ? "animate-pulse" : ""}`} />
                       <div className="min-w-0">
                         <p className="text-[12px] font-medium text-white truncate leading-none">{screen.name.split("—")[0].trim()}</p>
                         <p className="text-[10px] text-white/35 mt-0.5">{screen.city} · {cfg.label}</p>

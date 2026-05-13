@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -63,7 +63,13 @@ export function CampaignDetailClient({ campaign }: CampaignDetailClientProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const pct = campaign.budget > 0 ? Math.min(100, Math.round((campaign.spent / campaign.budget) * 100)) : 0;
-  const daysLeft = Math.max(0, Math.ceil((new Date(campaign.endDate).getTime() - Date.now()) / 86400000));
+  // Computed once when endDate changes. Date.now is non-deterministic per render
+  // but for "days left" the second-level accuracy is irrelevant; useMemo + endDate dep is enough.
+  const daysLeft = useMemo(
+    // eslint-disable-next-line react-hooks/purity
+    () => Math.max(0, Math.ceil((new Date(campaign.endDate).getTime() - Date.now()) / 86400000)),
+    [campaign.endDate]
+  );
   const cfg = getStatusConfig(campaign.status);
 
   const handleStatusToggle = () => {
@@ -156,7 +162,7 @@ export function CampaignDetailClient({ campaign }: CampaignDetailClientProps) {
         >
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
-            <p className="text-sm text-white">¿Eliminar campaña "<strong>{campaign.name}</strong>"? Esta acción no se puede deshacer.</p>
+            <p className="text-sm text-white">¿Eliminar campaña &ldquo;<strong>{campaign.name}</strong>&rdquo;? Esta acción no se puede deshacer.</p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <Button variant="ghost" size="sm" onClick={() => setShowDeleteConfirm(false)}>Cancelar</Button>

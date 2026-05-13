@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import { Search, Bell, Plus, ChevronRight, WifiOff, Command, Menu } from "lucide-react";
 import { UserMenu } from "@/components/auth/user-menu";
-import { cn, formatRelativeTime } from "@/lib/utils";
+import { NotificationCenter } from "@/components/ui/notification-center";
 import { useAppStore } from "@/store";
-import { mockRecentActivity } from "@/lib/mock-data";
+import { cn } from "@/lib/utils";
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/dashboard": { title: "Dashboard", subtitle: "Visión general de la plataforma" },
@@ -23,27 +22,24 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
 const actionConfigs: Record<string, { label: string; href: string }> = {
   "/campaigns": { label: "Nueva campaña", href: "/campaigns/new" },
   "/ads": { label: "Nuevo anuncio", href: "/ads/new" },
-  "/screens": { label: "Nueva pantalla", href: "/screens/new" },
   "/clients": { label: "Nuevo cliente", href: "/clients/new" },
 };
 
 export function Topbar() {
   const pathname = usePathname();
-  const { isRealtime, setRealtime, unreadCount, markAllRead, toggleMobileSidebar } = useAppStore();
+  const { isRealtime, setRealtime, unreadCount, setCommandOpen, toggleMobileSidebar } = useAppStore();
   const [notifOpen, setNotifOpen] = useState(false);
+  const notifBtnRef = useRef<HTMLButtonElement>(null);
 
-  const currentPage = Object.entries(pageTitles).find(([key]) =>
-    pathname.startsWith(key)
-  );
+  const currentPage = Object.entries(pageTitles).find(([key]) => pathname.startsWith(key));
   const pageInfo = currentPage?.[1] ?? { title: "BelaBlaze", subtitle: "" };
   const actionConfig = Object.entries(actionConfigs).find(([key]) => pathname.startsWith(key));
   const action = actionConfig?.[1];
 
   return (
     <header className="h-14 lg:h-16 flex items-center justify-between px-4 lg:px-6 border-b border-white/[0.06] bg-[#0A0A0A]/90 backdrop-blur-xl flex-shrink-0 z-20 gap-3">
-      {/* Left: Hamburger (mobile) + Title */}
+      {/* Left: hamburger (mobile) + breadcrumb */}
       <div className="flex items-center gap-3 min-w-0">
-        {/* Mobile hamburger */}
         <button
           onClick={toggleMobileSidebar}
           className="lg:hidden flex items-center justify-center w-9 h-9 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.06] transition-all flex-shrink-0"
@@ -52,7 +48,6 @@ export function Topbar() {
           <Menu className="w-5 h-5" strokeWidth={1.8} />
         </button>
 
-        {/* Breadcrumb + title */}
         <div className="min-w-0">
           <div className="hidden sm:flex items-center gap-1.5 text-xs text-white/30 mb-0.5">
             <span>BelaBlaze</span>
@@ -65,9 +60,9 @@ export function Topbar() {
         </div>
       </div>
 
-      {/* Right: Controls */}
+      {/* Right: controls */}
       <div className="flex items-center gap-1.5 lg:gap-2 flex-shrink-0">
-        {/* Realtime toggle — desktop only */}
+        {/* Realtime indicator */}
         <button
           onClick={() => setRealtime(!isRealtime)}
           className={cn(
@@ -79,7 +74,7 @@ export function Topbar() {
         >
           {isRealtime ? (
             <>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#B8EB23] animate-pulse-brand" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#B8EB23] animate-pulse" />
               En vivo
             </>
           ) : (
@@ -90,9 +85,12 @@ export function Topbar() {
           )}
         </button>
 
-        {/* Search — desktop only */}
-        <button className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white hover:border-white/10 transition-all text-xs min-w-[180px]">
-          <Search className="w-3.5 h-3.5 flex-shrink-0" />
+        {/* Search — triggers CMD+K palette */}
+        <button
+          onClick={() => setCommandOpen(true)}
+          className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white hover:border-white/10 transition-all text-xs min-w-[180px] group"
+        >
+          <Search className="w-3.5 h-3.5 flex-shrink-0 group-hover:text-[#B8EB23] transition-colors" />
           <span>Buscar...</span>
           <div className="ml-auto flex items-center gap-0.5 text-white/20">
             <Command className="w-3 h-3" />
@@ -103,69 +101,23 @@ export function Topbar() {
         {/* Notifications */}
         <div className="relative">
           <button
-            onClick={() => setNotifOpen(!notifOpen)}
+            ref={notifBtnRef}
+            onClick={() => setNotifOpen((o) => !o)}
             className="relative p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/50 hover:text-white hover:border-white/10 transition-all"
             aria-label="Notificaciones"
           >
             <Bell className="w-4 h-4" strokeWidth={1.8} />
             {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 text-[9px] font-bold rounded-full bg-[#B8EB23] text-black">
-                {unreadCount}
+                {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
           </button>
-
-          <AnimatePresence>
-            {notifOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
-                <motion.div
-                  initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-[#141414] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden"
-                >
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
-                    <span className="text-sm font-semibold text-white">Notificaciones</span>
-                    <button onClick={markAllRead} className="text-xs text-[#B8EB23] hover:text-[#D4F564] transition-colors">
-                      Marcar todo leído
-                    </button>
-                  </div>
-                  <div className="max-h-72 overflow-y-auto">
-                    {mockRecentActivity.slice(0, 5).map((activity) => (
-                      <div key={activity.id} className="px-4 py-3 border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors">
-                        <div className="flex items-start gap-3">
-                          <div className={cn(
-                            "w-2 h-2 rounded-full mt-1.5 flex-shrink-0",
-                            activity.action === "APPROVE" ? "bg-green-400" :
-                            activity.action === "REJECT" ? "bg-red-400" :
-                            activity.action === "CREATE" ? "bg-[#B8EB23]" :
-                            "bg-orange-400"
-                          )} />
-                          <div className="min-w-0">
-                            <p className="text-[13px] text-white font-medium leading-snug">
-                              {activity.action === "APPROVE" ? "Anuncio aprobado" :
-                               activity.action === "REJECT" ? "Anuncio rechazado" :
-                               activity.action === "CREATE" ? "Nuevo elemento creado" :
-                               "Elemento actualizado"}
-                            </p>
-                            <p className="text-xs text-white/40 mt-0.5 truncate">{activity.entityName}</p>
-                            <p className="text-[11px] text-white/25 mt-1">{formatRelativeTime(activity.time)}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="px-4 py-2.5 text-center">
-                    <button className="text-xs text-white/40 hover:text-white transition-colors">
-                      Ver todas las notificaciones
-                    </button>
-                  </div>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
+          <NotificationCenter
+            open={notifOpen}
+            onClose={() => setNotifOpen(false)}
+            anchorRef={notifBtnRef as React.RefObject<HTMLElement>}
+          />
         </div>
 
         {/* User menu */}

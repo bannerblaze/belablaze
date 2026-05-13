@@ -1,4 +1,10 @@
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { OnboardingGate } from "@/components/auth/onboarding-gate";
+
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return <DashboardLayout>{children}</DashboardLayout>;
+  return (
+    <OnboardingGate>
+      <DashboardShell>{children}</DashboardShell>
+    </OnboardingGate>
+  );
 }

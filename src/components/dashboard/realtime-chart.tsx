@@ -17,12 +17,15 @@ interface RealtimeChartProps {
   className?: string;
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+type TooltipPayload = { dataKey: string; color: string; name: string; value: number };
+type TooltipProps = { active?: boolean; payload?: TooltipPayload[]; label?: string };
+
+const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-3 shadow-2xl min-w-[160px]">
       <p className="text-xs text-white/50 mb-2 font-medium">{label}</p>
-      {payload.map((entry: any) => (
+      {payload.map((entry) => (
         <div key={entry.dataKey} className="flex items-center justify-between gap-4 mb-1">
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: entry.color }} />

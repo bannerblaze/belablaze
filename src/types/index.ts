@@ -1,10 +1,86 @@
-export type UserRole = "ADMIN" | "EXECUTIVE" | "CLIENT";
+export type UserRole = "ADMIN" | "EXECUTIVE" | "COMPANY" | "CREATOR" | "CLIENT";
+export type AccountType = "ORGANIZATION" | "PERSON" | "INTERNAL";
 export type UserStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED";
 export type CampaignStatus = "DRAFT" | "PENDING_APPROVAL" | "ACTIVE" | "PAUSED" | "COMPLETED" | "CANCELLED";
 export type AdStatus = "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "ACTIVE" | "PAUSED" | "EXPIRED";
 export type ScreenStatus = "ONLINE" | "OFFLINE" | "MAINTENANCE" | "RESERVED";
 export type ScreenType = "LED_INDOOR" | "LED_OUTDOOR" | "LCD" | "PROJECTION" | "INTERACTIVE";
 export type AdFormat = "IMAGE" | "VIDEO" | "HTML5" | "INTERACTIVE";
+
+/* FASE 6 — multi-tenant types */
+export type OrgRole = "OWNER" | "ADMIN" | "EXECUTIVE" | "MANAGER" | "EDITOR" | "ANALYST" | "VIEWER";
+export type InvitationStatus = "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED";
+export type WorkspaceType = "PRODUCTION" | "STAGING" | "TEST";
+export type MediaType = "IMAGE" | "VIDEO" | "DOCUMENT" | "AUDIO";
+export type PlanTier = "STARTER" | "GROWTH" | "ENTERPRISE";
+export type SubscriptionStatus = "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "INCOMPLETE";
+export type ScheduleStatus = "SCHEDULED" | "ACTIVE" | "PAUSED" | "COMPLETED" | "CONFLICT";
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl?: string | null;
+  website?: string | null;
+  industry?: string | null;
+  size?: string | null;
+  ownerId: string;
+  plan: PlanTier;
+  brandColor?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrganizationMember {
+  id: string;
+  organizationId: string;
+  userId: string;
+  role: OrgRole;
+  permissions: string[];
+  invitedBy?: string | null;
+  joinedAt: string;
+  lastActiveAt?: string | null;
+  user?: { id: string; email: string; name: string; avatar?: string | null };
+}
+
+export interface Invitation {
+  id: string;
+  email: string;
+  token: string;
+  organizationId: string;
+  role: OrgRole;
+  status: InvitationStatus;
+  invitedBy: string;
+  expiresAt: string;
+  acceptedAt?: string | null;
+  createdAt: string;
+}
+
+export interface MediaAssetDTO {
+  id: string;
+  organizationId: string;
+  uploadedById: string;
+  type: MediaType;
+  name: string;
+  mimeType: string;
+  size: number;
+  width?: number | null;
+  height?: number | null;
+  duration?: number | null;
+  url: string;
+  thumbnailUrl?: string | null;
+  tags: string[];
+  createdAt: string;
+}
+
+export interface PlanLimits {
+  campaigns: number;
+  screens: number;
+  members: number;
+  storageMB: number;
+  mediaAssets: number;
+}
 
 export interface User {
   id: string;
@@ -90,6 +166,7 @@ export interface Campaign {
 
 export interface Ad {
   id: string;
+  organizationId?: string | null;
   title: string;
   description?: string;
   status: AdStatus;

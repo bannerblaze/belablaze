@@ -115,6 +115,7 @@ export function CampaignsClient({ campaigns }: CampaignsClientProps) {
             {filtered.map((campaign, i) => {
               const pct = campaign.budget > 0 ? Math.min(100, Math.round((campaign.spent / campaign.budget) * 100)) : 0;
               const daysLeft = Math.max(0, Math.ceil(
+                // eslint-disable-next-line react-hooks/purity
                 (new Date(campaign.endDate).getTime() - Date.now()) / 86400000
               ));
 

@@ -9,25 +9,38 @@ import {
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 
-type UserRole = "admin" | "ejecutivo" | "cliente";
+import { useRole } from "@/hooks/use-role";
+import type { UserRole } from "@/types";
 
 const ROLE_CONFIG: Record<UserRole, { label: string; color: string; bg: string; icon: React.ElementType }> = {
-  admin: {
+  ADMIN: {
     label: "Administrador",
     color: "text-[#B8EB23]",
     bg: "bg-[#B8EB23]/10 border-[#B8EB23]/20",
     icon: Shield,
   },
-  ejecutivo: {
+  EXECUTIVE: {
     label: "Ejecutivo",
     color: "text-blue-400",
     bg: "bg-blue-400/10 border-blue-400/20",
     icon: Building2,
   },
-  cliente: {
-    label: "Cliente",
+  COMPANY: {
+    label: "Empresa",
+    color: "text-[#B8EB23]",
+    bg: "bg-[#B8EB23]/8 border-[#B8EB23]/15",
+    icon: Building2,
+  },
+  CREATOR: {
+    label: "Creator",
     color: "text-purple-400",
     bg: "bg-purple-400/10 border-purple-400/20",
+    icon: User,
+  },
+  CLIENT: {
+    label: "Cliente",
+    color: "text-white/60",
+    bg: "bg-white/[0.06] border-white/[0.08]",
     icon: User,
   },
 };
@@ -64,8 +77,8 @@ export function UserMenu() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const role = ((user?.publicMetadata as { role?: UserRole })?.role) ?? "ejecutivo";
-  const roleConfig = ROLE_CONFIG[role] ?? ROLE_CONFIG.ejecutivo;
+  const role = useRole() ?? "EXECUTIVE";
+  const roleConfig = ROLE_CONFIG[role] ?? ROLE_CONFIG.EXECUTIVE;
   const RoleIcon = roleConfig.icon;
 
   const displayName = user?.fullName ?? user?.firstName ?? "Usuario";

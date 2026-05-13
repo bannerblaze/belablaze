@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { ApprovalsClient } from "./_client";
-import { mockAds, mockCampaigns } from "@/lib/mock-data";
+import { NoPermissionEmpty } from "@/components/ui/empty-state";
+import { checkPermissions } from "@/lib/auth";
 
 function ApprovalsSkeleton() {
   return (
@@ -20,28 +21,30 @@ function ApprovalsSkeleton() {
 
 async function ApprovalsData() {
   await connection();
-  const hasDb = !!process.env.DATABASE_URL;
 
-  if (!hasDb) {
-    const pending = mockAds.filter((a) => a.status === "PENDING_REVIEW").map((a) => ({
-      ...a,
-      campaign: mockCampaigns.find((c) => c.id === a.campaignId),
-    }));
-    const approved = mockAds.filter((a) => a.status === "APPROVED" || a.status === "ACTIVE").map((a) => ({
-      ...a,
-      campaign: mockCampaigns.find((c) => c.id === a.campaignId),
-    }));
-    const rejected = mockAds.filter((a) => a.status === "REJECTED").map((a) => ({
-      ...a,
-      campaign: mockCampaigns.find((c) => c.id === a.campaignId),
-    }));
+  // Permission gate — provisions DB user lazily on first call and resolves role
+  // from Clerk metadata + DB. In dev, falls back to ADMIN so local devs don't
+  // get locked out. Non-approvers get an elegant restricted screen.
+  const { user, canApprove } = await checkPermissions();
 
+  if (!user) {
+    // Server component: at this point Clerk middleware should have redirected,
+    // but in case it didn't, render the same restricted view.
     return (
-      <ApprovalsClient
-        initialPending={pending as Parameters<typeof ApprovalsClient>[0]["initialPending"]}
-        initialApproved={approved as Parameters<typeof ApprovalsClient>[0]["initialApproved"]}
-        initialRejected={rejected as Parameters<typeof ApprovalsClient>[0]["initialRejected"]}
-      />
+      <div className="p-6 max-w-[900px]">
+        <NoPermissionEmpty
+          title="Inicia sesión para continuar"
+          description="Necesitas estar autenticado para acceder al panel de aprobaciones."
+        />
+      </div>
+    );
+  }
+
+  if (!canApprove) {
+    return (
+      <div className="p-6 max-w-[900px]">
+        <NoPermissionEmpty currentRole={user.role} />
+      </div>
     );
   }
 

@@ -21,9 +21,12 @@ import { formatNumber, formatCurrency, cn } from "@/lib/utils";
 const DATE_RANGES = ["7d", "14d", "30d", "90d"];
 const CITY_COLORS = ["#B8EB23", "#3B82F6", "#A78BFA", "#F59E0B", "#EC4899"];
 
+// Deterministic jitter via sine — avoids Math.random() hydration mismatch
+// (module-level Math.random() produces different values on server vs client).
 const HOUR_DATA = Array.from({ length: 24 }, (_, h) => {
   const base = h >= 7 && h <= 22 ? (h >= 11 && h <= 14 ? 120000 : h >= 17 && h <= 20 ? 150000 : 60000) : 8000;
-  return { hour: `${h.toString().padStart(2, "0")}:00`, impressions: base + Math.floor(Math.random() * 20000) };
+  const jitter = Math.floor(Math.abs(Math.sin(h * 1.7 + 0.5)) * 18000);
+  return { hour: `${h.toString().padStart(2, "0")}:00`, impressions: base + jitter };
 });
 
 const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ dataKey: string; color: string; name: string; value: number }>; label?: string }) => {

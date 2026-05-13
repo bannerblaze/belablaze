@@ -1,0 +1,50 @@
+{
+  "name": "BelaBlaze — BannerBlaze DOOH",
+  "short_name": "BelaBlaze",
+  "description": "Plataforma DOOH enterprise para gestión de campañas publicitarias en tiempo real.",
+  "id": "/dashboard",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0A0A0A",
+  "theme_color": "#0A0A0A",
+  "lang": "es-CO",
+  "dir": "ltr",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "180x180",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "url": "/dashboard",
+      "description": "Visión general de la plataforma"
+    },
+    {
+      "name": "Aprobaciones",
+      "short_name": "Aprobar",
+      "url": "/approvals",
+      "description": "Workflow de revisión de anuncios"
+    },
+    {
+      "name": "Nueva campaña",
+      "short_name": "Crear",
+      "url": "/campaigns/new",
+      "description": "Crear una nueva campaña publicitaria"
+    }
+  ],
+  "prefer_related_applications": false
+}

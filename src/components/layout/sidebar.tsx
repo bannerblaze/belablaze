@@ -6,13 +6,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Megaphone, MonitorPlay, BarChart3,
   ClipboardCheck, Settings, ChevronLeft, Zap, Bell, Layers,
-  Building2, LogOut, X,
+  Building2, LogOut, X, Image as ImageIcon, CalendarRange,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import { useUser, useClerk } from "@clerk/nextjs";
-
-type UserRole = "admin" | "ejecutivo" | "cliente";
+import { useRole } from "@/hooks/use-role";
+import type { UserRole } from "@/types";
+import { OrgSwitcher, type OrgListItem } from "./org-switcher";
 
 interface NavItem {
   href: string;
@@ -26,11 +27,13 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", exact: true },
   { href: "/campaigns", icon: Layers, label: "Campañas" },
+  { href: "/campaigns/calendar", icon: CalendarRange, label: "Calendario" },
   { href: "/ads", icon: Megaphone, label: "Anuncios" },
-  { href: "/screens", icon: MonitorPlay, label: "Pantallas", roles: ["admin", "ejecutivo"] },
+  { href: "/media", icon: ImageIcon, label: "Media" },
+  { href: "/screens", icon: MonitorPlay, label: "Pantallas", roles: ["ADMIN", "EXECUTIVE", "COMPANY"] },
   { href: "/analytics", icon: BarChart3, label: "Analytics" },
-  { href: "/approvals", icon: ClipboardCheck, label: "Aprobaciones", badge: 2, roles: ["admin", "ejecutivo"] },
-  { href: "/clients", icon: Building2, label: "Clientes", roles: ["admin"] },
+  { href: "/approvals", icon: ClipboardCheck, label: "Aprobaciones", roles: ["ADMIN", "EXECUTIVE"] },
+  { href: "/clients", icon: Building2, label: "Clientes", roles: ["ADMIN"] },
   { href: "/settings", icon: Settings, label: "Configuración" },
 ];
 
@@ -55,7 +58,7 @@ function Avatar({ imageUrl, name, size = "sm" }: { imageUrl?: string; name: stri
   );
 }
 
-function SidebarContent({ onClose }: { onClose?: () => void }) {
+function SidebarContent({ onClose, organizations }: { onClose?: () => void; organizations: OrgListItem[] }) {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar } = useAppStore();
   const { user } = useUser();
@@ -63,12 +66,14 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
   const isMobile = !!onClose;
 
   const displayName = user?.fullName ?? user?.firstName ?? "Usuario";
-  const role = ((user?.publicMetadata as { role?: UserRole })?.role) ?? "ejecutivo";
+  const role = useRole() ?? "EXECUTIVE";
 
   const roleLabel: Record<UserRole, string> = {
-    admin: "Administrador",
-    ejecutivo: "Ejecutivo",
-    cliente: "Cliente",
+    ADMIN: "Administrador",
+    EXECUTIVE: "Ejecutivo",
+    COMPANY: "Empresa",
+    CREATOR: "Creator",
+    CLIENT: "Cliente",
   };
 
   const isActive = (href: string, exact?: boolean) => {
@@ -119,6 +124,13 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
           </button>
         )}
       </div>
+
+      {/* Org switcher */}
+      {!collapsed && organizations.length > 0 && (
+        <div className="px-3 pt-3 pb-1">
+          <OrgSwitcher organizations={organizations} compact />
+        </div>
+      )}
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-0.5">
@@ -247,7 +259,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ organizations = [] }: { organizations?: OrgListItem[] }) {
   const { sidebarCollapsed, mobileSidebarOpen, setMobileSidebarOpen } = useAppStore();
 
   return (
@@ -259,7 +271,7 @@ export function Sidebar() {
         transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
         className="hidden lg:flex flex-col h-screen bg-[#0f0f0f] border-r border-white/[0.06] flex-shrink-0 overflow-hidden z-30"
       >
-        <SidebarContent />
+        <SidebarContent organizations={organizations} />
       </motion.aside>
 
       {/* Mobile sidebar overlay */}
@@ -283,7 +295,7 @@ export function Sidebar() {
               transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
               className="fixed left-0 top-0 bottom-0 w-[280px] bg-[#0f0f0f] border-r border-white/[0.06] z-50 lg:hidden overflow-hidden"
             >
-              <SidebarContent onClose={() => setMobileSidebarOpen(false)} />
+              <SidebarContent organizations={organizations} onClose={() => setMobileSidebarOpen(false)} />
             </motion.aside>
           </>
         )}

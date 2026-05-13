@@ -1,24 +1,8 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-
-async function requireAdminOrExecutive() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autenticado");
-
-  const user = await db.user.findUnique({
-    where: { clerkId: userId },
-    select: { id: true, role: true },
-  });
-
-  if (!user || (user.role !== "ADMIN" && user.role !== "EXECUTIVE")) {
-    throw new Error("Sin permisos para aprobar o rechazar anuncios");
-  }
-
-  return user;
-}
+import { requireAdminOrExecutive } from "@/lib/auth";
 
 export async function approveAd(adId: string) {
   const user = await requireAdminOrExecutive();

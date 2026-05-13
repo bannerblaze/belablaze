@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
@@ -15,19 +15,68 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
+const siteName = "BelaBlaze";
+const description = "Plataforma DOOH enterprise para gestión de campañas publicitarias en tiempo real — by BannerBlaze.";
+
 export const metadata: Metadata = {
   title: {
-    default: "BelaBlaze — BannerBlaze DOOH Platform",
-    template: "%s | BelaBlaze",
+    default: `${siteName} — BannerBlaze DOOH Platform`,
+    template: `%s · ${siteName}`,
   },
-  description: "Plataforma administrativa para gestión de campañas publicitarias DOOH en tiempo real.",
-  keywords: ["DOOH", "publicidad digital", "pantallas LED", "BannerBlaze", "BelaBlaze"],
+  description,
+  applicationName: siteName,
+  keywords: [
+    "DOOH", "publicidad digital", "pantallas LED", "BannerBlaze", "BelaBlaze",
+    "marketing programático", "out of home", "ads platform", "DOOH SaaS",
+  ],
   authors: [{ name: "BannerBlaze" }],
+  creator: "BannerBlaze",
+  publisher: "BannerBlaze",
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/apple-icon.svg", type: "image/svg+xml" },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    title: siteName,
+    statusBarStyle: "black-translucent",
+  },
+  openGraph: {
+    type: "website",
+    locale: "es_CO",
+    siteName,
+    title: `${siteName} — DOOH Platform`,
+    description,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${siteName} — DOOH Platform`,
+    description,
+    creator: "@bannerblaze",
+  },
+  robots: {
+    index: false, // private SaaS
+    follow: false,
+  },
+  formatDetection: {
+    telephone: false,
+    email: false,
+    address: false,
+  },
 };
 
-export const viewport = {
-  themeColor: "#B8EB23",
+export const viewport: Viewport = {
+  themeColor: "#0A0A0A",
   colorScheme: "dark",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

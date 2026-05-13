@@ -382,7 +382,7 @@ export function ApprovalsClient({ initialPending, initialApproved, initialReject
                   <p className="text-sm font-medium text-white">{ad.title}</p>
                   <p className="text-xs text-white/40 mt-0.5">{ad.campaign?.name}</p>
                   {ad.rejectionNote && (
-                    <p className="text-xs text-red-400/70 mt-1 italic">"{truncate(ad.rejectionNote, 80)}"</p>
+                    <p className="text-xs text-red-400/70 mt-1 italic">&ldquo;{truncate(ad.rejectionNote, 80)}&rdquo;</p>
                   )}
                 </div>
                 <div className="flex items-center gap-3 flex-shrink-0">

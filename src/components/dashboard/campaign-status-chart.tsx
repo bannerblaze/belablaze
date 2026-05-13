@@ -10,14 +10,18 @@ const CAMPAIGN_DATA = [
   { name: "Pausadas", value: 1, color: "#EF4444" },
 ];
 
-const CustomTooltip = ({ active, payload }: any) => {
+type StatusTooltipPayload = { name: string; value: number; payload: { color: string } };
+type StatusTooltipProps = { active?: boolean; payload?: StatusTooltipPayload[] };
+
+const CustomTooltip = ({ active, payload }: StatusTooltipProps) => {
   if (!active || !payload?.length) return null;
+  const entry = payload[0];
   return (
     <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-3 shadow-2xl">
       <div className="flex items-center gap-2">
-        <span className="w-2.5 h-2.5 rounded-full" style={{ background: payload[0].payload.color }} />
-        <span className="text-xs text-white font-semibold">{payload[0].name}</span>
-        <span className="text-xs text-white/50">{payload[0].value}</span>
+        <span className="w-2.5 h-2.5 rounded-full" style={{ background: entry.payload.color }} />
+        <span className="text-xs text-white font-semibold">{entry.name}</span>
+        <span className="text-xs text-white/50">{entry.value}</span>
       </div>
     </div>
   );

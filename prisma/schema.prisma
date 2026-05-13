@@ -6,10 +6,20 @@ datasource db {
   provider = "postgresql"
 }
 
+/* ───────────────────────── Enums ───────────────────────── */
+
 enum UserRole {
   ADMIN
   EXECUTIVE
+  COMPANY
+  CREATOR
   CLIENT
+}
+
+enum AccountType {
+  ORGANIZATION
+  PERSON
+  INTERNAL
 }
 
 enum UserStatus {
@@ -71,117 +81,355 @@ enum LogAction {
   LOGOUT
 }
 
-model User {
-  id          String     @id @default(cuid())
-  email       String     @unique
-  name        String
-  avatar      String?
-  role        UserRole   @default(CLIENT)
-  status      UserStatus @default(ACTIVE)
-  clerkId     String?    @unique
-  phone       String?
-  position    String?
-  companyId   String?
-  lastLoginAt DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+enum OrgRole {
+  OWNER
+  ADMIN
+  EXECUTIVE
+  MANAGER
+  EDITOR
+  ANALYST
+  VIEWER
+}
 
-  company     Client?     @relation(fields: [companyId], references: [id])
-  campaigns   Campaign[]
-  approvals   AdApproval[]
-  logs        Log[]
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum WorkspaceType {
+  PRODUCTION
+  STAGING
+  TEST
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+  AUDIO
+}
+
+enum PlanTier {
+  STARTER
+  GROWTH
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
+enum ScheduleStatus {
+  SCHEDULED
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CONFLICT
+}
+
+/* ─────────────────────── Multi-tenant core ─────────────────────── */
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  logoUrl     String?
+  website     String?
+  industry    String?
+  size        String?
+  ownerId     String
+  plan        PlanTier @default(STARTER)
+  brandColor  String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner            User                 @relation("OrgOwner", fields: [ownerId], references: [id])
+  members          OrganizationMember[]
+  invitations      Invitation[]
+  workspaces       Workspace[]
+  campaigns        Campaign[]
+  ads              Ad[]
+  screens          Screen[]
+  clients          Client[]
+  mediaAssets      MediaAsset[]
+  schedules        CampaignSchedule[]
+  auditLogs        AuditLog[]
+  subscription     Subscription?
+  usageRecords     UsageRecord[]
+  apiKeys          ApiKey[]
+  webhooks         Webhook[]
+
+  @@index([slug])
+  @@index([ownerId])
+  @@index([isActive])
+}
+
+model OrganizationMember {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  role           OrgRole  @default(VIEWER)
+  permissions    String[] @default([])
+  invitedBy      String?
+  joinedAt       DateTime @default(now())
+  lastActiveAt   DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId, role])
+}
+
+model Invitation {
+  id             String           @id @default(cuid())
+  email          String
+  token          String           @unique
+  organizationId String
+  role           OrgRole          @default(VIEWER)
+  status         InvitationStatus @default(PENDING)
+  invitedBy      String
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime         @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([email])
+  @@index([organizationId, status])
+}
+
+model Workspace {
+  id             String        @id @default(cuid())
+  organizationId String
+  name           String
+  type           WorkspaceType @default(PRODUCTION)
+  description    String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      WorkspaceMember[]
+
+  @@index([organizationId])
+}
+
+model WorkspaceMember {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        OrgRole  @default(VIEWER)
+  joinedAt    DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+/* ─────────────────────── User & profiles ─────────────────────── */
+
+model User {
+  id                  String       @id @default(cuid())
+  email               String       @unique
+  name                String
+  avatar              String?
+  role                UserRole     @default(CLIENT)
+  accountType         AccountType?
+  onboardingCompleted Boolean      @default(false)
+  status              UserStatus   @default(ACTIVE)
+  clerkId             String?      @unique
+  phone               String?
+  position            String?
+  companyId           String?
+  activeOrgId         String?
+  lastLoginAt         DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  company             Client?                @relation(fields: [companyId], references: [id])
+  campaigns           Campaign[]
+  approvals           AdApproval[]
+  logs                Log[]
+  organizationProfile OrganizationProfile?
+  creatorProfile      CreatorProfile?
+  ownedOrganizations  Organization[]        @relation("OrgOwner")
+  memberships         OrganizationMember[]
+  workspaceMemberships WorkspaceMember[]
+  uploadedMedia       MediaAsset[]          @relation("MediaUploader")
+  auditLogs           AuditLog[]
 
   @@index([email])
   @@index([role])
   @@index([companyId])
+  @@index([onboardingCompleted])
+  @@index([activeOrgId])
 }
 
-model Client {
+model OrganizationProfile {
   id           String   @id @default(cuid())
-  name         String
-  slug         String   @unique
-  logo         String?
+  userId       String   @unique
+  companyName  String
+  nit          String?
   industry     String?
   website      String?
-  email        String
-  phone        String?
-  address      String?
-  city         String?
+  logoUrl      String?
+  companySize  String?
   country      String   @default("Colombia")
-  taxId        String?
-  isActive     Boolean  @default(true)
-  creditLimit  Float    @default(0)
-  balance      Float    @default(0)
+  city         String?
+  contactName  String?
+  contactPhone String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([companyName])
+}
+
+model CreatorProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  displayName String
+  category    String?
+  instagram   String?
+  tiktok      String?
+  youtube     String?
+  website     String?
+  avatarUrl   String?
+  country     String   @default("Colombia")
+  city        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([displayName])
+}
+
+model SecurityLog {
+  id        String   @id @default(cuid())
+  email     String?
+  event     String
+  ip        String?
+  userAgent String?
+  success   Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([email, success, createdAt])
+  @@index([event, createdAt])
+  @@index([createdAt])
+}
+
+/* ─────────────────────── Business entities (org-scoped) ─────────────────────── */
+
+model Client {
+  id             String   @id @default(cuid())
+  organizationId String?
+  name           String
+  slug           String   @unique
+  logo           String?
+  industry       String?
+  website        String?
+  email          String
+  phone          String?
+  address        String?
+  city           String?
+  country        String   @default("Colombia")
+  taxId          String?
+  isActive       Boolean  @default(true)
+  creditLimit    Float    @default(0)
+  balance        Float    @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
   users        User[]
   campaigns    Campaign[]
 
   @@index([slug])
   @@index([isActive])
+  @@index([organizationId])
 }
 
 model Screen {
-  id              String       @id @default(cuid())
-  name            String
-  code            String       @unique
-  type            ScreenType   @default(LED_OUTDOOR)
-  status          ScreenStatus @default(ONLINE)
-  city            String
-  address         String
-  latitude        Float?
-  longitude       Float?
-  width           Int
-  height          Int
-  resolutionWidth Int          @default(1920)
-  resolutionHeight Int         @default(1080)
-  dailyTraffic    Int          @default(0)
-  pricePerSecond  Float        @default(0)
-  isActive        Boolean      @default(true)
-  orientation     String       @default("landscape")
-  thumbnail       String?
-  notes           String?
-  lastPingAt      DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id               String       @id @default(cuid())
+  organizationId   String?
+  name             String
+  code             String       @unique
+  type             ScreenType   @default(LED_OUTDOOR)
+  status           ScreenStatus @default(ONLINE)
+  city             String
+  address          String
+  latitude         Float?
+  longitude        Float?
+  width            Int
+  height           Int
+  resolutionWidth  Int          @default(1920)
+  resolutionHeight Int          @default(1080)
+  dailyTraffic     Int          @default(0)
+  pricePerSecond   Float        @default(0)
+  isActive         Boolean      @default(true)
+  orientation      String       @default("landscape")
+  thumbnail        String?
+  notes            String?
+  lastPingAt       DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
+  organization    Organization?    @relation(fields: [organizationId], references: [id])
   campaignScreens CampaignScreen[]
   adSchedules     AdSchedule[]
 
   @@index([city])
   @@index([status])
   @@index([isActive])
+  @@index([organizationId])
 }
 
 model Campaign {
-  id           String         @id @default(cuid())
-  name         String
-  description  String?
-  status       CampaignStatus @default(DRAFT)
-  clientId     String
-  userId       String
-  budget       Float
-  spent        Float          @default(0)
-  startDate    DateTime
-  endDate      DateTime
-  targetCities String[]
-  targetAudience Json?
+  id              String         @id @default(cuid())
+  organizationId  String?
+  name            String
+  description     String?
+  status          CampaignStatus @default(DRAFT)
+  clientId        String
+  userId          String
+  budget          Float
+  spent           Float          @default(0)
+  startDate       DateTime
+  endDate         DateTime
+  targetCities    String[]
+  targetAudience  Json?
   impressionsGoal Int?
-  impressions  Int            @default(0)
-  conversions  Int            @default(0)
-  engagements  Int            @default(0)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  impressions     Int            @default(0)
+  conversions     Int            @default(0)
+  engagements     Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
-  client       Client         @relation(fields: [clientId], references: [id])
-  user         User           @relation(fields: [userId], references: [id])
+  organization Organization?      @relation(fields: [organizationId], references: [id])
+  client       Client             @relation(fields: [clientId], references: [id])
+  user         User               @relation(fields: [userId], references: [id])
   ads          Ad[]
   screens      CampaignScreen[]
+  schedules    CampaignSchedule[]
 
   @@index([clientId])
   @@index([status])
   @@index([startDate, endDate])
+  @@index([organizationId])
 }
 
 model CampaignScreen {
@@ -197,37 +445,42 @@ model CampaignScreen {
 }
 
 model Ad {
-  id           String     @id @default(cuid())
-  title        String
-  description  String?
-  status       AdStatus   @default(DRAFT)
-  format       AdFormat   @default(IMAGE)
-  campaignId   String
-  fileUrl      String?
-  thumbnailUrl String?
-  duration     Int        @default(15)
-  ctaUrl       String?
-  ctaText      String?
-  qrUrl        String?
-  qrEnabled    Boolean    @default(false)
-  rejectionNote String?
-  impressions  Int        @default(0)
-  clicks       Int        @default(0)
-  qrScans      Int        @default(0)
-  engagements  Int        @default(0)
-  ctr          Float      @default(0)
-  startDate    DateTime?
-  endDate      DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id             String     @id @default(cuid())
+  organizationId String?
+  title          String
+  description    String?
+  status         AdStatus   @default(DRAFT)
+  format         AdFormat   @default(IMAGE)
+  campaignId     String
+  mediaAssetId   String?
+  fileUrl        String?
+  thumbnailUrl   String?
+  duration       Int        @default(15)
+  ctaUrl         String?
+  ctaText        String?
+  qrUrl          String?
+  qrEnabled      Boolean    @default(false)
+  rejectionNote  String?
+  impressions    Int        @default(0)
+  clicks         Int        @default(0)
+  qrScans        Int        @default(0)
+  engagements    Int        @default(0)
+  ctr            Float      @default(0)
+  startDate      DateTime?
+  endDate        DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
-  campaign     Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  campaign     Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  mediaAsset   MediaAsset?   @relation(fields: [mediaAssetId], references: [id])
   approvals    AdApproval[]
   schedules    AdSchedule[]
   metrics      Metric[]
 
   @@index([campaignId])
   @@index([status])
+  @@index([organizationId])
 }
 
 model AdApproval {
@@ -245,19 +498,19 @@ model AdApproval {
 }
 
 model AdSchedule {
-  id        String   @id @default(cuid())
-  adId      String
-  screenId  String
-  startTime String
-  endTime   String
+  id         String   @id @default(cuid())
+  adId       String
+  screenId   String
+  startTime  String
+  endTime    String
   daysOfWeek Int[]
-  frequency Int      @default(1)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  frequency  Int      @default(1)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  ad        Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
-  screen    Screen   @relation(fields: [screenId], references: [id])
+  ad     Ad     @relation(fields: [adId], references: [id], onDelete: Cascade)
+  screen Screen @relation(fields: [screenId], references: [id])
 
   @@index([adId])
   @@index([screenId])
@@ -284,20 +537,172 @@ model Metric {
 }
 
 model Log {
-  id         String    @id @default(cuid())
-  userId     String?
-  action     LogAction
-  entity     String
-  entityId   String?
-  oldData    Json?
-  newData    Json?
-  ipAddress  String?
-  userAgent  String?
-  createdAt  DateTime  @default(now())
+  id        String    @id @default(cuid())
+  userId    String?
+  action    LogAction
+  entity    String
+  entityId  String?
+  oldData   Json?
+  newData   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime  @default(now())
 
-  user       User?     @relation(fields: [userId], references: [id])
+  user      User?     @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([entity])
   @@index([createdAt])
+}
+
+/* ─────────────────────── Media & Scheduling ─────────────────────── */
+
+model MediaAsset {
+  id             String    @id @default(cuid())
+  organizationId String
+  uploadedById   String
+  type           MediaType @default(IMAGE)
+  name           String
+  mimeType       String
+  size           Int
+  width          Int?
+  height         Int?
+  duration       Float?
+  storageKey     String    @unique
+  url            String
+  thumbnailUrl   String?
+  tags           String[]  @default([])
+  isArchived     Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedBy   User         @relation("MediaUploader", fields: [uploadedById], references: [id])
+  ads          Ad[]
+
+  @@index([organizationId])
+  @@index([type])
+  @@index([uploadedById])
+  @@index([isArchived])
+}
+
+model CampaignSchedule {
+  id             String         @id @default(cuid())
+  organizationId String
+  campaignId     String
+  name           String
+  startDate      DateTime
+  endDate        DateTime
+  timezone       String         @default("America/Bogota")
+  activeDays     Int[]
+  startHour      Int            @default(0)
+  endHour        Int            @default(24)
+  priority       Int            @default(5)
+  status         ScheduleStatus @default(SCHEDULED)
+  notes          String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaign     Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([campaignId])
+  @@index([status])
+  @@index([startDate, endDate])
+}
+
+/* ─────────────────────── Audit & Activity ─────────────────────── */
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String?
+  userId         String?
+  action         String
+  entityType     String
+  entityId       String?
+  metadata       Json?
+  ip             String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action, createdAt])
+}
+
+/* ─────────────────────── Billing & Usage ─────────────────────── */
+
+model Subscription {
+  id             String              @id @default(cuid())
+  organizationId String              @unique
+  plan           PlanTier            @default(STARTER)
+  status         SubscriptionStatus  @default(TRIALING)
+  trialEndsAt    DateTime?
+  currentPeriodStart DateTime         @default(now())
+  currentPeriodEnd   DateTime
+  externalRef    String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+model UsageRecord {
+  id             String   @id @default(cuid())
+  organizationId String
+  metric         String
+  value          Int      @default(0)
+  periodStart    DateTime
+  periodEnd      DateTime
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, metric, periodStart])
+  @@index([organizationId])
+  @@index([metric, periodStart])
+}
+
+/* ─────────────────────── Developer (API keys, webhooks) ─────────────────────── */
+
+model ApiKey {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  keyPrefix      String
+  keyHash        String   @unique
+  scopes         String[] @default([])
+  lastUsedAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime @default(now())
+  createdBy      String
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([keyPrefix])
+}
+
+model Webhook {
+  id             String   @id @default(cuid())
+  organizationId String
+  url            String
+  events         String[] @default([])
+  secret         String
+  isActive       Boolean  @default(true)
+  lastTriggeredAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([isActive])
 }

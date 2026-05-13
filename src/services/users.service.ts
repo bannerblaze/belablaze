@@ -17,7 +17,10 @@ export async function upsertUser(input: UpsertUserInput) {
       name: input.name,
       avatar: input.avatar,
       role: input.role ?? "CLIENT",
+      onboardingCompleted: false,
     },
+    // NOTE: never touch role / accountType / onboardingCompleted from a webhook —
+    // those are owned by the onboarding flow + admin tooling.
     update: {
       email: input.email,
       name: input.name,

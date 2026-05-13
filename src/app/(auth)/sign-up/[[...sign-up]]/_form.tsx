@@ -139,7 +139,8 @@ export function SignUpForm() {
         return;
       }
 
-      router.push("/dashboard");
+      // First-time signups land on /onboarding to pick an account type.
+      router.replace("/onboarding");
     } catch {
       setError("Error al verificar. Intenta de nuevo.");
     } finally {
@@ -153,7 +154,7 @@ export function SignUpForm() {
     try {
       const { error: ssoErr } = await signUp.sso({
         strategy: "oauth_google",
-        redirectUrl: "/dashboard",
+        redirectUrl: "/onboarding",
         redirectCallbackUrl: "/sign-up/sso-callback",
       });
       if (ssoErr) {
@@ -272,6 +273,7 @@ export function SignUpForm() {
                     </button>
                   }
                 />
+                <div id="clerk-captcha" />
                 <button
                   type="submit"
                   disabled={!signUp || loading}

@@ -53,7 +53,7 @@ async function AdsData() {
 
   return (
     <AdsClient
-      initialAds={ads as Parameters<typeof AdsClient>[0]["initialAds"]}
+      initialAds={ads as unknown as Parameters<typeof AdsClient>[0]["initialAds"]}
       campaigns={campaignRefs}
     />
   );

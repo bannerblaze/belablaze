@@ -112,7 +112,9 @@ export function SignInForm() {
         return;
       }
 
-      router.push("/dashboard");
+      // Land on /onboarding — the onboarding page itself decides whether
+      // to bounce to /dashboard if the user is already provisioned.
+      router.replace("/onboarding");
     } catch {
       setError("Error de conexión. Intenta de nuevo.");
     } finally {
@@ -126,7 +128,7 @@ export function SignInForm() {
     try {
       const { error: ssoErr } = await signIn.sso({
         strategy: "oauth_google",
-        redirectUrl: "/dashboard",
+        redirectUrl: "/onboarding",
         redirectCallbackUrl: "/sign-in/sso-callback",
       });
       if (ssoErr) {
@@ -245,6 +247,7 @@ export function SignInForm() {
             </Link>
           </div>
 
+          <div id="clerk-captcha" />
           <button
             type="submit"
             disabled={!signIn || loading}

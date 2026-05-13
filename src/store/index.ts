@@ -20,6 +20,8 @@ interface AppState {
   addNotification: (notification: Omit<Notification, "id" | "read" | "createdAt">) => void;
   markNotificationRead: (id: string) => void;
   markAllRead: () => void;
+  dismissNotification: (id: string) => void;
+  dismissAllNotifications: () => void;
   setMetrics: (metrics: DashboardMetrics) => void;
   setRealtime: (enabled: boolean) => void;
   setCommandOpen: (open: boolean) => void;
@@ -71,6 +73,16 @@ export const useAppStore = create<AppState>()(
             notifications: state.notifications.map((n) => ({ ...n, read: true })),
             unreadCount: 0,
           })),
+        dismissNotification: (id) =>
+          set((state) => {
+            const target = state.notifications.find((n) => n.id === id);
+            const wasUnread = target && !target.read;
+            return {
+              notifications: state.notifications.filter((n) => n.id !== id),
+              unreadCount: wasUnread ? Math.max(0, state.unreadCount - 1) : state.unreadCount,
+            };
+          }),
+        dismissAllNotifications: () => set({ notifications: [], unreadCount: 0 }),
         setMetrics: (metrics) => set({ metrics }),
         setRealtime: (enabled) => set({ isRealtime: enabled }),
         setCommandOpen: (open) => set({ commandOpen: open }),
