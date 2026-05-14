@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { getScreens, getScreenMetrics } from "@/services/screens.service";
 import { db } from "@/lib/db";
+import { getOrgContext } from "@/lib/org-context";
+import { can } from "@/lib/rbac";
+import { logAudit } from "@/actions/audit";
 
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const ctx = await getOrgContext();
+    if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search") ?? undefined;
@@ -18,7 +20,7 @@ export async function GET(req: NextRequest) {
     const [screens, metrics, total] = await Promise.all([
       getScreens({ search, status, city, page, limit }),
       getScreenMetrics(),
-      db.screen.count(),
+      db.screen.count({ where: { organizationId: ctx.organizationId } }),
     ]);
 
     return NextResponse.json({
@@ -33,11 +35,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const dbUser = await db.user.findUnique({ where: { clerkId: userId }, select: { id: true, role: true } });
-    if (!dbUser || (dbUser.role !== "ADMIN" && dbUser.role !== "EXECUTIVE")) {
+    const ctx = await getOrgContext();
+    if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!can(ctx.role, "screens:create")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
       data: {
         name,
         code,
+        organizationId: ctx.organizationId,
         type: type ?? "LED_OUTDOOR",
         city,
         address,
@@ -69,9 +70,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    await db.log.create({
-      data: { userId: dbUser.id, action: "CREATE", entity: "Screen", entityId: screen.id, newData: { name } },
-    });
+    await logAudit({ action: "screen.create", entityType: "Screen", entityId: screen.id, metadata: { name } });
 
     return NextResponse.json({ data: screen }, { status: 201 });
   } catch {

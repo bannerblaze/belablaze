@@ -1,7 +1,10 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { CampaignsClient } from "./_client";
 import { CampaignCardSkeleton } from "@/components/ui/skeleton";
 import { mockCampaigns } from "@/lib/mock-data";
+import { requireOrgContext } from "@/lib/org-context";
+import { can } from "@/lib/rbac";
 
 function CampaignsSkeleton() {
   return (
@@ -19,6 +22,10 @@ async function CampaignsData() {
   if (!hasDb) {
     return <CampaignsClient campaigns={mockCampaigns as Parameters<typeof CampaignsClient>[0]["campaigns"]} />;
   }
+
+  const ctx = await requireOrgContext().catch(() => null);
+  if (!ctx) redirect("/onboarding");
+  if (!can(ctx.role, "campaigns:view")) redirect("/dashboard");
 
   const { getCampaigns } = await import("@/services/campaigns.service");
   const campaigns = await getCampaigns();

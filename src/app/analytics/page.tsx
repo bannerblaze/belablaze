@@ -1,6 +1,9 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
+import { redirect } from "next/navigation";
 import { AnalyticsClient } from "./_client";
+import { requireOrgContext } from "@/lib/org-context";
+import { can } from "@/lib/rbac";
 
 function AnalyticsSkeleton() {
   return (
@@ -21,6 +24,10 @@ function AnalyticsSkeleton() {
 
 async function AnalyticsData() {
   await connection();
+
+  const ctx = await requireOrgContext().catch(() => null);
+  if (!ctx) redirect("/onboarding");
+  if (!can(ctx.role, "analytics:view")) redirect("/dashboard");
 
   const { getChartData, getDashboardMetrics, getTopCampaigns, getCityMetrics } = await import("@/services/analytics.service");
   const [chartData, metrics, topCampaigns, cityMetrics] = await Promise.all([

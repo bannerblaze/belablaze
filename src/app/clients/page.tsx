@@ -1,7 +1,10 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
+import { redirect } from "next/navigation";
 import { ClientsClient } from "./_client";
 import { mockClients, mockCampaigns } from "@/lib/mock-data";
+import { requireOrgContext } from "@/lib/org-context";
+import { can } from "@/lib/rbac";
 
 function ClientsSkeleton() {
   return (
@@ -32,6 +35,10 @@ async function ClientsData() {
       />
     );
   }
+
+  const ctx = await requireOrgContext().catch(() => null);
+  if (!ctx) redirect("/onboarding");
+  if (!can(ctx.role, "clients:view")) redirect("/dashboard");
 
   const [{ getClients }, { getCampaignMetrics }] = await Promise.all([
     import("@/services/clients.service"),

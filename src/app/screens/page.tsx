@@ -1,7 +1,10 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
+import { redirect } from "next/navigation";
 import { ScreensClient } from "./_client";
 import { mockScreens } from "@/lib/mock-data";
+import { requireOrgContext } from "@/lib/org-context";
+import { can } from "@/lib/rbac";
 
 function ScreensSkeleton() {
   return (
@@ -27,6 +30,10 @@ async function ScreensData() {
   if (!hasDb) {
     return <ScreensClient screens={mockScreens as Parameters<typeof ScreensClient>[0]["screens"]} />;
   }
+
+  const ctx = await requireOrgContext().catch(() => null);
+  if (!ctx) redirect("/onboarding");
+  if (!can(ctx.role, "screens:view")) redirect("/dashboard");
 
   const { getScreens } = await import("@/services/screens.service");
   const screens = await getScreens();

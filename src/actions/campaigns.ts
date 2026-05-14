@@ -1,20 +1,31 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { requireOrgContext } from "@/lib/org-context";
+import { assertCan } from "@/lib/rbac";
+import { logAudit } from "@/actions/audit";
 
-async function getDbUser() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autenticado");
-  const user = await db.user.findUnique({ where: { clerkId: userId }, select: { id: true, role: true } });
-  if (!user) throw new Error("Usuario no encontrado en base de datos");
-  return user;
+/* ──────────────────────────────────────────────────────────────────────
+ * Tenant-scoped campaign mutations.
+ *
+ * Every action calls requireOrgContext() + assertCan() so that:
+ *   • A user can only mutate campaigns inside their active organization
+ *   • The RBAC matrix (src/lib/rbac.ts) decides which role can do what
+ *   • Audit log captures actor, org, action, entity for every change
+ * ────────────────────────────────────────────────────────────────────── */
+
+async function loadOrgCampaign(orgId: string, campaignId: string) {
+  return db.campaign.findFirst({
+    where: { id: campaignId, organizationId: orgId },
+    select: { id: true, status: true, organizationId: true },
+  });
 }
 
 export async function createCampaign(formData: FormData) {
-  const user = await getDbUser();
+  const ctx = await requireOrgContext();
+  assertCan(ctx.role, "campaigns:create");
 
   const name = formData.get("name") as string;
   const description = formData.get("description") as string;
@@ -28,12 +39,20 @@ export async function createCampaign(formData: FormData) {
     throw new Error("Datos incompletos");
   }
 
+  // Client must belong to the same org — defend against cross-tenant ID guessing.
+  const clientOk = await db.client.findFirst({
+    where: { id: clientId, organizationId: ctx.organizationId },
+    select: { id: true },
+  });
+  if (!clientOk) throw new Error("Cliente no pertenece a esta organización");
+
   const campaign = await db.campaign.create({
     data: {
       name,
       description,
       clientId,
-      userId: user.id,
+      userId: ctx.userId,
+      organizationId: ctx.organizationId,
       budget,
       startDate,
       endDate,
@@ -42,15 +61,7 @@ export async function createCampaign(formData: FormData) {
     },
   });
 
-  await db.log.create({
-    data: {
-      userId: user.id,
-      action: "CREATE",
-      entity: "Campaign",
-      entityId: campaign.id,
-      newData: { name },
-    },
-  });
+  await logAudit({ action: "campaign.create", entityType: "Campaign", entityId: campaign.id, metadata: { name } });
 
   revalidatePath("/campaigns");
   revalidatePath("/dashboard");
@@ -58,9 +69,10 @@ export async function createCampaign(formData: FormData) {
 }
 
 export async function updateCampaignStatus(campaignId: string, status: string) {
-  const user = await getDbUser();
+  const ctx = await requireOrgContext();
+  assertCan(ctx.role, "campaigns:update");
 
-  const campaign = await db.campaign.findUnique({ where: { id: campaignId }, select: { status: true } });
+  const campaign = await loadOrgCampaign(ctx.organizationId, campaignId);
   if (!campaign) throw new Error("Campaña no encontrada");
 
   await db.campaign.update({
@@ -68,15 +80,11 @@ export async function updateCampaignStatus(campaignId: string, status: string) {
     data: { status: status as Parameters<typeof db.campaign.update>[0]["data"]["status"] },
   });
 
-  await db.log.create({
-    data: {
-      userId: user.id,
-      action: status === "PAUSED" ? "PAUSE" : "UPDATE",
-      entity: "Campaign",
-      entityId: campaignId,
-      oldData: { status: campaign.status },
-      newData: { status },
-    },
+  await logAudit({
+    action: status === "PAUSED" ? "campaign.pause" : "campaign.update",
+    entityType: "Campaign",
+    entityId: campaignId,
+    metadata: { from: campaign.status, to: status },
   });
 
   revalidatePath("/campaigns");
@@ -93,9 +101,10 @@ export async function updateCampaign(campaignId: string, data: {
   endDate?: string;
   targetCities?: string[];
 }) {
-  const user = await getDbUser();
+  const ctx = await requireOrgContext();
+  assertCan(ctx.role, "campaigns:update");
 
-  const campaign = await db.campaign.findUnique({ where: { id: campaignId }, select: { status: true } });
+  const campaign = await loadOrgCampaign(ctx.organizationId, campaignId);
   if (!campaign) throw new Error("Campaña no encontrada");
 
   await db.campaign.update({
@@ -110,9 +119,7 @@ export async function updateCampaign(campaignId: string, data: {
     },
   });
 
-  await db.log.create({
-    data: { userId: user.id, action: "UPDATE", entity: "Campaign", entityId: campaignId, newData: data },
-  });
+  await logAudit({ action: "campaign.update", entityType: "Campaign", entityId: campaignId, metadata: data });
 
   revalidatePath("/campaigns");
   revalidatePath(`/campaigns/${campaignId}`);
@@ -122,13 +129,14 @@ export async function updateCampaign(campaignId: string, data: {
 }
 
 export async function deleteCampaign(campaignId: string) {
-  const user = await getDbUser();
-  if (user.role !== "ADMIN") throw new Error("Sin permisos");
+  const ctx = await requireOrgContext();
+  assertCan(ctx.role, "campaigns:delete");
+
+  const campaign = await loadOrgCampaign(ctx.organizationId, campaignId);
+  if (!campaign) throw new Error("Campaña no encontrada");
 
   await db.campaign.delete({ where: { id: campaignId } });
-  await db.log.create({
-    data: { userId: user.id, action: "DELETE", entity: "Campaign", entityId: campaignId },
-  });
+  await logAudit({ action: "campaign.delete", entityType: "Campaign", entityId: campaignId });
 
   revalidatePath("/campaigns");
   revalidatePath("/dashboard");

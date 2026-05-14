@@ -1,10 +1,37 @@
 import { db } from "@/lib/db";
 import type { DashboardMetrics, ChartDataPoint } from "@/types";
+import { getOrgContext } from "@/lib/org-context";
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Multi-tenant analytics service.
+ *
+ * Every aggregate is scoped to the active organization. When there is
+ * no session/org we return zeroed metrics — never global aggregates.
+ *
+ * Metric rows live one level removed from Organization (Metric → Ad →
+ * Campaign.organizationId). We scope through that relation.
+ * ────────────────────────────────────────────────────────────────────── */
+
+const EMPTY_METRICS: DashboardMetrics = {
+  totalImpressions: 0, impressionsDelta: 0,
+  activeCampaigns: 0, campaignsDelta: 0,
+  totalRevenue: 0, revenueDelta: 0,
+  avgEngagement: 0, engagementDelta: 0,
+  screensOnline: 0, screensTotal: 0,
+  pendingApprovals: 0,
+  qrScans: 0, qrScansDelta: 0,
+};
 
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
+  const ctx = await getOrgContext();
+  if (!ctx) return EMPTY_METRICS;
+
+  const orgId = ctx.organizationId;
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+  const metricScope = { ad: { campaign: { organizationId: orgId } } } as const;
 
   const [
     campaigns,
@@ -13,15 +40,23 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     currentMetrics,
     previousMetrics,
   ] = await Promise.all([
-    db.campaign.findMany({ where: { status: { in: ["ACTIVE", "COMPLETED"] } }, select: { status: true, spent: true } }),
-    db.screen.findMany({ select: { status: true } }),
-    db.ad.count({ where: { status: "PENDING_REVIEW" } }),
+    db.campaign.findMany({
+      where: { organizationId: orgId, status: { in: ["ACTIVE", "COMPLETED"] } },
+      select: { status: true, spent: true },
+    }),
+    db.screen.findMany({
+      where: { organizationId: orgId },
+      select: { status: true },
+    }),
+    db.ad.count({
+      where: { status: "PENDING_REVIEW", campaign: { organizationId: orgId } },
+    }),
     db.metric.aggregate({
-      where: { date: { gte: thirtyDaysAgo } },
+      where: { ...metricScope, date: { gte: thirtyDaysAgo } },
       _sum: { impressions: true, clicks: true, qrScans: true, engagements: true },
     }),
     db.metric.aggregate({
-      where: { date: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } },
+      where: { ...metricScope, date: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } },
       _sum: { impressions: true, qrScans: true },
     }),
   ]);
@@ -34,7 +69,6 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   const prevImpressions = previousMetrics._sum.impressions ?? 0;
   const qrScans = currentMetrics._sum.qrScans ?? 0;
   const prevQrScans = previousMetrics._sum.qrScans ?? 0;
-  const totalClicks = currentMetrics._sum.clicks ?? 0;
   const totalEngagements = currentMetrics._sum.engagements ?? 0;
 
   const delta = (curr: number, prev: number) =>
@@ -58,12 +92,18 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
 }
 
 export async function getChartData(days = 30): Promise<ChartDataPoint[]> {
+  const ctx = await getOrgContext();
+  if (!ctx) return [];
+
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
   const metrics = await db.metric.groupBy({
     by: ["date"],
-    where: { date: { gte: startDate } },
+    where: {
+      date: { gte: startDate },
+      ad: { campaign: { organizationId: ctx.organizationId } },
+    },
     _sum: { impressions: true, clicks: true, engagements: true, qrScans: true },
     orderBy: { date: "asc" },
   });
@@ -79,7 +119,11 @@ export async function getChartData(days = 30): Promise<ChartDataPoint[]> {
 }
 
 export async function getTopCampaigns(limit = 5) {
+  const ctx = await getOrgContext();
+  if (!ctx) return [];
+
   const campaigns = await db.campaign.findMany({
+    where: { organizationId: ctx.organizationId },
     select: {
       id: true,
       name: true,
@@ -96,11 +140,20 @@ export async function getTopCampaigns(limit = 5) {
 }
 
 export async function getCityMetrics() {
-  const screens = await db.screen.findMany({ select: { id: true, city: true, dailyTraffic: true } });
+  const ctx = await getOrgContext();
+  if (!ctx) return [];
 
+  const screens = await db.screen.findMany({
+    where: { organizationId: ctx.organizationId },
+    select: { id: true, city: true, dailyTraffic: true },
+  });
+
+  if (screens.length === 0) return [];
+
+  const screenIds = screens.map((s) => s.id);
   const metricsByScreen = await db.metric.groupBy({
     by: ["screenId"],
-    where: { screenId: { not: null } },
+    where: { screenId: { in: screenIds } },
     _sum: { impressions: true, clicks: true },
   });
 
@@ -125,7 +178,7 @@ export async function getCityMetrics() {
 
   const cityData = Array.from(cityMap.entries()).map(([city, data]) => ({ city, ...data }));
 
-  if (cityData.every((c) => c.impressions === 0)) {
+  if (cityData.length > 0 && cityData.every((c) => c.impressions === 0)) {
     return cityData.map((c) => ({ ...c, impressions: c.traffic * 30 })).sort((a, b) => b.impressions - a.impressions);
   }
 
@@ -133,7 +186,12 @@ export async function getCityMetrics() {
 }
 
 export async function getRecentActivity(limit = 8) {
-  const logs = await db.log.findMany({
+  const ctx = await getOrgContext();
+  if (!ctx) return [];
+
+  // Org-scoped activity comes from the FASE 6 AuditLog table.
+  const logs = await db.auditLog.findMany({
+    where: { organizationId: ctx.organizationId },
     take: limit,
     orderBy: { createdAt: "desc" },
     include: { user: { select: { name: true, avatar: true } } },
@@ -142,11 +200,9 @@ export async function getRecentActivity(limit = 8) {
   return logs.map((log) => ({
     id: log.id,
     action: log.action,
-    entity: log.entity,
-    entityId: log.entityId,
-    entityName: log.newData
-      ? (log.newData as Record<string, string>)?.name ?? log.entity
-      : log.entity,
+    entity: log.entityType,
+    entityId: log.entityId ?? "",
+    entityName: log.entityType,
     user: log.user?.name ?? "Sistema",
     time: log.createdAt.toISOString(),
   }));

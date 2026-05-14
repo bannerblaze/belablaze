@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { getCampaigns, getCampaignMetrics } from "@/services/campaigns.service";
 import { db } from "@/lib/db";
+import { getOrgContext } from "@/lib/org-context";
 
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const ctx = await getOrgContext();
+    if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search") ?? undefined;
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     const [campaigns, metrics, total] = await Promise.all([
       getCampaigns({ search, status, clientId, page, limit }),
       getCampaignMetrics(),
-      db.campaign.count(),
+      db.campaign.count({ where: { organizationId: ctx.organizationId } }),
     ]);
 
     return NextResponse.json({

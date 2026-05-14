@@ -1,9 +1,15 @@
 import { db } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
 import type { FilterOptions } from "@/types";
+import { getOrgContext } from "@/lib/org-context";
+
+/* All client (customer brand) queries scope by active organization. */
 
 export async function getClients(filters: FilterOptions = {}) {
-  const where: Prisma.ClientWhereInput = {};
+  const ctx = await getOrgContext();
+  if (!ctx) return [];
+
+  const where: Prisma.ClientWhereInput = { organizationId: ctx.organizationId };
 
   if (filters.search) {
     where.OR = [
@@ -31,8 +37,11 @@ export async function getClients(filters: FilterOptions = {}) {
 }
 
 export async function getClientById(id: string) {
-  const client = await db.client.findUnique({
-    where: { id },
+  const ctx = await getOrgContext();
+  if (!ctx) return null;
+
+  const client = await db.client.findFirst({
+    where: { id, organizationId: ctx.organizationId },
     include: {
       campaigns: { orderBy: { createdAt: "desc" }, take: 10 },
       users: { select: { id: true, name: true, email: true, role: true } },

@@ -1,20 +1,23 @@
 import { db } from "@/lib/db";
-import { auth } from "@clerk/nextjs/server";
 import type { Prisma } from "@prisma/client";
 import type { FilterOptions } from "@/types";
+import { getOrgContext } from "@/lib/org-context";
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Multi-tenant read service for Ads.
+ *
+ * All queries are scoped to the caller's active org via getOrgContext().
+ * Ads are linked to campaigns which carry organizationId, so we scope
+ * through `campaign.organizationId` rather than the Ad row directly.
+ * ────────────────────────────────────────────────────────────────────── */
 
 export async function getAds(filters: FilterOptions = {}) {
-  const { userId } = await auth();
-  if (!userId) return [];
+  const ctx = await getOrgContext();
+  if (!ctx) return [];
 
-  const dbUser = await db.user.findUnique({ where: { clerkId: userId }, select: { id: true, role: true, companyId: true } });
-  if (!dbUser) return [];
-
-  const where: Prisma.AdWhereInput = {};
-
-  if (dbUser.role === "CLIENT" && dbUser.companyId) {
-    where.campaign = { clientId: dbUser.companyId };
-  }
+  const where: Prisma.AdWhereInput = {
+    campaign: { organizationId: ctx.organizationId },
+  };
 
   if (filters.status && filters.status !== "all") {
     where.status = filters.status as Prisma.EnumAdStatusFilter;
@@ -43,8 +46,11 @@ export async function getAds(filters: FilterOptions = {}) {
 }
 
 export async function getAdsPendingReview() {
+  const ctx = await getOrgContext();
+  if (!ctx) return [];
+
   const ads = await db.ad.findMany({
-    where: { status: "PENDING_REVIEW" },
+    where: { status: "PENDING_REVIEW", campaign: { organizationId: ctx.organizationId } },
     include: {
       campaign: { select: { id: true, name: true, client: { select: { id: true, name: true } } } },
     },
@@ -61,20 +67,25 @@ export async function getAdsPendingReview() {
 }
 
 export async function getAdsForApprovals() {
+  const ctx = await getOrgContext();
+  if (!ctx) return { pending: [], approved: [], rejected: [] };
+
+  const scope: Prisma.AdWhereInput = { campaign: { organizationId: ctx.organizationId } };
+
   const [pending, approved, rejected] = await Promise.all([
     db.ad.findMany({
-      where: { status: "PENDING_REVIEW" },
+      where: { ...scope, status: "PENDING_REVIEW" },
       include: { campaign: { include: { client: { select: { id: true, name: true } } } } },
       orderBy: { createdAt: "asc" },
     }),
     db.ad.findMany({
-      where: { status: { in: ["APPROVED", "ACTIVE"] } },
+      where: { ...scope, status: { in: ["APPROVED", "ACTIVE"] } },
       include: { campaign: { include: { client: { select: { id: true, name: true } } } } },
       orderBy: { updatedAt: "desc" },
       take: 20,
     }),
     db.ad.findMany({
-      where: { status: "REJECTED" },
+      where: { ...scope, status: "REJECTED" },
       include: { campaign: { include: { client: { select: { id: true, name: true } } } } },
       orderBy: { updatedAt: "desc" },
       take: 20,

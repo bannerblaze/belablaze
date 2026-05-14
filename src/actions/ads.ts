@@ -1,19 +1,25 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
+import { requireOrgContext } from "@/lib/org-context";
+import { assertCan } from "@/lib/rbac";
+import { logAudit } from "@/actions/audit";
 
-async function getDbUser() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autenticado");
-  const user = await db.user.findUnique({ where: { clerkId: userId }, select: { id: true, role: true } });
-  if (!user) throw new Error("Usuario no encontrado");
-  return user;
+/* Tenant-scoped ad mutations. Ads inherit org from their parent campaign,
+ * so we always verify that the campaign belongs to the active org before
+ * any write. */
+
+async function loadOrgAd(orgId: string, adId: string) {
+  return db.ad.findFirst({
+    where: { id: adId, campaign: { organizationId: orgId } },
+    select: { id: true, title: true, status: true, campaignId: true },
+  });
 }
 
 export async function createAd(formData: FormData) {
-  const user = await getDbUser();
+  const ctx = await requireOrgContext();
+  assertCan(ctx.role, "ads:create");
 
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
@@ -23,6 +29,14 @@ export async function createAd(formData: FormData) {
   const ctaText = formData.get("ctaText") as string;
   const ctaUrl = formData.get("ctaUrl") as string;
   const qrEnabled = formData.get("qrEnabled") === "true";
+
+  // The campaign must belong to this org — prevents ad creation under a
+  // foreign campaign via ID guessing.
+  const campaign = await db.campaign.findFirst({
+    where: { id: campaignId, organizationId: ctx.organizationId },
+    select: { id: true },
+  });
+  if (!campaign) throw new Error("Campaña no encontrada en esta organización");
 
   const ad = await db.ad.create({
     data: {
@@ -38,20 +52,24 @@ export async function createAd(formData: FormData) {
     },
   });
 
-  await db.log.create({
-    data: { userId: user.id, action: "CREATE", entity: "Ad", entityId: ad.id, newData: { title } },
-  });
-
+  await logAudit({ action: "ad.create", entityType: "Ad", entityId: ad.id, metadata: { title } });
   revalidatePath("/ads");
   return { success: true, id: ad.id };
 }
 
 export async function submitAdForReview(adId: string) {
-  const user = await getDbUser();
+  const ctx = await requireOrgContext();
+  assertCan(ctx.role, "ads:update");
+
+  const ad = await loadOrgAd(ctx.organizationId, adId);
+  if (!ad) throw new Error("Anuncio no encontrado");
 
   await db.ad.update({ where: { id: adId }, data: { status: "PENDING_REVIEW" } });
-  await db.log.create({
-    data: { userId: user.id, action: "UPDATE", entity: "Ad", entityId: adId, newData: { status: "PENDING_REVIEW" } },
+  await logAudit({
+    action: "ad.update",
+    entityType: "Ad",
+    entityId: adId,
+    metadata: { from: ad.status, to: "PENDING_REVIEW" },
   });
 
   revalidatePath("/ads");
@@ -62,11 +80,18 @@ export async function submitAdForReview(adId: string) {
 }
 
 export async function updateAdStatus(adId: string, status: "ACTIVE" | "PAUSED" | "DRAFT") {
-  const user = await getDbUser();
+  const ctx = await requireOrgContext();
+  assertCan(ctx.role, "ads:update");
+
+  const ad = await loadOrgAd(ctx.organizationId, adId);
+  if (!ad) throw new Error("Anuncio no encontrado");
 
   await db.ad.update({ where: { id: adId }, data: { status } });
-  await db.log.create({
-    data: { userId: user.id, action: status === "PAUSED" ? "PAUSE" : "UPDATE", entity: "Ad", entityId: adId, newData: { status } },
+  await logAudit({
+    action: "ad.update",
+    entityType: "Ad",
+    entityId: adId,
+    metadata: { from: ad.status, to: status },
   });
 
   revalidatePath("/ads");
@@ -76,19 +101,19 @@ export async function updateAdStatus(adId: string, status: "ACTIVE" | "PAUSED" |
 }
 
 export async function deleteAd(adId: string) {
-  const user = await getDbUser();
+  const ctx = await requireOrgContext();
+  assertCan(ctx.role, "ads:delete");
 
-  const ad = await db.ad.findUnique({ where: { id: adId }, select: { title: true, status: true } });
+  const ad = await loadOrgAd(ctx.organizationId, adId);
   if (!ad) throw new Error("Anuncio no encontrado");
 
-  if (ad.status === "ACTIVE" && user.role !== "ADMIN") {
+  // Active ads keep an extra hard guard: only OWNER/ADMIN can drop them.
+  if (ad.status === "ACTIVE" && ctx.role !== "OWNER" && ctx.role !== "ADMIN") {
     throw new Error("No puedes eliminar un anuncio activo");
   }
 
   await db.ad.delete({ where: { id: adId } });
-  await db.log.create({
-    data: { userId: user.id, action: "DELETE", entity: "Ad", entityId: adId },
-  });
+  await logAudit({ action: "ad.delete", entityType: "Ad", entityId: adId });
 
   revalidatePath("/ads");
   revalidatePath("/dashboard");

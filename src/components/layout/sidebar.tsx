@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Megaphone, MonitorPlay, BarChart3,
-  ClipboardCheck, Settings, ChevronLeft, Zap, Bell, Layers,
+  ClipboardCheck, Settings, ChevronLeft, Zap, Layers,
   Building2, LogOut, X, Image as ImageIcon, CalendarRange,
   Users, CreditCard, Activity,
 } from "lucide-react";
@@ -204,16 +204,6 @@ function SidebarContent({ onClose, organizations }: { onClose?: () => void; orga
 
       {/* Footer */}
       <div className="border-t border-white/[0.06] p-3 space-y-1">
-        <Link href="/settings" onClick={onClose}>
-          <div className={cn(
-            "flex items-center gap-3.5 px-3.5 py-2.5 rounded-lg cursor-pointer transition-all group",
-            "text-white/40 hover:text-white hover:bg-white/[0.05]"
-          )}>
-            <Bell className="w-5 h-5 flex-shrink-0" strokeWidth={1.8} />
-            {!collapsed && <span className="text-sm font-medium">Notificaciones</span>}
-          </div>
-        </Link>
-
         <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-white/[0.04] transition-all group">
           <Avatar imageUrl={user?.imageUrl ?? undefined} name={displayName} />
           <AnimatePresence initial={false}>

@@ -1,18 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
+import { getOrgContext } from "@/lib/org-context";
+import { can } from "@/lib/rbac";
+import { logAudit } from "@/actions/audit";
+
+/* Tenant-scoped ad endpoint. Every operation verifies the ad belongs
+ * to the active org via its parent campaign before touching the row. */
+
+async function loadOrgAd(orgId: string, adId: string) {
+  return db.ad.findFirst({
+    where: { id: adId, campaign: { organizationId: orgId } },
+    select: { id: true, status: true },
+  });
+}
 
 export async function GET(
   _req: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  routeCtx: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const ctx = await getOrgContext();
+    if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!can(ctx.role, "ads:view")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const { id } = await ctx.params;
-    const ad = await db.ad.findUnique({
-      where: { id },
+    const { id } = await routeCtx.params;
+    const ad = await db.ad.findFirst({
+      where: { id, campaign: { organizationId: ctx.organizationId } },
       include: {
         campaign: { include: { client: { select: { id: true, name: true } } } },
         approvals: { include: { user: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: 1 },
@@ -29,15 +42,18 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  routeCtx: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const ctx = await getOrgContext();
+    if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!can(ctx.role, "ads:update")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const { id } = await ctx.params;
+    const { id } = await routeCtx.params;
+    const existing = await loadOrgAd(ctx.organizationId, id);
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
     const body = await req.json();
-
     const ad = await db.ad.update({
       where: { id },
       data: {
@@ -47,6 +63,7 @@ export async function PATCH(
       },
     });
 
+    await logAudit({ action: "ad.update", entityType: "Ad", entityId: id, metadata: body });
     return NextResponse.json({ data: ad });
   } catch {
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
@@ -55,14 +72,19 @@ export async function PATCH(
 
 export async function DELETE(
   _req: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  routeCtx: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const ctx = await getOrgContext();
+    if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!can(ctx.role, "ads:delete")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const { id } = await ctx.params;
+    const { id } = await routeCtx.params;
+    const existing = await loadOrgAd(ctx.organizationId, id);
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
     await db.ad.delete({ where: { id } });
+    await logAudit({ action: "ad.delete", entityType: "Ad", entityId: id });
 
     return NextResponse.json({ success: true });
   } catch {

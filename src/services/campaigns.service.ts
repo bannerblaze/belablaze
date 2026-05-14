@@ -1,22 +1,21 @@
 import { db } from "@/lib/db";
-import { auth } from "@clerk/nextjs/server";
 import type { Prisma } from "@prisma/client";
 import type { FilterOptions } from "@/types";
+import { getOrgContext } from "@/lib/org-context";
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Multi-tenant read service for Campaigns.
+ *
+ * Every query is scoped to the caller's active organization via
+ * getOrgContext(). Returns [] when there is no session/org so the UI
+ * shows an empty state instead of leaking cross-tenant data.
+ * ────────────────────────────────────────────────────────────────────── */
 
 export async function getCampaigns(filters: FilterOptions = {}) {
-  const { userId } = await auth();
-  if (!userId) return [];
+  const ctx = await getOrgContext();
+  if (!ctx) return [];
 
-  const dbUser = await db.user.findUnique({ where: { clerkId: userId }, select: { id: true, role: true, companyId: true } });
-  if (!dbUser) return [];
-
-  const where: Prisma.CampaignWhereInput = {};
-
-  if (dbUser.role === "CLIENT" && dbUser.companyId) {
-    where.clientId = dbUser.companyId;
-  } else if (dbUser.role === "EXECUTIVE") {
-    where.userId = dbUser.id;
-  }
+  const where: Prisma.CampaignWhereInput = { organizationId: ctx.organizationId };
 
   if (filters.search) {
     where.OR = [
@@ -54,8 +53,11 @@ export async function getCampaigns(filters: FilterOptions = {}) {
 }
 
 export async function getCampaignById(id: string) {
-  const campaign = await db.campaign.findUnique({
-    where: { id },
+  const ctx = await getOrgContext();
+  if (!ctx) return null;
+
+  const campaign = await db.campaign.findFirst({
+    where: { id, organizationId: ctx.organizationId },
     include: {
       client: true,
       ads: true,
@@ -76,7 +78,11 @@ export async function getCampaignById(id: string) {
 }
 
 export async function getCampaignMetrics() {
+  const ctx = await getOrgContext();
+  if (!ctx) return { total: 0, active: 0, totalBudget: 0, totalSpent: 0, totalImpressions: 0 };
+
   const campaigns = await db.campaign.findMany({
+    where: { organizationId: ctx.organizationId },
     select: { status: true, budget: true, spent: true, impressions: true },
   });
 
