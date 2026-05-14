@@ -8,29 +8,43 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PlanFeature } from "@/lib/plans";
+import type { AccountType } from "@/types";
 
 /* Tabbed nav for /settings/*. Pure client component, driven by the
- * parent server shell which decides which feature-gated items are
- * available for the current org's plan. */
+ * parent server shell which knows the org's plan + the caller's
+ * accountType + whether they're a platform admin. */
 
 type NavItem = {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   exact?: boolean;
-  /** When set, the item is only rendered when the org's plan has it. */
+  /** Item only renders when the org's plan unlocks this feature. */
   requires?: PlanFeature;
+  /** Item only renders for these accountTypes. Creators (PERSON)
+   *  never need Equipo / API Keys / Webhooks / Branding regardless
+   *  of plan. SUPER_ADMIN bypasses this filter. */
+  forAccountTypes?: AccountType[];
 };
 
 const PRIMARY: NavItem[] = [
   { href: "/settings",          label: "Perfil",       icon: User, exact: true },
-  { href: "/settings/team",     label: "Equipo",       icon: Users },
+  { href: "/settings/team",     label: "Equipo",       icon: Users,
+    forAccountTypes: ["ORGANIZATION", "INTERNAL"] },
   { href: "/settings/billing",  label: "Facturación",  icon: CreditCard },
-  { href: "/settings/activity", label: "Actividad",    icon: Activity,  requires: "auditLog" },
+  { href: "/settings/activity", label: "Actividad",    icon: Activity,
+    requires: "auditLog",
+    forAccountTypes: ["ORGANIZATION", "INTERNAL"] },
   { href: "/settings/security", label: "Seguridad",    icon: Shield },
-  { href: "/settings/branding", label: "Branding",     icon: Palette,   requires: "customBranding" },
-  { href: "/settings/api-keys", label: "API Keys",     icon: Code2,     requires: "apiKeys" },
-  { href: "/settings/webhooks", label: "Webhooks",     icon: Webhook,   requires: "webhooks" },
+  { href: "/settings/branding", label: "Branding",     icon: Palette,
+    requires: "customBranding",
+    forAccountTypes: ["ORGANIZATION", "INTERNAL"] },
+  { href: "/settings/api-keys", label: "API Keys",     icon: Code2,
+    requires: "apiKeys",
+    forAccountTypes: ["ORGANIZATION", "INTERNAL"] },
+  { href: "/settings/webhooks", label: "Webhooks",     icon: Webhook,
+    requires: "webhooks",
+    forAccountTypes: ["ORGANIZATION", "INTERNAL"] },
 ];
 
 const DANGER: NavItem[] = [
@@ -41,20 +55,38 @@ interface SettingsNavProps {
   /** Feature flags the org's current plan unlocks. Items with a
    *  `requires` that's NOT in this set are rendered as locked. */
   availableFeatures: PlanFeature[];
+  /** The user's account type (creator vs business vs internal). When
+   *  an item declares forAccountTypes, the user must match — or be a
+   *  platform admin. */
+  accountType: AccountType | null;
+  /** Platform super-admin (admin@bannerblaze.com etc.) — sees every
+   *  entry regardless of plan or accountType. */
+  isPlatformAdmin: boolean;
 }
 
-export function SettingsNav({ availableFeatures }: SettingsNavProps) {
+export function SettingsNav({ availableFeatures, accountType, isPlatformAdmin }: SettingsNavProps) {
   const pathname = usePathname();
   const available = new Set(availableFeatures);
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname.startsWith(href);
 
+  const visibleItems = PRIMARY.filter((item) => {
+    if (isPlatformAdmin) return true;
+    if (item.forAccountTypes && accountType
+        && !item.forAccountTypes.includes(accountType)) {
+      return false;
+    }
+    return true;
+  });
+
   return (
     <aside className="w-full lg:w-56 flex-shrink-0">
       <nav className="space-y-0.5">
-        {PRIMARY.map((item) => {
+        {visibleItems.map((item) => {
           const active = isActive(item.href, item.exact);
-          const locked = item.requires ? !available.has(item.requires) : false;
+          const locked = item.requires && !isPlatformAdmin
+            ? !available.has(item.requires)
+            : false;
           const Icon = item.icon;
 
           if (locked) {

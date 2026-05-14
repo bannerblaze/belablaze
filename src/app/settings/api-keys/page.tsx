@@ -2,12 +2,16 @@ import { redirect } from "next/navigation";
 import { Code2 } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireOrgContext } from "@/lib/org-context";
+import { checkEnterpriseAccess } from "@/lib/limits";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { SettingsShell } from "@/components/settings/settings-shell";
 
 export default async function ApiKeysPage() {
   const ctx = await requireOrgContext().catch(() => null);
   if (!ctx) redirect("/onboarding");
+
+  const blocked = await checkEnterpriseAccess(ctx.organizationId, "apiKeys");
+  if (blocked) redirect(blocked);
 
   const keys = await db.apiKey.findMany({
     where: { organizationId: ctx.organizationId, revokedAt: null },

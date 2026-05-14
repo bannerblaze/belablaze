@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Webhook } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireOrgContext } from "@/lib/org-context";
+import { checkEnterpriseAccess } from "@/lib/limits";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { SettingsShell } from "@/components/settings/settings-shell";
 
@@ -15,6 +16,9 @@ const SUPPORTED_EVENTS = [
 export default async function WebhooksPage() {
   const ctx = await requireOrgContext().catch(() => null);
   if (!ctx) redirect("/onboarding");
+
+  const blocked = await checkEnterpriseAccess(ctx.organizationId, "webhooks");
+  if (blocked) redirect(blocked);
 
   const hooks = await db.webhook.findMany({
     where: { organizationId: ctx.organizationId },

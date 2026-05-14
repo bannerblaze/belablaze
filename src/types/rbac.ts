@@ -14,7 +14,7 @@
  * enforced on the server — the client gates are convenience only.
  * ────────────────────────────────────────────────────────────────────── */
 
-import type { OrgRole, UserRole } from "@/types";
+import type { AccountType, OrgRole, UserRole } from "@/types";
 
 export type Role = "super_admin" | "admin" | "staff" | "client" | "viewer";
 
@@ -117,36 +117,71 @@ export type NavItem = {
   href: string;
   icon: string;
   allowedRoles: Role[];
+  /** When set, only these AccountTypes see the item in the sidebar.
+   *  Use to keep enterprise/business-only surfaces away from creators. */
+  allowedAccountTypes?: AccountType[];
+  /** When true, only platform staff (BannerBlaze internal) see it. */
+  platformOnly?: boolean;
   badge?: string;
   section?: string;
 };
 
-/* Routes match the actual app structure (flat, not nested under /dashboard).
+/* Visibility model
+ * ---------------------------------------------------------------------
+ * The sidebar combines four signals before rendering an item:
  *
- * IMPORTANT: the lowercase global Role here ("client") = a paying customer,
- * not "limited user". Customers are OWNER/ADMIN inside their own org and
- * need access to every customer-facing surface (billing, team, pantallas,
- * aprobaciones, audit). Fine-grained gating happens at the page level via
- * OrgRole + the RBAC matrix in src/lib/rbac.ts and the plan feature flags
- * in src/lib/plans.ts. The NAV_ITEMS list only decides what to display in
- * the sidebar — it does not enforce security.
+ *   1. PlatformRole (src/lib/platform.ts) — SUPER_ADMIN bypasses all
+ *      filters; SUPPORT sees everything that isn't strictly tenant-only
+ *      data.
+ *   2. AccountType — only items whose allowedAccountTypes set matches
+ *      the user's account are shown. INTERNAL accounts see everything.
+ *   3. Global Role (lowercase) — coarse-grain, legacy. Mostly used to
+ *      hide management items from `viewer`.
+ *   4. OrgRole + Plan feature flag — enforced inside each page via
+ *      requireOrgContext + assertCan / assertHasFeature.
  *
- * The `viewer` role is the legacy read-only fallback; it sees Dashboard +
- * Analytics + the core feeds but not management surfaces. */
+ * IMPORTANT: NAV_ITEMS is the *display* layer. Server pages and actions
+ * still own the real security checks. */
 export const NAV_ITEMS: NavItem[] = [
-  { section: "Principal",   label: "Dashboard",     href: "/dashboard",          icon: "ti-layout-dashboard",  allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"] },
-  { section: "Principal",   label: "Campañas",      href: "/campaigns",          icon: "ti-speakerphone",      allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"] },
-  { section: "Principal",   label: "Calendario",    href: "/campaigns/calendar", icon: "ti-calendar-event",    allowedRoles: ["super_admin", "admin", "staff", "client"] },
-  { section: "Principal",   label: "Anuncios",      href: "/ads",                icon: "ti-photo",             allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"] },
-  { section: "Principal",   label: "Analytics",     href: "/analytics",          icon: "ti-chart-area-line",   allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"] },
-  { section: "Principal",   label: "Media",         href: "/media",              icon: "ti-photo-video",       allowedRoles: ["super_admin", "admin", "staff", "client"] },
-  { section: "Operaciones", label: "Pantallas",     href: "/screens",            icon: "ti-device-tv",         allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"] },
-  { section: "Operaciones", label: "Aprobaciones",  href: "/approvals",          icon: "ti-checks",            allowedRoles: ["super_admin", "admin", "staff", "client"] },
-  { section: "Operaciones", label: "Clientes",      href: "/clients",            icon: "ti-users",             allowedRoles: ["super_admin", "admin", "staff", "client"] },
-  { section: "Admin",       label: "Equipo",        href: "/settings/team",      icon: "ti-user-shield",       allowedRoles: ["super_admin", "admin", "staff", "client"] },
-  { section: "Admin",       label: "Configuración", href: "/settings",           icon: "ti-settings",          allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"] },
-  { section: "Admin",       label: "Facturación",   href: "/settings/billing",   icon: "ti-credit-card",       allowedRoles: ["super_admin", "admin", "staff", "client"] },
-  { section: "Admin",       label: "Audit Log",     href: "/settings/activity",  icon: "ti-list-details",      allowedRoles: ["super_admin", "admin", "staff", "client"] },
+  // ── Available to everyone (creator, business, internal, viewer) ──
+  { section: "Principal", label: "Dashboard", href: "/dashboard", icon: "ti-layout-dashboard",
+    allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"] },
+  { section: "Principal", label: "Campañas",  href: "/campaigns", icon: "ti-speakerphone",
+    allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"] },
+  { section: "Principal", label: "Anuncios",  href: "/ads",       icon: "ti-photo",
+    allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"] },
+  { section: "Principal", label: "Analytics", href: "/analytics", icon: "ti-chart-area-line",
+    allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"] },
+  { section: "Principal", label: "Media",     href: "/media",     icon: "ti-photo-video",
+    allowedRoles: ["super_admin", "admin", "staff", "client"] },
+
+  // ── Business / enterprise surfaces (creators don't see) ──
+  { section: "Principal", label: "Calendario",   href: "/campaigns/calendar", icon: "ti-calendar-event",
+    allowedRoles: ["super_admin", "admin", "staff", "client"],
+    allowedAccountTypes: ["ORGANIZATION", "INTERNAL"] },
+  { section: "Operaciones", label: "Pantallas",    href: "/screens",    icon: "ti-device-tv",
+    allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"],
+    allowedAccountTypes: ["ORGANIZATION", "INTERNAL"] },
+  { section: "Operaciones", label: "Aprobaciones", href: "/approvals",  icon: "ti-checks",
+    allowedRoles: ["super_admin", "admin", "staff", "client"],
+    allowedAccountTypes: ["ORGANIZATION", "INTERNAL"] },
+  { section: "Operaciones", label: "Clientes",     href: "/clients",    icon: "ti-users",
+    allowedRoles: ["super_admin", "admin", "staff", "client"],
+    allowedAccountTypes: ["ORGANIZATION", "INTERNAL"] },
+  { section: "Admin", label: "Equipo",        href: "/settings/team",     icon: "ti-user-shield",
+    allowedRoles: ["super_admin", "admin", "staff", "client"],
+    allowedAccountTypes: ["ORGANIZATION", "INTERNAL"] },
+
+  // ── Settings + billing — everyone (creators get a slimmer billing view) ──
+  { section: "Admin", label: "Configuración", href: "/settings",          icon: "ti-settings",
+    allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"] },
+  { section: "Admin", label: "Facturación",   href: "/settings/billing",  icon: "ti-credit-card",
+    allowedRoles: ["super_admin", "admin", "staff", "client"] },
+
+  // ── Audit log: ORGANIZATION + INTERNAL only (creators never see it) ──
+  { section: "Admin", label: "Audit Log", href: "/settings/activity", icon: "ti-list-details",
+    allowedRoles: ["super_admin", "admin", "staff", "client"],
+    allowedAccountTypes: ["ORGANIZATION", "INTERNAL"] },
 ];
 
 export type UserStatus = "active" | "inactive" | "suspended" | "pending";

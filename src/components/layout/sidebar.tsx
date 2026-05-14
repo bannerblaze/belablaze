@@ -15,7 +15,8 @@ import { useUser, useClerk } from "@clerk/nextjs";
 import { useRole } from "@/hooks/use-role";
 import { usePermissions } from "@/hooks/usePermissions";
 import { NAV_ITEMS } from "@/types/rbac";
-import type { UserRole } from "@/types";
+import type { UserRole, AccountType } from "@/types";
+import type { PlatformRole } from "@/lib/platform";
 import { OrgSwitcher, type OrgListItem } from "./org-switcher";
 
 /* Maps NAV_ITEMS hrefs → lucide components so the existing icon rendering
@@ -57,7 +58,15 @@ function Avatar({ imageUrl, name, size = "sm" }: { imageUrl?: string; name: stri
   );
 }
 
-function SidebarContent({ onClose, organizations, canCreateOrg }: { onClose?: () => void; organizations: OrgListItem[]; canCreateOrg: boolean }) {
+interface SidebarContentProps {
+  onClose?: () => void;
+  organizations: OrgListItem[];
+  canCreateOrg: boolean;
+  accountType: AccountType | null;
+  platformRole: PlatformRole;
+}
+
+function SidebarContent({ onClose, organizations, canCreateOrg, accountType, platformRole }: SidebarContentProps) {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar } = useAppStore();
   const { user } = useUser();
@@ -81,9 +90,22 @@ function SidebarContent({ onClose, organizations, canCreateOrg }: { onClose?: ()
     return pathname.startsWith(href);
   };
 
-  const visibleItems = NAV_ITEMS.filter((item) =>
-    item.allowedRoles.includes(permUser.role)
-  );
+  /* Visibility = Role match AND (no AccountType restriction OR account
+   * matches) AND (not platformOnly OR user is platform staff).
+   *
+   * Platform admins (admin@bannerblaze.com etc.) bypass every filter so
+   * they can navigate any tenant's UI during support work. */
+  const isPlatformStaff = platformRole === "SUPER_ADMIN" || platformRole === "SUPPORT";
+  const visibleItems = NAV_ITEMS.filter((item) => {
+    if (platformRole === "SUPER_ADMIN") return true;
+    if (!item.allowedRoles.includes(permUser.role)) return false;
+    if (item.platformOnly && !isPlatformStaff) return false;
+    if (item.allowedAccountTypes && accountType
+        && !item.allowedAccountTypes.includes(accountType)) {
+      return false;
+    }
+    return true;
+  });
 
   const collapsed = !isMobile && sidebarCollapsed;
 
@@ -250,7 +272,19 @@ function SidebarContent({ onClose, organizations, canCreateOrg }: { onClose?: ()
   );
 }
 
-export function Sidebar({ organizations = [], canCreateOrg = false }: { organizations?: OrgListItem[]; canCreateOrg?: boolean }) {
+interface SidebarProps {
+  organizations?: OrgListItem[];
+  canCreateOrg?: boolean;
+  accountType?: AccountType | null;
+  platformRole?: PlatformRole;
+}
+
+export function Sidebar({
+  organizations = [],
+  canCreateOrg = false,
+  accountType = null,
+  platformRole = "USER",
+}: SidebarProps) {
   const { sidebarCollapsed, mobileSidebarOpen, setMobileSidebarOpen } = useAppStore();
 
   return (
@@ -262,7 +296,12 @@ export function Sidebar({ organizations = [], canCreateOrg = false }: { organiza
         transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
         className="hidden lg:flex flex-col h-screen bg-[#0f0f0f] border-r border-white/[0.06] flex-shrink-0 overflow-hidden z-30"
       >
-        <SidebarContent organizations={organizations} canCreateOrg={canCreateOrg} />
+        <SidebarContent
+          organizations={organizations}
+          canCreateOrg={canCreateOrg}
+          accountType={accountType}
+          platformRole={platformRole}
+        />
       </motion.aside>
 
       {/* Mobile sidebar overlay */}
@@ -286,7 +325,13 @@ export function Sidebar({ organizations = [], canCreateOrg = false }: { organiza
               transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
               className="fixed left-0 top-0 bottom-0 w-[280px] bg-[#0f0f0f] border-r border-white/[0.06] z-50 lg:hidden overflow-hidden"
             >
-              <SidebarContent organizations={organizations} canCreateOrg={canCreateOrg} onClose={() => setMobileSidebarOpen(false)} />
+              <SidebarContent
+                organizations={organizations}
+                canCreateOrg={canCreateOrg}
+                accountType={accountType}
+                platformRole={platformRole}
+                onClose={() => setMobileSidebarOpen(false)}
+              />
             </motion.aside>
           </>
         )}

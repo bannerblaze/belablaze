@@ -5,6 +5,8 @@ import {
   PLANS, hasFeature, getLimit, isAtLimit,
   type PlanFeature, type PlanLimits,
 } from "@/lib/plans";
+import { getCurrentUser } from "@/lib/auth";
+import { isPlatformAdmin } from "@/lib/platform";
 import type { PlanTier } from "@/types";
 
 /* ──────────────────────────────────────────────────────────────────────
@@ -125,14 +127,20 @@ export async function checkLimit(
   };
 }
 
-/** Hard check — throws PlanLimitError when creating one more would exceed. */
+/** Hard check — throws PlanLimitError when creating one more would exceed.
+ *  Platform super admins (admin@bannerblaze.com, ceo@bannerblaze.com, env
+ *  whitelist) bypass the cap entirely so they can operate any tenant for
+ *  support/incident work. */
 export async function assertWithinLimit(
   organizationId: string,
   resource: LimitedResource,
 ): Promise<LimitCheck> {
   const snap = await checkLimit(organizationId, resource);
   if (snap.atLimit) {
-    throw new PlanLimitError(resource, snap.used, snap.max, snap.plan);
+    const me = await getCurrentUser();
+    if (!isPlatformAdmin(me)) {
+      throw new PlanLimitError(resource, snap.used, snap.max, snap.plan);
+    }
   }
   return snap;
 }
@@ -151,24 +159,31 @@ export async function assertStorageHeadroom(
   const currentBytes = sum._sum.size ?? 0;
   const projectedMB = (currentBytes + additionalBytes) / 1024 / 1024;
   if (max < 9999 && projectedMB > max) {
-    throw new PlanLimitError(
-      "storageMB",
-      Math.round(projectedMB),
-      max,
-      plan,
-    );
+    const me = await getCurrentUser();
+    if (!isPlatformAdmin(me)) {
+      throw new PlanLimitError(
+        "storageMB",
+        Math.round(projectedMB),
+        max,
+        plan,
+      );
+    }
   }
   return { plan, usedMB: Math.round(currentBytes / 1024 / 1024), maxMB: max };
 }
 
-/** Throws FeatureGateError if the org's plan doesn't include the feature. */
+/** Throws FeatureGateError if the org's plan doesn't include the feature.
+ *  Platform super admins bypass the gate. */
 export async function assertHasFeature(
   organizationId: string,
   feature: PlanFeature,
 ): Promise<PlanTier> {
   const plan = await getOrgPlan(organizationId);
   if (!hasFeature(plan, feature)) {
-    throw new FeatureGateError(feature, plan);
+    const me = await getCurrentUser();
+    if (!isPlatformAdmin(me)) {
+      throw new FeatureGateError(feature, plan);
+    }
   }
   return plan;
 }
@@ -180,6 +195,34 @@ export async function orgHasFeature(
 ): Promise<boolean> {
   const plan = await getOrgPlan(organizationId);
   return hasFeature(plan, feature);
+}
+
+/**
+ * Combined gate used by enterprise-only settings pages (API Keys,
+ * Webhooks, Branding, Audit Log). Returns the route the caller should
+ * redirect to when blocked, or null when access is allowed.
+ *
+ *   - SUPER_ADMIN: always allowed.
+ *   - PERSON (creator) account: blocked → /dashboard.
+ *   - Plan missing the feature: blocked → /settings/billing.
+ */
+export async function checkEnterpriseAccess(
+  organizationId: string,
+  feature: PlanFeature,
+): Promise<string | null> {
+  const me = await getCurrentUser();
+  if (isPlatformAdmin(me)) return null;
+
+  const accountType = me?.accountType;
+  if (accountType !== "ORGANIZATION" && accountType !== "INTERNAL") {
+    return "/dashboard";
+  }
+
+  const plan = await getOrgPlan(organizationId);
+  if (!hasFeature(plan, feature)) {
+    return "/settings/billing";
+  }
+  return null;
 }
 
 /** Helper for /settings/billing and the dashboard usage card — single query. */
