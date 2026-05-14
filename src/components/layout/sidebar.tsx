@@ -57,7 +57,7 @@ function Avatar({ imageUrl, name, size = "sm" }: { imageUrl?: string; name: stri
   );
 }
 
-function SidebarContent({ onClose, organizations }: { onClose?: () => void; organizations: OrgListItem[] }) {
+function SidebarContent({ onClose, organizations, canCreateOrg }: { onClose?: () => void; organizations: OrgListItem[]; canCreateOrg: boolean }) {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar } = useAppStore();
   const { user } = useUser();
@@ -128,7 +128,7 @@ function SidebarContent({ onClose, organizations }: { onClose?: () => void; orga
       {/* Org switcher */}
       {!collapsed && organizations.length > 0 && (
         <div className="px-3 pt-3 pb-1">
-          <OrgSwitcher organizations={organizations} compact />
+          <OrgSwitcher organizations={organizations} canCreate={canCreateOrg} compact />
         </div>
       )}
 
@@ -250,7 +250,7 @@ function SidebarContent({ onClose, organizations }: { onClose?: () => void; orga
   );
 }
 
-export function Sidebar({ organizations = [] }: { organizations?: OrgListItem[] }) {
+export function Sidebar({ organizations = [], canCreateOrg = false }: { organizations?: OrgListItem[]; canCreateOrg?: boolean }) {
   const { sidebarCollapsed, mobileSidebarOpen, setMobileSidebarOpen } = useAppStore();
 
   return (
@@ -262,7 +262,7 @@ export function Sidebar({ organizations = [] }: { organizations?: OrgListItem[] 
         transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
         className="hidden lg:flex flex-col h-screen bg-[#0f0f0f] border-r border-white/[0.06] flex-shrink-0 overflow-hidden z-30"
       >
-        <SidebarContent organizations={organizations} />
+        <SidebarContent organizations={organizations} canCreateOrg={canCreateOrg} />
       </motion.aside>
 
       {/* Mobile sidebar overlay */}
@@ -286,7 +286,7 @@ export function Sidebar({ organizations = [] }: { organizations?: OrgListItem[] 
               transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
               className="fixed left-0 top-0 bottom-0 w-[280px] bg-[#0f0f0f] border-r border-white/[0.06] z-50 lg:hidden overflow-hidden"
             >
-              <SidebarContent organizations={organizations} onClose={() => setMobileSidebarOpen(false)} />
+              <SidebarContent organizations={organizations} canCreateOrg={canCreateOrg} onClose={() => setMobileSidebarOpen(false)} />
             </motion.aside>
           </>
         )}

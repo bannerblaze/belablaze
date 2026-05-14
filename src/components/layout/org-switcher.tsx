@@ -9,8 +9,12 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 
 /* Organization switcher: shows the active org, lists other orgs the
- * user is a member of, and exposes a CTA to create a new org. The
- * "create" link routes to /settings (general tab → new org form). */
+ * user is a member of, and (when `canCreate`) exposes a CTA to create
+ * a new org. The "create" entry routes to /organizations/new — a real
+ * BelaBlaze wizard, NOT a redirect to the user profile.
+ *
+ * `canCreate` is false for CREATOR + INTERNAL accountType — those
+ * users keep their single org and shouldn't see the option. */
 
 export type OrgListItem = {
   id: string;
@@ -25,6 +29,7 @@ export type OrgListItem = {
 interface OrgSwitcherProps {
   organizations: OrgListItem[];
   compact?: boolean;
+  canCreate?: boolean;
 }
 
 const PLAN_COLOR: Record<string, string> = {
@@ -33,16 +38,20 @@ const PLAN_COLOR: Record<string, string> = {
   ENTERPRISE: "text-violet-300",
 };
 
-export function OrgSwitcher({ organizations, compact = false }: OrgSwitcherProps) {
+export function OrgSwitcher({ organizations, compact = false, canCreate = false }: OrgSwitcherProps) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const active = organizations.find((o) => o.isActive) ?? organizations[0];
 
+  // Fallback: user has no orgs yet. Only ORGANIZATION-type accounts can
+  // bootstrap a new one; everyone else should already have an org via
+  // their onboarding flow and shouldn't see a dangling CTA here.
   if (!active) {
+    if (!canCreate) return null;
     return (
       <button
-        onClick={() => router.push("/settings")}
+        onClick={() => router.push("/organizations/new")}
         className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-dashed border-[#B8EB23]/40 text-[#B8EB23] text-xs font-semibold hover:bg-[#B8EB23]/[0.06] transition-all"
       >
         <Plus className="w-3.5 h-3.5" />
@@ -129,15 +138,17 @@ export function OrgSwitcher({ organizations, compact = false }: OrgSwitcherProps
                   </button>
                 ))}
               </div>
-              <div className="border-t border-white/[0.06] p-1.5">
-                <button
-                  onClick={() => { router.push("/settings"); setOpen(false); }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-semibold text-[#B8EB23] hover:bg-[#B8EB23]/[0.06] transition-all"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Crear nueva organización
-                </button>
-              </div>
+              {canCreate && (
+                <div className="border-t border-white/[0.06] p-1.5">
+                  <button
+                    onClick={() => { router.push("/organizations/new"); setOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-semibold text-[#B8EB23] hover:bg-[#B8EB23]/[0.06] transition-all"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Crear nueva organización
+                  </button>
+                </div>
+              )}
             </motion.div>
           </>
         )}

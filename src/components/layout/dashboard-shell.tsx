@@ -25,5 +25,14 @@ export async function DashboardShell({ children }: { children: React.ReactNode }
     }));
   }
 
-  return <DashboardLayout organizations={organizations}>{children}</DashboardLayout>;
+  // Only ORGANIZATION-type accounts can spin up parallel organizations.
+  // CREATOR (personal brand) and INTERNAL (BannerBlaze staff) keep their
+  // single org and don't see the "Crear nueva organización" CTA.
+  const canCreateOrg = user?.accountType === "ORGANIZATION";
+
+  return (
+    <DashboardLayout organizations={organizations} canCreateOrg={canCreateOrg}>
+      {children}
+    </DashboardLayout>
+  );
 }

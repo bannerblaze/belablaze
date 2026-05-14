@@ -13,9 +13,10 @@ import type { OrgListItem } from "./org-switcher";
 interface DashboardLayoutProps {
   children: React.ReactNode;
   organizations?: OrgListItem[];
+  canCreateOrg?: boolean;
 }
 
-export function DashboardLayout({ children, organizations = [] }: DashboardLayoutProps) {
+export function DashboardLayout({ children, organizations = [], canCreateOrg = false }: DashboardLayoutProps) {
   const pathname = usePathname();
   const { setMobileSidebarOpen } = useAppStore();
 
@@ -26,7 +27,7 @@ export function DashboardLayout({ children, organizations = [] }: DashboardLayou
 
   return (
     <div className="flex h-screen bg-[#0A0A0A] overflow-hidden">
-      <Sidebar organizations={organizations} />
+      <Sidebar organizations={organizations} canCreateOrg={canCreateOrg} />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <Topbar />
         <main className="flex-1 overflow-y-auto pb-16 lg:pb-0">
