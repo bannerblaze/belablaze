@@ -7,35 +7,34 @@ import {
   LayoutDashboard, Megaphone, MonitorPlay, BarChart3,
   ClipboardCheck, Settings, ChevronLeft, Zap, Bell, Layers,
   Building2, LogOut, X, Image as ImageIcon, CalendarRange,
+  Users, CreditCard, Activity,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { useRole } from "@/hooks/use-role";
+import { usePermissions } from "@/hooks/usePermissions";
+import { NAV_ITEMS } from "@/types/rbac";
 import type { UserRole } from "@/types";
 import { OrgSwitcher, type OrgListItem } from "./org-switcher";
 
-interface NavItem {
-  href: string;
-  icon: React.ElementType;
-  label: string;
-  exact?: boolean;
-  badge?: number;
-  roles?: UserRole[];
-}
-
-const navItems: NavItem[] = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", exact: true },
-  { href: "/campaigns", icon: Layers, label: "Campañas" },
-  { href: "/campaigns/calendar", icon: CalendarRange, label: "Calendario" },
-  { href: "/ads", icon: Megaphone, label: "Anuncios" },
-  { href: "/media", icon: ImageIcon, label: "Media" },
-  { href: "/screens", icon: MonitorPlay, label: "Pantallas", roles: ["ADMIN", "EXECUTIVE", "COMPANY"] },
-  { href: "/analytics", icon: BarChart3, label: "Analytics" },
-  { href: "/approvals", icon: ClipboardCheck, label: "Aprobaciones", roles: ["ADMIN", "EXECUTIVE"] },
-  { href: "/clients", icon: Building2, label: "Clientes", roles: ["ADMIN"] },
-  { href: "/settings", icon: Settings, label: "Configuración" },
-];
+/* Maps NAV_ITEMS hrefs → lucide components so the existing icon rendering
+ * is preserved while nav config lives centrally in src/types/rbac.ts. */
+const ICON_MAP: Record<string, React.ElementType> = {
+  "/dashboard":            LayoutDashboard,
+  "/campaigns":            Layers,
+  "/campaigns/calendar":   CalendarRange,
+  "/ads":                  Megaphone,
+  "/media":                ImageIcon,
+  "/screens":              MonitorPlay,
+  "/analytics":            BarChart3,
+  "/approvals":            ClipboardCheck,
+  "/clients":              Building2,
+  "/settings/team":        Users,
+  "/settings":             Settings,
+  "/settings/billing":     CreditCard,
+  "/settings/activity":    Activity,
+};
 
 function Avatar({ imageUrl, name, size = "sm" }: { imageUrl?: string; name: string; size?: "sm" | "md" }) {
   const dim = size === "sm" ? "w-8 h-8 text-xs" : "w-9 h-9 text-xs";
@@ -67,6 +66,7 @@ function SidebarContent({ onClose, organizations }: { onClose?: () => void; orga
 
   const displayName = user?.fullName ?? user?.firstName ?? "Usuario";
   const role = useRole() ?? "EXECUTIVE";
+  const { user: permUser } = usePermissions();
 
   const roleLabel: Record<UserRole, string> = {
     ADMIN: "Administrador",
@@ -76,13 +76,13 @@ function SidebarContent({ onClose, organizations }: { onClose?: () => void; orga
     CLIENT: "Cliente",
   };
 
-  const isActive = (href: string, exact?: boolean) => {
-    if (exact) return pathname === href;
+  const isActive = (href: string) => {
+    if (href === "/dashboard") return pathname === href;
     return pathname.startsWith(href);
   };
 
-  const visibleItems = navItems.filter(
-    (item) => !item.roles || item.roles.includes(role)
+  const visibleItems = NAV_ITEMS.filter((item) =>
+    item.allowedRoles.includes(permUser.role)
   );
 
   const collapsed = !isMobile && sidebarCollapsed;
@@ -135,7 +135,8 @@ function SidebarContent({ onClose, organizations }: { onClose?: () => void; orga
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-0.5">
         {visibleItems.map((item) => {
-          const active = isActive(item.href, item.exact);
+          const active = isActive(item.href);
+          const Icon = ICON_MAP[item.href] ?? Layers;
           return (
             <Link
               key={item.href}
@@ -156,7 +157,7 @@ function SidebarContent({ onClose, organizations }: { onClose?: () => void; orga
                 />
               )}
               <div className="relative flex-shrink-0">
-                <item.icon
+                <Icon
                   className={cn("w-5 h-5 flex-shrink-0", active ? "text-[#B8EB23]" : "")}
                   strokeWidth={active ? 2.5 : 1.8}
                 />

@@ -125,6 +125,7 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { section: "Principal",   label: "Dashboard",     href: "/dashboard",          icon: "ti-layout-dashboard",  allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"] },
   { section: "Principal",   label: "Campañas",      href: "/campaigns",          icon: "ti-speakerphone",      allowedRoles: ["super_admin", "admin", "staff", "client"] },
+  { section: "Principal",   label: "Calendario",    href: "/campaigns/calendar", icon: "ti-calendar-event",    allowedRoles: ["super_admin", "admin", "staff", "client"] },
   { section: "Principal",   label: "Anuncios",      href: "/ads",                icon: "ti-photo",             allowedRoles: ["super_admin", "admin", "staff", "client"] },
   { section: "Principal",   label: "Analytics",     href: "/analytics",          icon: "ti-chart-area-line",   allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"] },
   { section: "Principal",   label: "Media",         href: "/media",              icon: "ti-photo-video",       allowedRoles: ["super_admin", "admin", "staff", "client"] },
