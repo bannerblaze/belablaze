@@ -1,19 +1,30 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { fromUserRole, type Role } from "@/types/rbac";
-import type { UserRole } from "@/types";
 
 /* ──────────────────────────────────────────────────────────────────────
  * Next.js 16 renamed `middleware.ts` → `proxy.ts`. This file is the
  * canonical edge-side request guard.
  *
- * Layers:
- *   • Auth gate (existing): protect everything except sign-in/up, webhook
- *     callbacks, and the marketing root.
- *   • Role gate (new): block access to admin/super-admin routes for users
- *     who don't have the matching global Role in Clerk publicMetadata.
+ * What this layer does:
+ *   • Allow truly public routes (sign-in/up, webhook callbacks, marketing).
+ *   • Require an authenticated session for everything else.
  *
- * Routes use the REAL flat structure (/campaigns not /dashboard/campaigns).
+ * What this layer does NOT do anymore (intentionally):
+ *   Per-feature / per-role gating. The proxy only has access to the
+ *   user's *global* Role from Clerk publicMetadata, which conflates
+ *   "BannerBlaze internal staff vs paying customer" with "what can this
+ *   person do inside their org". Those are different concerns:
+ *
+ *     - Global Role  → who is this user to the platform.
+ *     - OrgRole      → what can they do inside their active organization.
+ *
+ *   Paying customers carry the lowercase "client" global Role, but
+ *   they are OWNER/ADMIN inside their own org. Per-feature decisions
+ *   (billing, team, audit, etc.) must be made server-side in each page
+ *   where we have the full OrgContext + RBAC matrix from
+ *   src/lib/rbac.ts. The earlier `isSuperAdminRoute` / `isAdminRoute` /
+ *   `isStaffRoute` matchers here were redirecting customers away from
+ *   their own product — removed.
  * ────────────────────────────────────────────────────────────────────── */
 
 const isPublicRoute = createRouteMatcher([
@@ -23,51 +34,11 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks(.*)",
 ]);
 
-const isSuperAdminRoute = createRouteMatcher([
-  "/settings/billing(.*)",
-  "/settings/activity(.*)",
-  "/settings/danger(.*)",
-]);
-
-const isAdminRoute = createRouteMatcher([
-  "/settings/team(.*)",
-  "/settings/security(.*)",
-  "/settings/api-keys(.*)",
-  "/settings/webhooks(.*)",
-  "/settings/branding(.*)",
-]);
-
-const isStaffRoute = createRouteMatcher([
-  "/screens(.*)",
-  "/approvals(.*)",
-  "/clients(.*)",
-]);
-
-type SessionClaimsLike = {
-  publicMetadata?: { role?: string };
-  unsafeMetadata?: { role?: string };
-};
-
-function resolveRoleFromClaims(claims: SessionClaimsLike | null | undefined): Role {
-  const raw = claims?.publicMetadata?.role ?? claims?.unsafeMetadata?.role;
-  if (!raw) return "viewer";
-  if (/^(super_admin|admin|staff|client|viewer)$/.test(raw)) return raw as Role;
-  return fromUserRole(raw.toUpperCase() as UserRole);
-}
-
-const unauthorized = (req: Request) => NextResponse.redirect(new URL("/dashboard?error=unauthorized", req.url));
-
 export default clerkMiddleware(async (auth, req) => {
   if (isPublicRoute(req)) return NextResponse.next();
 
-  const { userId, sessionClaims, redirectToSignIn } = await auth();
+  const { userId, redirectToSignIn } = await auth();
   if (!userId) return redirectToSignIn({ returnBackUrl: req.url });
-
-  const role = resolveRoleFromClaims(sessionClaims as SessionClaimsLike | null);
-
-  if (isSuperAdminRoute(req) && role !== "super_admin") return unauthorized(req);
-  if (isAdminRoute(req) && role !== "super_admin" && role !== "admin") return unauthorized(req);
-  if (isStaffRoute(req) && (role === "client" || role === "viewer")) return unauthorized(req);
 
   return NextResponse.next();
 });

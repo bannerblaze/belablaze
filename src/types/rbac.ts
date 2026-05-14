@@ -121,21 +121,32 @@ export type NavItem = {
   section?: string;
 };
 
-/* Routes match the actual app structure (flat, not nested under /dashboard). */
+/* Routes match the actual app structure (flat, not nested under /dashboard).
+ *
+ * IMPORTANT: the lowercase global Role here ("client") = a paying customer,
+ * not "limited user". Customers are OWNER/ADMIN inside their own org and
+ * need access to every customer-facing surface (billing, team, pantallas,
+ * aprobaciones, audit). Fine-grained gating happens at the page level via
+ * OrgRole + the RBAC matrix in src/lib/rbac.ts and the plan feature flags
+ * in src/lib/plans.ts. The NAV_ITEMS list only decides what to display in
+ * the sidebar — it does not enforce security.
+ *
+ * The `viewer` role is the legacy read-only fallback; it sees Dashboard +
+ * Analytics + the core feeds but not management surfaces. */
 export const NAV_ITEMS: NavItem[] = [
   { section: "Principal",   label: "Dashboard",     href: "/dashboard",          icon: "ti-layout-dashboard",  allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"] },
-  { section: "Principal",   label: "Campañas",      href: "/campaigns",          icon: "ti-speakerphone",      allowedRoles: ["super_admin", "admin", "staff", "client"] },
+  { section: "Principal",   label: "Campañas",      href: "/campaigns",          icon: "ti-speakerphone",      allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"] },
   { section: "Principal",   label: "Calendario",    href: "/campaigns/calendar", icon: "ti-calendar-event",    allowedRoles: ["super_admin", "admin", "staff", "client"] },
-  { section: "Principal",   label: "Anuncios",      href: "/ads",                icon: "ti-photo",             allowedRoles: ["super_admin", "admin", "staff", "client"] },
+  { section: "Principal",   label: "Anuncios",      href: "/ads",                icon: "ti-photo",             allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"] },
   { section: "Principal",   label: "Analytics",     href: "/analytics",          icon: "ti-chart-area-line",   allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"] },
   { section: "Principal",   label: "Media",         href: "/media",              icon: "ti-photo-video",       allowedRoles: ["super_admin", "admin", "staff", "client"] },
-  { section: "Operaciones", label: "Pantallas",     href: "/screens",            icon: "ti-device-tv",         allowedRoles: ["super_admin", "admin", "staff"] },
-  { section: "Operaciones", label: "Aprobaciones",  href: "/approvals",          icon: "ti-checks",            allowedRoles: ["super_admin", "admin", "staff"] },
-  { section: "Operaciones", label: "Clientes",      href: "/clients",            icon: "ti-users",             allowedRoles: ["super_admin", "admin", "staff"] },
-  { section: "Admin",       label: "Equipo",        href: "/settings/team",      icon: "ti-user-shield",       allowedRoles: ["super_admin", "admin"] },
-  { section: "Admin",       label: "Configuración", href: "/settings",           icon: "ti-settings",          allowedRoles: ["super_admin", "admin"] },
-  { section: "Admin",       label: "Facturación",   href: "/settings/billing",   icon: "ti-credit-card",       allowedRoles: ["super_admin"] },
-  { section: "Admin",       label: "Audit Log",     href: "/settings/activity",  icon: "ti-list-details",      allowedRoles: ["super_admin"] },
+  { section: "Operaciones", label: "Pantallas",     href: "/screens",            icon: "ti-device-tv",         allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"] },
+  { section: "Operaciones", label: "Aprobaciones",  href: "/approvals",          icon: "ti-checks",            allowedRoles: ["super_admin", "admin", "staff", "client"] },
+  { section: "Operaciones", label: "Clientes",      href: "/clients",            icon: "ti-users",             allowedRoles: ["super_admin", "admin", "staff", "client"] },
+  { section: "Admin",       label: "Equipo",        href: "/settings/team",      icon: "ti-user-shield",       allowedRoles: ["super_admin", "admin", "staff", "client"] },
+  { section: "Admin",       label: "Configuración", href: "/settings",           icon: "ti-settings",          allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"] },
+  { section: "Admin",       label: "Facturación",   href: "/settings/billing",   icon: "ti-credit-card",       allowedRoles: ["super_admin", "admin", "staff", "client"] },
+  { section: "Admin",       label: "Audit Log",     href: "/settings/activity",  icon: "ti-list-details",      allowedRoles: ["super_admin", "admin", "staff", "client"] },
 ];
 
 export type UserStatus = "active" | "inactive" | "suspended" | "pending";
