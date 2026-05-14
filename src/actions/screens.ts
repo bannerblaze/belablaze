@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { requireOrgContext } from "@/lib/org-context";
 import { assertCan } from "@/lib/rbac";
+import { assertWithinLimit } from "@/lib/limits";
 import { logAudit } from "@/actions/audit";
 
 /* ──────────────────────────────────────────────────────────────────────
@@ -73,6 +74,7 @@ export async function createScreen(data: {
 }) {
   const ctx = await requireOrgContext();
   assertCan(ctx.role, "screens:create");
+  await assertWithinLimit(ctx.organizationId, "screens");
 
   const code = `SCR-${Date.now().toString(36).toUpperCase()}`;
 

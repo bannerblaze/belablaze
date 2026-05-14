@@ -2,12 +2,13 @@
 
 import { useTransition } from "react";
 import { motion } from "framer-motion";
-import { Check, CreditCard, Zap, Sparkles, Crown, FileText, Clock } from "lucide-react";
+import { Check, X as XIcon, CreditCard, Zap, Sparkles, Crown, FileText, Clock, Leaf } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import { setPlan } from "@/actions/billing";
+import { PLAN_TIERS, PLANS, type PlanFeature } from "@/lib/plans";
 import type { PlanTier, PlanLimits } from "@/types";
 
 interface Props {
@@ -22,10 +23,27 @@ interface Props {
 }
 
 const PLAN_ICON: Record<PlanTier, typeof Zap> = {
+  FREE: Leaf,
   STARTER: Zap,
   GROWTH: Sparkles,
   ENTERPRISE: Crown,
 };
+
+/* Features displayed in the comparison matrix at the bottom of the page.
+ * Labels match the user-facing language on the plan cards. */
+const FEATURE_ROWS: Array<{ key: PlanFeature; label: string }> = [
+  { key: "advancedAnalytics", label: "Analytics avanzado (cohorts, top campañas, breakdown ciudad)" },
+  { key: "analyticsExport",   label: "Exportar reportes (CSV / PDF)" },
+  { key: "auditLog",          label: "Audit log de la organización" },
+  { key: "auditExport",       label: "Exportar audit log a CSV" },
+  { key: "apiKeys",           label: "API keys para integraciones" },
+  { key: "webhooks",          label: "Webhooks de eventos" },
+  { key: "customBranding",    label: "Custom branding (logo + color de marca)" },
+  { key: "ssoSaml",           label: "SSO / SAML" },
+  { key: "multipleOrgs",      label: "Múltiples organizaciones" },
+  { key: "multiWorkspace",    label: "Múltiples workspaces" },
+  { key: "prioritySupport",   label: "Soporte prioritario" },
+];
 
 function Bar({ value, max, label, unit }: { value: number; max: number; label: string; unit?: string }) {
   const pct = Math.min(100, Math.round((value / Math.max(max, 1)) * 100));
@@ -116,12 +134,12 @@ export function BillingClient({ currentPlan, status, currentPeriodEnd, trialEnds
       {/* Plans */}
       <div>
         <h3 className="text-sm font-semibold text-white mb-3">Planes disponibles</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {(["STARTER", "GROWTH", "ENTERPRISE"] as PlanTier[]).map((p) => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          {PLAN_TIERS.map((p) => {
             const detail = plans[p];
             const Icon = PLAN_ICON[p];
             const active = p === currentPlan;
-            const recommended = p === "GROWTH";
+            const recommended = PLANS[p].popular === true;
             return (
               <motion.div
                 key={p}
@@ -183,6 +201,92 @@ export function BillingClient({ currentPlan, status, currentPeriodEnd, trialEnds
           })}
         </div>
       </div>
+
+      {/* Feature comparison matrix */}
+      <Card>
+        <CardHeader
+          title="Comparación de funciones"
+          subtitle="Qué incluye cada plan a nivel de capacidades"
+        />
+        <CardContent className="overflow-x-auto">
+          <table className="w-full min-w-[640px]">
+            <thead>
+              <tr className="border-b border-white/[0.06]">
+                <th className="text-left py-2.5 pr-3 text-[10px] font-semibold text-white/30 uppercase tracking-wider">
+                  Función
+                </th>
+                {PLAN_TIERS.map((p) => (
+                  <th
+                    key={p}
+                    className={cn(
+                      "py-2.5 px-2 text-center text-[10px] font-semibold uppercase tracking-wider",
+                      p === currentPlan ? "text-[#B8EB23]" : "text-white/40",
+                    )}
+                  >
+                    {plans[p].name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {FEATURE_ROWS.map((row) => (
+                <tr key={row.key} className="border-b border-white/[0.04] last:border-0">
+                  <td className="py-2.5 pr-3 text-xs text-white/70">{row.label}</td>
+                  {PLAN_TIERS.map((p) => {
+                    const enabled = PLANS[p].features[row.key];
+                    return (
+                      <td
+                        key={p}
+                        className={cn(
+                          "py-2.5 px-2 text-center",
+                          p === currentPlan && "bg-[#B8EB23]/[0.03]",
+                        )}
+                      >
+                        {enabled ? (
+                          <Check className="w-3.5 h-3.5 text-[#B8EB23] inline" strokeWidth={2.5} />
+                        ) : (
+                          <XIcon className="w-3.5 h-3.5 text-white/20 inline" />
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+              {/* Numeric limits row */}
+              {(["campaigns", "screens", "members", "storageMB", "mediaAssets"] as const).map((key) => (
+                <tr key={key} className="border-b border-white/[0.04] last:border-0">
+                  <td className="py-2.5 pr-3 text-xs text-white/70 capitalize">
+                    {{
+                      campaigns: "Campañas",
+                      screens: "Pantallas",
+                      members: "Miembros (incl. invitaciones)",
+                      storageMB: "Almacenamiento",
+                      mediaAssets: "Archivos media",
+                    }[key]}
+                  </td>
+                  {PLAN_TIERS.map((p) => {
+                    const v = PLANS[p].limits[key];
+                    const display = v >= 9999 ? "∞" : key === "storageMB"
+                      ? v >= 1000 ? `${(v / 1000).toFixed(0)} GB` : `${v} MB`
+                      : v.toLocaleString();
+                    return (
+                      <td
+                        key={p}
+                        className={cn(
+                          "py-2.5 px-2 text-center text-xs tabular-nums text-white/70 font-medium",
+                          p === currentPlan && "bg-[#B8EB23]/[0.03] text-white",
+                        )}
+                      >
+                        {display}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
 
       {/* Invoices placeholder */}
       <Card>

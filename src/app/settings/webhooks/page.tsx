@@ -3,7 +3,7 @@ import { Webhook } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireOrgContext } from "@/lib/org-context";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { SettingsShell } from "@/components/settings/settings-nav";
+import { SettingsShell } from "@/components/settings/settings-shell";
 
 const SUPPORTED_EVENTS = [
   "campaign.created", "campaign.approved", "campaign.completed",

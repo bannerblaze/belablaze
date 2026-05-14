@@ -639,20 +639,27 @@ model AuditLog {
 /* ─────────────────────── Billing & Usage ─────────────────────── */
 
 model Subscription {
-  id             String              @id @default(cuid())
-  organizationId String              @unique
-  plan           PlanTier            @default(STARTER)
-  status         SubscriptionStatus  @default(TRIALING)
-  trialEndsAt    DateTime?
-  currentPeriodStart DateTime         @default(now())
-  currentPeriodEnd   DateTime
-  externalRef    String?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  id                   String              @id @default(cuid())
+  organizationId       String              @unique
+  plan                 PlanTier            @default(STARTER)
+  status               SubscriptionStatus  @default(TRIALING)
+  trialEndsAt          DateTime?
+  currentPeriodStart   DateTime            @default(now())
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean             @default(false)
+  // Stripe-ready typed references (populated when billing integration ships).
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  stripePriceId        String?
+  // Legacy generic reference, kept for back-compat with seed/test rows.
+  externalRef          String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([status])
+  @@index([stripeCustomerId])
 }
 
 model UsageRecord {

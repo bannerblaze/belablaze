@@ -14,7 +14,10 @@ export const ACCEPTED_MIME = [
   "application/pdf",
 ];
 
-export const SIZE_LIMITS: Record<"STARTER" | "GROWTH" | "ENTERPRISE", number> = {
+/** Per-file upload size cap per plan tier (bytes). Aggregate storage
+ *  limits live in src/lib/plans.ts → PlanLimits.storageMB. */
+export const SIZE_LIMITS: Record<"FREE" | "STARTER" | "GROWTH" | "ENTERPRISE", number> = {
+  FREE: 10 * 1024 * 1024,
   STARTER: 25 * 1024 * 1024,
   GROWTH: 100 * 1024 * 1024,
   ENTERPRISE: 500 * 1024 * 1024,

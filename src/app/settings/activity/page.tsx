@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireOrgContext } from "@/lib/org-context";
 import { listAuditLogs } from "@/actions/audit";
-import { SettingsShell } from "@/components/settings/settings-nav";
+import { SettingsShell } from "@/components/settings/settings-shell";
 import { ActivityClient } from "./_client";
 import { can } from "@/lib/rbac";
 

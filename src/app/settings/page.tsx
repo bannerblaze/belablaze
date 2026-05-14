@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { SettingsClient } from "./_client";
-import { SettingsShell } from "@/components/settings/settings-nav";
+import { SettingsShell } from "@/components/settings/settings-shell";
 import type { UserRole } from "@/types";
 
 export default async function SettingsPage() {

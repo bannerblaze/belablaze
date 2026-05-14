@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getOrgContext } from "@/lib/org-context";
 import { listTeam } from "@/actions/invitations";
-import { SettingsShell } from "@/components/settings/settings-nav";
+import { SettingsShell } from "@/components/settings/settings-shell";
 import { TeamClient } from "./_client";
 
 export default async function TeamPage() {

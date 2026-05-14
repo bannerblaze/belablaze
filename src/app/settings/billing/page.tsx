@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { requireOrgContext } from "@/lib/org-context";
 import { getCurrentSubscription, getUsage } from "@/actions/billing";
 import { PLAN_LIMITS, PLAN_DETAILS } from "@/lib/plans";
-import { SettingsShell } from "@/components/settings/settings-nav";
+import { SettingsShell } from "@/components/settings/settings-shell";
 import { BillingClient } from "./_client";
 
 export default async function BillingPage() {

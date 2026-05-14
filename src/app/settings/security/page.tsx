@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Shield, KeyRound, Smartphone, History } from "lucide-react";
 import { requireOrgContext } from "@/lib/org-context";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { SettingsShell } from "@/components/settings/settings-nav";
+import { SettingsShell } from "@/components/settings/settings-shell";
 
 export default async function SecurityPage() {
   const ctx = await requireOrgContext().catch(() => null);

@@ -12,7 +12,7 @@ export type OrgRole = "OWNER" | "ADMIN" | "EXECUTIVE" | "MANAGER" | "EDITOR" | "
 export type InvitationStatus = "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED";
 export type WorkspaceType = "PRODUCTION" | "STAGING" | "TEST";
 export type MediaType = "IMAGE" | "VIDEO" | "DOCUMENT" | "AUDIO";
-export type PlanTier = "STARTER" | "GROWTH" | "ENTERPRISE";
+export type PlanTier = "FREE" | "STARTER" | "GROWTH" | "ENTERPRISE";
 export type SubscriptionStatus = "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "INCOMPLETE";
 export type ScheduleStatus = "SCHEDULED" | "ACTIVE" | "PAUSED" | "COMPLETED" | "CONFLICT";
 

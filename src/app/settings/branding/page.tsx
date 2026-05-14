@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Palette } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireOrgContext } from "@/lib/org-context";
-import { SettingsShell } from "@/components/settings/settings-nav";
+import { SettingsShell } from "@/components/settings/settings-shell";
 import { BrandingClient } from "./_client";
 
 export default async function BrandingPage() {
