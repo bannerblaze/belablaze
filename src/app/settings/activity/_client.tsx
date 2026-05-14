@@ -2,15 +2,28 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
-  Activity, ChevronLeft, ChevronRight, Filter, Download,
+  Activity, ChevronLeft, ChevronRight, Download,
   User as UserIcon, Building2, Megaphone, MonitorPlay,
   CreditCard, Image as ImageIcon, Shield, Key,
 } from "lucide-react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn, getInitials } from "@/lib/utils";
+
+const ENTITY_FILTERS = [
+  { value: "", label: "Todos" },
+  { value: "Campaign", label: "Campañas" },
+  { value: "Ad", label: "Anuncios" },
+  { value: "Screen", label: "Pantallas" },
+  { value: "Client", label: "Clientes" },
+  { value: "OrganizationMember", label: "Miembros" },
+  { value: "Invitation", label: "Invitaciones" },
+  { value: "MediaAsset", label: "Media" },
+  { value: "Subscription", label: "Facturación" },
+];
 
 type Item = {
   id: string;
@@ -36,8 +49,10 @@ function iconForEntity(entityType: string) {
     case "Organization": return Building2;
     case "OrganizationMember":
     case "Invitation": return UserIcon;
-    case "Campaign": return Megaphone;
+    case "Campaign":
+    case "Ad": return Megaphone;
     case "Screen": return MonitorPlay;
+    case "Client": return Building2;
     case "MediaAsset": return ImageIcon;
     case "Subscription": return CreditCard;
     case "ApiKey":
@@ -68,7 +83,24 @@ function timeAgo(iso: string): string {
 }
 
 export function ActivityClient({ items, total, page, totalPages }: Props) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeEntity = searchParams.get("entityType") ?? "";
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  const setEntityFilter = (entityType: string) => {
+    const sp = new URLSearchParams(searchParams.toString());
+    if (entityType) sp.set("entityType", entityType);
+    else sp.delete("entityType");
+    sp.delete("page");
+    router.push(`/settings/activity${sp.toString() ? `?${sp}` : ""}`);
+  };
+
+  const buildPageUrl = (target: number) => {
+    const sp = new URLSearchParams(searchParams.toString());
+    sp.set("page", String(target));
+    return `/settings/activity?${sp.toString()}`;
+  };
 
   const exportCsv = () => {
     const rows = [
@@ -103,11 +135,28 @@ export function ActivityClient({ items, total, page, totalPages }: Props) {
           <p className="text-xs text-white/40 mt-0.5">{total.toLocaleString()} eventos registrados</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" icon={<Filter className="w-3.5 h-3.5" />}>Filtros</Button>
           <Button variant="outline" size="sm" icon={<Download className="w-3.5 h-3.5" />} onClick={exportCsv}>
             Exportar CSV
           </Button>
         </div>
+      </div>
+
+      {/* Entity filter chips */}
+      <div className="flex items-center gap-1 flex-wrap">
+        {ENTITY_FILTERS.map((f) => (
+          <button
+            key={f.value || "all"}
+            onClick={() => setEntityFilter(f.value)}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all",
+              activeEntity === f.value
+                ? "bg-[#B8EB23]/10 text-[#B8EB23] border border-[#B8EB23]/20"
+                : "text-white/40 hover:text-white border border-transparent",
+            )}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       <Card>
@@ -189,7 +238,7 @@ export function ActivityClient({ items, total, page, totalPages }: Props) {
           <span>Página {page} de {totalPages}</span>
           <div className="flex items-center gap-2">
             <Link
-              href={`/settings/activity?page=${Math.max(1, page - 1)}`}
+              href={buildPageUrl(Math.max(1, page - 1))}
               className={cn(
                 "p-1.5 rounded-lg",
                 page <= 1 ? "text-white/20 pointer-events-none" : "text-white/60 hover:bg-white/[0.05]",
@@ -198,7 +247,7 @@ export function ActivityClient({ items, total, page, totalPages }: Props) {
               <ChevronLeft className="w-4 h-4" />
             </Link>
             <Link
-              href={`/settings/activity?page=${Math.min(totalPages, page + 1)}`}
+              href={buildPageUrl(Math.min(totalPages, page + 1))}
               className={cn(
                 "p-1.5 rounded-lg",
                 page >= totalPages ? "text-white/20 pointer-events-none" : "text-white/60 hover:bg-white/[0.05]",

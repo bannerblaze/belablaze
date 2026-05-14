@@ -149,9 +149,11 @@ function ScreenCard({ screen, index }: { screen: Screen; index: number }) {
 
 interface ScreensClientProps {
   screens: Screen[];
+  canCreate?: boolean;
+  canManage?: boolean;
 }
 
-export function ScreensClient({ screens }: ScreensClientProps) {
+export function ScreensClient({ screens, canCreate = false, canManage = false }: ScreensClientProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -159,6 +161,10 @@ export function ScreensClient({ screens }: ScreensClientProps) {
   const [isPending, startTransition] = useTransition();
 
   const handlePing = () => {
+    if (!canManage) {
+      toast.error("Tu rol no permite enviar ping a pantallas");
+      return;
+    }
     startTransition(async () => {
       for (const screen of screens.filter((s) => s.status === "ONLINE")) {
         await pingScreen(screen.id);
@@ -210,13 +216,16 @@ export function ScreensClient({ screens }: ScreensClientProps) {
             </div>
           ))}
         </div>
-        <button
-          onClick={handlePing}
-          disabled={isPending}
-          className="ml-auto text-white/30 hover:text-white transition-colors flex-shrink-0 disabled:opacity-50"
-        >
-          <RefreshCw className={cn("w-4 h-4", isPending && "animate-spin")} />
-        </button>
+        {canManage && (
+          <button
+            onClick={handlePing}
+            disabled={isPending}
+            title="Enviar ping a pantallas en línea"
+            className="ml-auto text-white/30 hover:text-white transition-colors flex-shrink-0 disabled:opacity-50"
+          >
+            <RefreshCw className={cn("w-4 h-4", isPending && "animate-spin")} />
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
@@ -262,9 +271,11 @@ export function ScreensClient({ screens }: ScreensClientProps) {
               <List className="w-3.5 h-3.5" />
             </button>
           </div>
-          <Button variant="brand" size="sm" icon={<Plus className="w-4 h-4" />} onClick={() => setShowCreateModal(true)}>
-            Nueva pantalla
-          </Button>
+          {canCreate && (
+            <Button variant="brand" size="sm" icon={<Plus className="w-4 h-4" />} onClick={() => setShowCreateModal(true)}>
+              Nueva pantalla
+            </Button>
+          )}
         </div>
       </div>
 

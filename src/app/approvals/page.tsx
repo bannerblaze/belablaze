@@ -2,7 +2,8 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { ApprovalsClient } from "./_client";
 import { NoPermissionEmpty } from "@/components/ui/empty-state";
-import { checkPermissions } from "@/lib/auth";
+import { getOrgContext } from "@/lib/org-context";
+import { can, ORG_ROLE_LABELS } from "@/lib/rbac";
 
 function ApprovalsSkeleton() {
   return (
@@ -22,28 +23,25 @@ function ApprovalsSkeleton() {
 async function ApprovalsData() {
   await connection();
 
-  // Permission gate — provisions DB user lazily on first call and resolves role
-  // from Clerk metadata + DB. In dev, falls back to ADMIN so local devs don't
-  // get locked out. Non-approvers get an elegant restricted screen.
-  const { user, canApprove } = await checkPermissions();
+  // Permission gate uses the FASE 6 OrgRole RBAC matrix. Non-approvers
+  // get an elegant restricted screen labelled with their current role.
+  const ctx = await getOrgContext();
 
-  if (!user) {
-    // Server component: at this point Clerk middleware should have redirected,
-    // but in case it didn't, render the same restricted view.
+  if (!ctx) {
     return (
       <div className="p-6 max-w-[900px]">
         <NoPermissionEmpty
           title="Inicia sesión para continuar"
-          description="Necesitas estar autenticado para acceder al panel de aprobaciones."
+          description="Necesitas estar autenticado y pertenecer a una organización."
         />
       </div>
     );
   }
 
-  if (!canApprove) {
+  if (!can(ctx.role, "ads:approve")) {
     return (
       <div className="p-6 max-w-[900px]">
-        <NoPermissionEmpty currentRole={user.role} />
+        <NoPermissionEmpty currentRole={ORG_ROLE_LABELS[ctx.role]} />
       </div>
     );
   }

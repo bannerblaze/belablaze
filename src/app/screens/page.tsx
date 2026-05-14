@@ -28,7 +28,13 @@ async function ScreensData() {
   const hasDb = !!process.env.DATABASE_URL;
 
   if (!hasDb) {
-    return <ScreensClient screens={mockScreens as Parameters<typeof ScreensClient>[0]["screens"]} />;
+    return (
+      <ScreensClient
+        screens={mockScreens as Parameters<typeof ScreensClient>[0]["screens"]}
+        canCreate={false}
+        canManage={false}
+      />
+    );
   }
 
   const ctx = await requireOrgContext().catch(() => null);
@@ -38,7 +44,13 @@ async function ScreensData() {
   const { getScreens } = await import("@/services/screens.service");
   const screens = await getScreens();
 
-  return <ScreensClient screens={screens as Parameters<typeof ScreensClient>[0]["screens"]} />;
+  return (
+    <ScreensClient
+      screens={screens as Parameters<typeof ScreensClient>[0]["screens"]}
+      canCreate={can(ctx.role, "screens:create")}
+      canManage={can(ctx.role, "screens:update")}
+    />
+  );
 }
 
 export default function ScreensPage() {

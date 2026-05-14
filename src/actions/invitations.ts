@@ -217,6 +217,7 @@ export async function listTeam(): Promise<{
   }>;
   invitations: Array<{
     id: string;
+    token: string;
     email: string;
     role: OrgRole;
     expiresAt: Date;

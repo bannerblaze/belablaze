@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  CheckCircle2, XCircle, Clock, Eye, ChevronDown,
+  CheckCircle2, XCircle, Clock, ChevronDown,
   ChevronUp, MessageSquare, Video, Image, Zap, Code,
   ClipboardCheck, AlertTriangle,
 } from "lucide-react";
@@ -218,9 +218,6 @@ function ReviewCard({ ad, onApprove, onReject }: {
                       onClick={() => setRejecting(true)}
                     >
                       Rechazar
-                    </Button>
-                    <Button variant="ghost" size="sm" icon={<Eye className="w-4 h-4" />}>
-                      Vista previa
                     </Button>
                   </>
                 ) : (

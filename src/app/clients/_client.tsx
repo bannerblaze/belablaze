@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import {
   Building2, Search, Plus, Globe,
   Mail, DollarSign, Layers, X,
-  ArrowUpRight, CheckCircle2, XCircle,
+  CheckCircle2, XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -134,11 +134,6 @@ function ClientCard({ client, index }: { client: Client; index: number }) {
           ))}
         </div>
 
-        <div className="flex items-center justify-end pt-1 border-t border-white/[0.04]">
-          <button className="text-xs text-white/30 hover:text-[#B8EB23] transition-colors flex items-center gap-1">
-            Ver detalles <ArrowUpRight className="w-3 h-3" />
-          </button>
-        </div>
       </div>
     </motion.div>
   );
@@ -147,9 +142,10 @@ function ClientCard({ client, index }: { client: Client; index: number }) {
 interface ClientsClientProps {
   clients: Client[];
   totalCampaigns: number;
+  canManage?: boolean;
 }
 
-export function ClientsClient({ clients, totalCampaigns }: ClientsClientProps) {
+export function ClientsClient({ clients, totalCampaigns, canManage = false }: ClientsClientProps) {
   const [search, setSearch] = useState("");
   const [industry, setIndustry] = useState("Todas");
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -210,15 +206,17 @@ export function ClientsClient({ clients, totalCampaigns }: ClientsClientProps) {
           ))}
         </div>
 
-        <Button
-          variant="brand"
-          size="sm"
-          icon={<Plus className="w-4 h-4" />}
-          className="ml-auto flex-shrink-0"
-          onClick={() => setShowCreateModal(true)}
-        >
-          Nuevo cliente
-        </Button>
+        {canManage && (
+          <Button
+            variant="brand"
+            size="sm"
+            icon={<Plus className="w-4 h-4" />}
+            className="ml-auto flex-shrink-0"
+            onClick={() => setShowCreateModal(true)}
+          >
+            Nuevo cliente
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">

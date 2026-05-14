@@ -32,6 +32,7 @@ async function ClientsData() {
       <ClientsClient
         clients={mockClients as Parameters<typeof ClientsClient>[0]["clients"]}
         totalCampaigns={mockCampaigns.length}
+        canManage={false}
       />
     );
   }
@@ -54,6 +55,7 @@ async function ClientsData() {
     <ClientsClient
       clients={clients as Parameters<typeof ClientsClient>[0]["clients"]}
       totalCampaigns={metrics.total}
+      canManage={can(ctx.role, "clients:manage")}
     />
   );
 }

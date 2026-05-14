@@ -28,6 +28,7 @@ export default async function TeamPage() {
         }))}
         invitations={invitations.map((i) => ({
           id: i.id,
+          token: i.token,
           email: i.email,
           role: i.role,
           expiresAt: i.expiresAt.toISOString(),

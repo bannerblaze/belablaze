@@ -29,6 +29,7 @@ type Member = {
 
 type Invite = {
   id: string;
+  token: string;
   email: string;
   role: OrgRole;
   expiresAt: string;
@@ -213,8 +214,7 @@ function InviteRow({ i, canManage }: { i: Invite; canManage: boolean }) {
   const [copied, setCopied] = useState(false);
 
   const copyLink = () => {
-    // For local dev: build link from current origin.
-    const link = `${window.location.origin}/invite/${i.id}`;
+    const link = `${window.location.origin}/invite/${i.token}`;
     void navigator.clipboard.writeText(link).then(() => {
       setCopied(true);
       toast.success("Link copiado");
