@@ -21,7 +21,6 @@ export type OrgListItem = {
   name: string;
   slug: string;
   logoUrl?: string | null;
-  plan: string;
   role: string;
   isActive: boolean;
 };
@@ -31,12 +30,6 @@ interface OrgSwitcherProps {
   compact?: boolean;
   canCreate?: boolean;
 }
-
-const PLAN_COLOR: Record<string, string> = {
-  STARTER: "text-white/40",
-  GROWTH: "text-[#B8EB23]",
-  ENTERPRISE: "text-violet-300",
-};
 
 export function OrgSwitcher({ organizations, compact = false, canCreate = false }: OrgSwitcherProps) {
   const [open, setOpen] = useState(false);
@@ -97,8 +90,8 @@ export function OrgSwitcher({ organizations, compact = false, canCreate = false 
         </div>
         <div className="flex-1 min-w-0 text-left">
           <p className="text-xs font-semibold text-white truncate leading-none">{active.name}</p>
-          <p className={cn("text-[10px] font-medium uppercase tracking-wider mt-0.5", PLAN_COLOR[active.plan] ?? "text-white/40")}>
-            {active.plan}
+          <p className="text-[10px] font-medium uppercase tracking-wider text-white/40 mt-0.5 truncate">
+            {active.role}
           </p>
         </div>
         <ChevronDown className={cn("w-3.5 h-3.5 text-white/40 flex-shrink-0 transition-transform", open && "rotate-180")} />

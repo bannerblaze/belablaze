@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireOrgContext } from "@/lib/org-context";
 import { assertCan } from "@/lib/rbac";
-import { uploadFile, validateMime, inferMediaType, SIZE_LIMITS, ACCEPTED_MIME } from "@/lib/storage";
+import { uploadFile, validateMime, inferMediaType, MAX_UPLOAD_BYTES, ACCEPTED_MIME } from "@/lib/storage";
 import { logAudit } from "@/actions/audit";
 
 /* Streaming multipart upload — used by the client UploadDropzone.
@@ -28,12 +28,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const sub = await db.subscription.findUnique({ where: { organizationId: ctx.organizationId } });
-    const planTier = sub?.plan ?? "STARTER";
-    const maxSize = SIZE_LIMITS[planTier];
-    if (file.size > maxSize) {
+    if (file.size > MAX_UPLOAD_BYTES) {
       return NextResponse.json(
-        { ok: false, error: `Excede el límite del plan (${(maxSize / 1024 / 1024).toFixed(0)}MB).` },
+        { ok: false, error: `Archivo demasiado grande (${(MAX_UPLOAD_BYTES / 1024 / 1024).toFixed(0)} MB máximo por archivo).` },
         { status: 413 },
       );
     }

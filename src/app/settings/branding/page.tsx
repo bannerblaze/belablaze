@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Palette } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireOrgContext } from "@/lib/org-context";
-import { checkEnterpriseAccess } from "@/lib/limits";
+import { checkAccountTypeAccess } from "@/lib/access";
 import { SettingsShell } from "@/components/settings/settings-shell";
 import { BrandingClient } from "./_client";
 
@@ -10,7 +10,7 @@ export default async function BrandingPage() {
   const ctx = await requireOrgContext().catch(() => null);
   if (!ctx) redirect("/onboarding");
 
-  const blocked = await checkEnterpriseAccess(ctx.organizationId, "customBranding");
+  const blocked = await checkAccountTypeAccess(["ORGANIZATION", "INTERNAL"]);
   if (blocked) redirect(blocked);
 
   const org = await db.organization.findUnique({

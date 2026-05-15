@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
 import { acceptInvitation } from "@/actions/invitations";
 import { ORG_ROLE_LABELS } from "@/lib/rbac";
-import type { OrgRole, InvitationStatus, PlanTier } from "@/types";
+import type { OrgRole, InvitationStatus } from "@/types";
 
 interface Props {
   token: string;
@@ -18,7 +18,6 @@ interface Props {
   expiresAt: string;
   organizationName: string;
   organizationLogo: string | null;
-  organizationPlan: PlanTier;
   userEmail: string;
 }
 
@@ -66,7 +65,7 @@ export function InviteClient(props: Props) {
             <p className="text-xs font-bold uppercase tracking-wider text-[#B8EB23] mb-2">Invitación</p>
             <h1 className="text-xl font-bold text-white">Únete a {props.organizationName}</h1>
             <p className="text-sm text-white/40 mt-1">
-              Te invitaron como <strong className="text-white/80">{ORG_ROLE_LABELS[props.role]}</strong> en el plan {props.organizationPlan}
+              Te invitaron como <strong className="text-white/80">{ORG_ROLE_LABELS[props.role]}</strong>
             </p>
           </div>
 

@@ -1,7 +1,7 @@
 import "server-only";
 import { randomBytes } from "crypto";
-import { ACCEPTED_MIME, SIZE_LIMITS } from "./storage-constants";
-export { ACCEPTED_MIME, SIZE_LIMITS };
+import { ACCEPTED_MIME, MAX_UPLOAD_BYTES } from "./storage-constants";
+export { ACCEPTED_MIME, MAX_UPLOAD_BYTES };
 
 /* ──────────────────────────────────────────────────────────────────────
  * Storage abstraction layer — server-only.

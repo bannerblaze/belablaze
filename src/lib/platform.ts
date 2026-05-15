@@ -7,21 +7,18 @@ import type { AccountType } from "@/types";
  * BelaBlaze has THREE orthogonal access axes:
  *
  *   1. PlatformRole  (this file)   — who you are to BannerBlaze itself.
- *      Decides: cross-tenant access, plan/limit bypass, /admin/* console.
+ *      Decides: cross-tenant access, internal admin tooling.
  *
  *   2. AccountType   (DB column)   — what kind of customer surface you use.
  *      Decides: which sidebar items are even relevant
- *      (creator vs business vs internal staff vs viewer-only).
+ *      (creator vs business vs internal staff).
  *
  *   3. OrgRole       (per tenant)  — what you can do inside one org.
  *      Decides: write/manage permissions enforced via src/lib/rbac.ts.
  *
- * Plus PlanTier (Subscription.plan) gates feature flags — see src/lib/plans.ts.
- *
- * These are deliberately separate so a paying customer's OWNER permissions
- * inside their org can't be confused with BannerBlaze platform privileges.
- * The earlier proxy/sidebar bug came from collapsing all four axes onto a
- * single "global Role" string.
+ * The product no longer has plan tiers or per-feature billing flags —
+ * what you see is determined entirely by AccountType + OrgRole, with
+ * SUPER_ADMIN as the BannerBlaze-internal bypass for support work.
  * ────────────────────────────────────────────────────────────────────── */
 
 export type PlatformRole = "SUPER_ADMIN" | "SUPPORT" | "USER";
@@ -40,8 +37,8 @@ export interface PlatformRoleInput {
  *   SUPER_ADMIN  — email is in the admin whitelist
  *                  (admin@bannerblaze.com, ceo@bannerblaze.com, or
  *                  anything in ADMIN_WHITELIST_EMAILS env). These accounts
- *                  bypass plan limits and feature flags, can read any
- *                  org, and (in the future) impersonate.
+ *                  see every module, bypass accountType filters, can read
+ *                  any org, and (in the future) impersonate.
  *
  *   SUPPORT      — accountType=INTERNAL but not in the whitelist.
  *                  BannerBlaze staff who can help customers but don't

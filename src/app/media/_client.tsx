@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import { deleteMedia } from "@/actions/media";
 import { ACCEPTED_MIME } from "@/lib/storage-constants";
-import type { MediaType, PlanTier } from "@/types";
+import type { MediaType } from "@/types";
 
 type Asset = {
   id: string;
@@ -30,7 +30,6 @@ type Asset = {
 interface Props {
   canUpload: boolean;
   canDelete: boolean;
-  plan: PlanTier;
   stats: { count: number; totalBytes: number };
   assets: Asset[];
 }
@@ -52,7 +51,7 @@ function fmtBytes(n: number): string {
 
 type UploadingItem = { id: string; name: string; progress: number; done: boolean; error?: string };
 
-export function MediaClient({ canUpload, canDelete, plan, stats, assets }: Props) {
+export function MediaClient({ canUpload, canDelete, stats, assets }: Props) {
   const router = useRouter();
   const [filter, setFilter] = useState<"ALL" | MediaType>("ALL");
   const [query, setQuery] = useState("");
@@ -138,7 +137,7 @@ export function MediaClient({ canUpload, canDelete, plan, stats, assets }: Props
         <div>
           <h2 className="text-lg font-bold text-white">Media library</h2>
           <p className="text-xs text-white/40 mt-0.5">
-            {stats.count.toLocaleString()} archivos · {fmtBytes(stats.totalBytes)} usados · Plan {plan}
+            {stats.count.toLocaleString()} archivos · {fmtBytes(stats.totalBytes)} usados
           </p>
         </div>
         {canUpload && (
@@ -173,7 +172,7 @@ export function MediaClient({ canUpload, canDelete, plan, stats, assets }: Props
         >
           <UploadCloud className="w-8 h-8 text-white/30 mx-auto mb-2" />
           <p className="text-sm font-semibold text-white">Arrastra archivos o haz clic para subir</p>
-          <p className="text-xs text-white/40 mt-1">PNG, JPG, WebP, GIF, MP4, WebM, MOV, PDF · hasta el límite de tu plan</p>
+          <p className="text-xs text-white/40 mt-1">PNG, JPG, WebP, GIF, MP4, WebM, MOV, PDF · hasta 100 MB por archivo</p>
         </motion.div>
       )}
 

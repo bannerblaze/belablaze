@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireOrgContext } from "@/lib/org-context";
 import { assertCan } from "@/lib/rbac";
-import { assertWithinLimit } from "@/lib/limits";
 import { logAudit } from "@/actions/audit";
 
 /* ──────────────────────────────────────────────────────────────────────
@@ -27,7 +26,6 @@ async function loadOrgCampaign(orgId: string, campaignId: string) {
 export async function createCampaign(formData: FormData) {
   const ctx = await requireOrgContext();
   assertCan(ctx.role, "campaigns:create");
-  await assertWithinLimit(ctx.organizationId, "campaigns");
 
   const name = formData.get("name") as string;
   const description = formData.get("description") as string;

@@ -22,7 +22,6 @@ export async function DashboardShell({ children }: { children: React.ReactNode }
       name: m.organization.name,
       slug: m.organization.slug,
       logoUrl: m.organization.logoUrl,
-      plan: m.organization.plan,
       role: m.role,
       isActive: m.organizationId === user.activeOrgId,
     }));

@@ -6,8 +6,6 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { requireOrgContext, listUserOrganizations } from "@/lib/org-context";
 import { assertCan } from "@/lib/rbac";
-import { getOrgsOwnedBy, getOrgPlan } from "@/lib/limits";
-import { getLimit, hasFeature } from "@/lib/plans";
 import { logAudit } from "@/actions/audit";
 
 /* ──────────────────────────────────────────────────────────────────────
@@ -58,21 +56,6 @@ export async function createOrganization(input: z.infer<typeof createSchema>): P
   const parsed = createSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
 
-  // Plan gate — measured against the user's *current* active org. If
-  // the user has no orgs yet (first-time creator) we let the call through
-  // since the bootstrap path also lands here.
-  const ownedCount = await getOrgsOwnedBy(user.id);
-  if (ownedCount >= 1 && user.activeOrgId) {
-    const currentPlan = await getOrgPlan(user.activeOrgId);
-    if (!hasFeature(currentPlan, "multipleOrgs")) {
-      return { ok: false, error: "Tu plan actual no permite crear múltiples organizaciones. Actualiza a Starter o superior." };
-    }
-    const max = getLimit(currentPlan, "organizations");
-    if (ownedCount >= max) {
-      return { ok: false, error: `Alcanzaste el máximo de organizaciones para tu plan (${max}). Actualiza para crear más.` };
-    }
-  }
-
   const slugBase = parsed.data.slug ?? slugify(parsed.data.name);
   const slug = await uniqueSlug(slugBase);
 
@@ -92,9 +75,8 @@ export async function createOrganization(input: z.infer<typeof createSchema>): P
       },
       subscription: {
         create: {
-          plan: "STARTER",
-          status: "TRIALING",
-          currentPeriodEnd: new Date(Date.now() + 14 * 24 * 3600 * 1000),
+          status: "ACTIVE",
+          currentPeriodEnd: new Date(Date.now() + 365 * 24 * 3600 * 1000),
         },
       },
     },

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Code2 } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireOrgContext } from "@/lib/org-context";
-import { checkEnterpriseAccess } from "@/lib/limits";
+import { checkAccountTypeAccess } from "@/lib/access";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { SettingsShell } from "@/components/settings/settings-shell";
 
@@ -10,7 +10,7 @@ export default async function ApiKeysPage() {
   const ctx = await requireOrgContext().catch(() => null);
   if (!ctx) redirect("/onboarding");
 
-  const blocked = await checkEnterpriseAccess(ctx.organizationId, "apiKeys");
+  const blocked = await checkAccountTypeAccess(["ORGANIZATION", "INTERNAL"]);
   if (blocked) redirect(blocked);
 
   const keys = await db.apiKey.findMany({

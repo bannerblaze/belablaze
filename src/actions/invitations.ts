@@ -7,7 +7,6 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { requireOrgContext } from "@/lib/org-context";
 import { assertCan } from "@/lib/rbac";
-import { assertWithinLimit } from "@/lib/limits";
 import { logAudit } from "@/actions/audit";
 import type { OrgRole } from "@/types";
 
@@ -36,10 +35,6 @@ function newToken(): string {
 export async function inviteMember(input: z.infer<typeof inviteSchema>): Promise<Result<{ token: string }>> {
   const ctx = await requireOrgContext();
   assertCan(ctx.role, "members:invite");
-  // The members limit counts both current OrganizationMember rows and
-  // PENDING invitations, so a seat is "reserved" the moment the invite
-  // is sent — preventing oversubscription on Free/Starter plans.
-  await assertWithinLimit(ctx.organizationId, "members");
 
   const parsed = inviteSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." };

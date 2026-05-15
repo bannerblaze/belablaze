@@ -4,8 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireOrgContext } from "@/lib/org-context";
 import { assertCan } from "@/lib/rbac";
-import { uploadFile, deleteFile, validateMime, inferMediaType, SIZE_LIMITS, ACCEPTED_MIME } from "@/lib/storage";
-import { assertWithinLimit, assertStorageHeadroom, PlanLimitError } from "@/lib/limits";
+import { uploadFile, deleteFile, validateMime, inferMediaType, MAX_UPLOAD_BYTES, ACCEPTED_MIME } from "@/lib/storage";
 import { logAudit } from "@/actions/audit";
 
 /* ──────────────────────────────────────────────────────────────────────
@@ -42,20 +41,13 @@ export async function uploadMediaFromBuffer(input: UploadInput): Promise<Result<
 
   const buffer = Buffer.from(input.base64, "base64");
 
-  // Three independent checks: (1) mediaAssets count, (2) aggregate
-  // storage headroom in MB, (3) per-file size cap. We catch
-  // PlanLimitError so the client gets a structured "upgrade" message
-  // instead of an unhandled 500.
-  try {
-    await assertWithinLimit(ctx.organizationId, "mediaAssets");
-    const { plan } = await assertStorageHeadroom(ctx.organizationId, buffer.byteLength);
-    const maxSize = SIZE_LIMITS[plan];
-    if (buffer.byteLength > maxSize) {
-      return { ok: false, error: `Archivo demasiado grande para tu plan ${plan} (${(maxSize / 1024 / 1024).toFixed(0)} MB máx por archivo).` };
-    }
-  } catch (err) {
-    if (err instanceof PlanLimitError) return { ok: false, error: err.message };
-    throw err;
+  // Single global per-file cap. The product no longer has per-tier
+  // upload limits — one number applies to every account.
+  if (buffer.byteLength > MAX_UPLOAD_BYTES) {
+    return {
+      ok: false,
+      error: `Archivo demasiado grande (${(MAX_UPLOAD_BYTES / 1024 / 1024).toFixed(0)} MB máximo por archivo).`,
+    };
   }
 
   const uploaded = await uploadFile({

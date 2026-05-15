@@ -8,7 +8,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   const invite = await db.invitation.findUnique({
     where: { token },
     include: {
-      organization: { select: { name: true, logoUrl: true, plan: true } },
+      organization: { select: { name: true, logoUrl: true } },
     },
   });
   if (!invite) notFound();
@@ -27,7 +27,6 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
       expiresAt={invite.expiresAt.toISOString()}
       organizationName={invite.organization.name}
       organizationLogo={invite.organization.logoUrl}
-      organizationPlan={invite.organization.plan}
       userEmail={user.email}
     />
   );

@@ -12,7 +12,6 @@ export type OrgRole = "OWNER" | "ADMIN" | "EXECUTIVE" | "MANAGER" | "EDITOR" | "
 export type InvitationStatus = "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED";
 export type WorkspaceType = "PRODUCTION" | "STAGING" | "TEST";
 export type MediaType = "IMAGE" | "VIDEO" | "DOCUMENT" | "AUDIO";
-export type PlanTier = "FREE" | "STARTER" | "GROWTH" | "ENTERPRISE";
 export type SubscriptionStatus = "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "INCOMPLETE";
 export type ScheduleStatus = "SCHEDULED" | "ACTIVE" | "PAUSED" | "COMPLETED" | "CONFLICT";
 
@@ -25,7 +24,6 @@ export interface Organization {
   industry?: string | null;
   size?: string | null;
   ownerId: string;
-  plan: PlanTier;
   brandColor?: string | null;
   isActive: boolean;
   createdAt: string;
@@ -72,14 +70,6 @@ export interface MediaAssetDTO {
   thumbnailUrl?: string | null;
   tags: string[];
   createdAt: string;
-}
-
-export interface PlanLimits {
-  campaigns: number;
-  screens: number;
-  members: number;
-  storageMB: number;
-  mediaAssets: number;
 }
 
 export interface User {

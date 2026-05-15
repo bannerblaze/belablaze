@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { requireOrgContext } from "@/lib/org-context";
 import { can } from "@/lib/rbac";
 import { listMedia, getMediaStats } from "@/actions/media";
-import { getCurrentSubscription } from "@/actions/billing";
 import { MediaClient } from "./_client";
 
 export default async function MediaPage() {
@@ -10,17 +9,15 @@ export default async function MediaPage() {
   if (!ctx) redirect("/onboarding");
   if (!can(ctx.role, "media:view")) redirect("/dashboard");
 
-  const [assets, stats, sub] = await Promise.all([
+  const [assets, stats] = await Promise.all([
     listMedia(),
     getMediaStats(),
-    getCurrentSubscription(),
   ]);
 
   return (
     <MediaClient
       canUpload={can(ctx.role, "media:upload")}
       canDelete={can(ctx.role, "media:delete")}
-      plan={sub.plan}
       stats={stats}
       assets={assets.map((a) => ({
         id: a.id,

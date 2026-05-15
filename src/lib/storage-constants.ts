@@ -14,11 +14,6 @@ export const ACCEPTED_MIME = [
   "application/pdf",
 ];
 
-/** Per-file upload size cap per plan tier (bytes). Aggregate storage
- *  limits live in src/lib/plans.ts → PlanLimits.storageMB. */
-export const SIZE_LIMITS: Record<"FREE" | "STARTER" | "GROWTH" | "ENTERPRISE", number> = {
-  FREE: 10 * 1024 * 1024,
-  STARTER: 25 * 1024 * 1024,
-  GROWTH: 100 * 1024 * 1024,
-  ENTERPRISE: 500 * 1024 * 1024,
-};
+/** Single global per-file upload size cap. The product no longer has
+ *  per-tier upload limits — one number applies to every account. */
+export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024; // 100 MB

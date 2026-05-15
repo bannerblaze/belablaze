@@ -9,7 +9,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { isAdminWhitelisted } from "@/config/admin-whitelist";
 import { checkAdminRateLimit } from "@/lib/rate-limit";
 import { sendAdminAlert } from "@/lib/security-alerts";
-import type { OrgRole, PlanTier } from "@/types";
+import type { OrgRole } from "@/types";
 
 /* ──────────────────────────────────────────────────────────────────────
  * Onboarding -> Organization bootstrap.
@@ -36,7 +36,6 @@ async function uniqueOrgSlug(base: string): Promise<string> {
 async function bootstrapOrganization(input: {
   userId: string;
   name: string;
-  plan?: PlanTier;
   ownerRole?: OrgRole;
   logoUrl?: string | null;
   website?: string | null;
@@ -44,12 +43,14 @@ async function bootstrapOrganization(input: {
   size?: string | null;
 }): Promise<{ id: string; slug: string }> {
   const slug = await uniqueOrgSlug(input.name);
+  // The Prisma schema still carries `plan` columns from the legacy
+  // tier system; we let the schema-level @default fill them. They are
+  // not read by any application code anymore.
   const org = await db.organization.create({
     data: {
       name: input.name,
       slug,
       ownerId: input.userId,
-      plan: input.plan ?? "STARTER",
       logoUrl: input.logoUrl ?? null,
       website: input.website ?? null,
       industry: input.industry ?? null,
@@ -62,9 +63,8 @@ async function bootstrapOrganization(input: {
       },
       subscription: {
         create: {
-          plan: input.plan ?? "STARTER",
-          status: "TRIALING",
-          currentPeriodEnd: new Date(Date.now() + 14 * 24 * 3600 * 1000),
+          status: "ACTIVE",
+          currentPeriodEnd: new Date(Date.now() + 365 * 24 * 3600 * 1000),
         },
       },
     },
@@ -162,7 +162,6 @@ export async function completeCompanyOnboarding(input: CompanyOnboardingInput): 
   await bootstrapOrganization({
     userId: user.id,
     name: data.companyName,
-    plan: "STARTER",
     ownerRole: "OWNER",
     logoUrl: data.logoUrl ?? null,
     website: data.website ?? null,
@@ -223,7 +222,6 @@ export async function completeCreatorOnboarding(input: CreatorOnboardingInput): 
   await bootstrapOrganization({
     userId: user.id,
     name: data.displayName,
-    plan: "STARTER",
     ownerRole: "OWNER",
     logoUrl: data.avatarUrl ?? null,
     website: data.website ?? null,
@@ -370,7 +368,6 @@ export async function completeAdminOnboarding(input: AdminOnboardingInput): Prom
     await bootstrapOrganization({
       userId: user.id,
       name: "BannerBlaze",
-      plan: "ENTERPRISE",
       ownerRole: "OWNER",
     });
   }

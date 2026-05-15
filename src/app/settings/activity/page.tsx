@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireOrgContext } from "@/lib/org-context";
-import { checkEnterpriseAccess } from "@/lib/limits";
+import { checkAccountTypeAccess } from "@/lib/access";
 import { listAuditLogs } from "@/actions/audit";
 import { SettingsShell } from "@/components/settings/settings-shell";
 import { ActivityClient } from "./_client";
@@ -13,10 +13,9 @@ export default async function ActivityPage({
   if (!ctx) redirect("/onboarding");
   if (!can(ctx.role, "audit:view")) redirect("/settings");
 
-  // Audit log is an enterprise-only surface for ORGANIZATION/INTERNAL
-  // accounts with a plan that includes auditLog. Creators can't reach
-  // this even on a paid plan.
-  const blocked = await checkEnterpriseAccess(ctx.organizationId, "auditLog");
+  // Audit log is for ORGANIZATION + INTERNAL accounts. Creators (PERSON)
+  // can't reach this even by typing the URL.
+  const blocked = await checkAccountTypeAccess(["ORGANIZATION", "INTERNAL"]);
   if (blocked) redirect(blocked);
 
   const sp = await searchParams;

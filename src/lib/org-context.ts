@@ -99,9 +99,8 @@ async function ensureOrgFor(userId: string): Promise<string | null> {
       },
       subscription: {
         create: {
-          plan: "STARTER",
-          status: "TRIALING",
-          currentPeriodEnd: new Date(Date.now() + 14 * 24 * 3600 * 1000),
+          status: "ACTIVE",
+          currentPeriodEnd: new Date(Date.now() + 365 * 24 * 3600 * 1000),
         },
       },
     },
