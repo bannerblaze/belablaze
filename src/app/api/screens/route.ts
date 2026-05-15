@@ -2,11 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { getScreens, getScreenMetrics } from "@/services/screens.service";
 import { db } from "@/lib/db";
 import { getOrgContext } from "@/lib/org-context";
+import { isPlatformStaffSession } from "@/lib/access";
 import { can } from "@/lib/rbac";
 import { logAudit } from "@/actions/audit";
 
+/* INTERNAL-only API. Non-staff callers get 403 before any DB access.
+ * The service layer also re-checks, so even a bypass here returns
+ * empty rows rather than tenant data. */
+
 export async function GET(req: NextRequest) {
   try {
+    if (!(await isPlatformStaffSession())) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const ctx = await getOrgContext();
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -35,6 +44,10 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    if (!(await isPlatformStaffSession())) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const ctx = await getOrgContext();
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (!can(ctx.role, "screens:create")) {

@@ -159,9 +159,14 @@ export const NAV_ITEMS: NavItem[] = [
   { section: "Principal", label: "Calendario",   href: "/campaigns/calendar", icon: "ti-calendar-event",
     allowedRoles: ["super_admin", "admin", "staff", "client"],
     allowedAccountTypes: ["ORGANIZATION", "INTERNAL"] },
+  // Pantallas DOOH: panel operativo INTERNO de BannerBlaze. Cliente
+  // externos (ORGANIZATION/PERSON) NO deben ver el link ni acceder a la
+  // ruta — sólo SUPER_ADMIN + SUPPORT (INTERNAL accountType). El gate
+  // real vive en src/app/screens/layout.tsx + page.tsx + actions +
+  // service + API; este flag mantiene el sidebar consistente.
   { section: "Operaciones", label: "Pantallas",    href: "/screens",    icon: "ti-device-tv",
     allowedRoles: ["super_admin", "admin", "staff", "client", "viewer"],
-    allowedAccountTypes: ["ORGANIZATION", "INTERNAL"] },
+    platformOnly: true },
   { section: "Operaciones", label: "Aprobaciones", href: "/approvals",  icon: "ti-checks",
     allowedRoles: ["super_admin", "admin", "staff", "client"],
     allowedAccountTypes: ["ORGANIZATION", "INTERNAL"] },

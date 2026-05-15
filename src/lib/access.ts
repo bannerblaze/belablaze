@@ -65,6 +65,40 @@ export async function requirePlatformAdmin(): Promise<void> {
   }
 }
 
+/** Throws if the caller is not BannerBlaze-internal (SUPER_ADMIN or
+ *  SUPPORT). Use for internal operational modules — Pantallas DOOH,
+ *  device telemetry, fleet ops — where ORGANIZATION/PERSON accounts
+ *  must never reach the action even by guessing the URL. */
+export async function requirePlatformStaff(): Promise<void> {
+  const me = await getCurrentUser();
+  if (!isPlatformStaff(me)) {
+    throw new AccessError("Acceso reservado a personal de BannerBlaze", "platform_only");
+  }
+}
+
+/** Soft variant for server components / pages. Returns the redirect
+ *  target when the caller isn't platform staff, or null when they are.
+ *  Mirrors checkAccountTypeAccess() so pages can early-return uniformly:
+ *
+ *      const blocked = await checkPlatformStaffAccess();
+ *      if (blocked) redirect(blocked);
+ */
+export async function checkPlatformStaffAccess(
+  fallback = "/dashboard",
+): Promise<string | null> {
+  const me = await getCurrentUser();
+  if (!me) return "/sign-in";
+  if (isPlatformStaff(me)) return null;
+  return fallback;
+}
+
+/** Boolean form for callsites that branch (services that return [] vs
+ *  throwing). Pure read — no exception machinery. */
+export async function isPlatformStaffSession(): Promise<boolean> {
+  const me = await getCurrentUser();
+  return isPlatformStaff(me);
+}
+
 /** Resolves the full access context in one query — for layouts that
  *  need to make several decisions at once (sidebar, settings shell). */
 export async function getAccessContext(): Promise<{

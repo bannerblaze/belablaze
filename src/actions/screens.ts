@@ -3,15 +3,27 @@
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { requireOrgContext } from "@/lib/org-context";
+import { requirePlatformStaff } from "@/lib/access";
 import { assertCan } from "@/lib/rbac";
 import { logAudit } from "@/actions/audit";
 
 /* ──────────────────────────────────────────────────────────────────────
- * Tenant-scoped screen mutations.
+ * Screen mutations — INTERNAL-only.
  *
- * Every action verifies the screen belongs to the active organization
- * before mutating, and the actor's OrgRole carries the matching
- * screens:* permission. Audit log captures actor, org, screen, change.
+ * Pantallas DOOH is a BannerBlaze-internal operations panel. Every
+ * action runs three checks in this exact order:
+ *
+ *   1. requirePlatformStaff()  — caller must be SUPER_ADMIN or SUPPORT.
+ *      ORGANIZATION/PERSON accounts get an AccessError before any DB
+ *      access; their session token is irrelevant.
+ *   2. requireOrgContext()     — resolves the staff member's tenant so
+ *      the row stays scoped. (BannerBlaze internal users still have an
+ *      org for telemetry/audit purposes.)
+ *   3. assertCan(role, perm)   — OrgRole must carry the matching
+ *      screens:* permission inside that internal org.
+ *
+ * Audit log captures actor, org, screen and change — these are the
+ * actions that move physical hardware state, so the trail matters.
  * ────────────────────────────────────────────────────────────────────── */
 
 async function loadOrgScreen(orgId: string, screenId: string) {
@@ -22,6 +34,7 @@ async function loadOrgScreen(orgId: string, screenId: string) {
 }
 
 export async function updateScreenStatus(screenId: string, status: "ONLINE" | "OFFLINE" | "MAINTENANCE") {
+  await requirePlatformStaff();
   const ctx = await requireOrgContext();
   assertCan(ctx.role, "screens:update");
 
@@ -46,6 +59,7 @@ export async function updateScreenStatus(screenId: string, status: "ONLINE" | "O
 }
 
 export async function pingScreen(screenId: string) {
+  await requirePlatformStaff();
   const ctx = await requireOrgContext();
   assertCan(ctx.role, "screens:update");
 
@@ -71,6 +85,7 @@ export async function createScreen(data: {
   orientation?: string;
   notes?: string;
 }) {
+  await requirePlatformStaff();
   const ctx = await requireOrgContext();
   assertCan(ctx.role, "screens:create");
 
@@ -118,6 +133,7 @@ export async function updateScreen(screenId: string, data: {
   notes?: string;
   isActive?: boolean;
 }) {
+  await requirePlatformStaff();
   const ctx = await requireOrgContext();
   assertCan(ctx.role, "screens:update");
 
@@ -131,6 +147,7 @@ export async function updateScreen(screenId: string, data: {
 }
 
 export async function deleteScreen(screenId: string) {
+  await requirePlatformStaff();
   const ctx = await requireOrgContext();
   assertCan(ctx.role, "screens:delete");
 

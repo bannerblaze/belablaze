@@ -4,7 +4,14 @@ import { redirect } from "next/navigation";
 import { ScreensClient } from "./_client";
 import { mockScreens } from "@/lib/mock-data";
 import { requireOrgContext } from "@/lib/org-context";
+import { checkPlatformStaffAccess } from "@/lib/access";
 import { can } from "@/lib/rbac";
+
+/* INTERNAL-only module — see layout.tsx for the access policy.
+ *
+ * The layout already short-circuits non-staff requests, but we re-check
+ * here as a belt-and-suspenders measure (the layout could be bypassed
+ * if Next ever changes how server components are invoked). */
 
 function ScreensSkeleton() {
   return (
@@ -25,6 +32,11 @@ function ScreensSkeleton() {
 
 async function ScreensData() {
   await connection();
+
+  // Layer 2: re-check platform staff at the page level.
+  const blocked = await checkPlatformStaffAccess("/dashboard");
+  if (blocked) redirect(blocked);
+
   const hasDb = !!process.env.DATABASE_URL;
 
   if (!hasDb) {

@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getScreenById } from "@/services/screens.service";
 import { db } from "@/lib/db";
 import { getOrgContext } from "@/lib/org-context";
+import { isPlatformStaffSession } from "@/lib/access";
 import { can } from "@/lib/rbac";
 import { logAudit } from "@/actions/audit";
+
+/* INTERNAL-only API. See /api/screens/route.ts for the policy. */
 
 async function loadOrgScreen(orgId: string, screenId: string) {
   return db.screen.findFirst({
@@ -17,12 +20,16 @@ export async function GET(
   routeCtx: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!(await isPlatformStaffSession())) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const ctx = await getOrgContext();
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (!can(ctx.role, "screens:view")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await routeCtx.params;
-    // getScreenById is already org-scoped.
+    // getScreenById is already org-scoped + platform-staff-gated.
     const screen = await getScreenById(id);
     if (!screen) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -37,6 +44,10 @@ export async function PATCH(
   routeCtx: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!(await isPlatformStaffSession())) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const ctx = await getOrgContext();
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (!can(ctx.role, "screens:update")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -68,6 +79,10 @@ export async function DELETE(
   routeCtx: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!(await isPlatformStaffSession())) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const ctx = await getOrgContext();
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (!can(ctx.role, "screens:delete")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });

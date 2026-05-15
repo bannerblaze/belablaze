@@ -2,10 +2,25 @@ import { db } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
 import type { FilterOptions } from "@/types";
 import { getOrgContext } from "@/lib/org-context";
+import { isPlatformStaffSession } from "@/lib/access";
 
-/* All screen queries scope by active organization. */
+/* ──────────────────────────────────────────────────────────────────────
+ * Screen queries — INTERNAL-only.
+ *
+ * Pantallas DOOH is a BannerBlaze-internal operations module. Every
+ * read here checks isPlatformStaffSession() FIRST and returns empty
+ * results otherwise — even if a non-staff caller somehow imports the
+ * service directly (e.g. a misplaced API route or a future server
+ * component that forgets the layout gate), they get nothing.
+ *
+ * This is the fourth layer of defense behind the layout, page,
+ * actions, and API routes. Cheap to call (single user lookup) and
+ * cheaper to maintain than auditing every future caller.
+ * ────────────────────────────────────────────────────────────────────── */
 
 export async function getScreens(filters: FilterOptions = {}) {
+  if (!(await isPlatformStaffSession())) return [];
+
   const ctx = await getOrgContext();
   if (!ctx) return [];
 
@@ -44,6 +59,8 @@ export async function getScreens(filters: FilterOptions = {}) {
 }
 
 export async function getScreenById(id: string) {
+  if (!(await isPlatformStaffSession())) return null;
+
   const ctx = await getOrgContext();
   if (!ctx) return null;
 
@@ -68,6 +85,10 @@ export async function getScreenById(id: string) {
 }
 
 export async function getScreenMetrics() {
+  if (!(await isPlatformStaffSession())) {
+    return { total: 0, online: 0, offline: 0, maintenance: 0 };
+  }
+
   const ctx = await getOrgContext();
   if (!ctx) return { total: 0, online: 0, offline: 0, maintenance: 0 };
 
