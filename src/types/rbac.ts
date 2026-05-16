@@ -63,11 +63,10 @@ export const NAV_ITEMS: NavItem[] = [
     allowedAccountTypes: ["ORGANIZATION", "INTERNAL"] },
   { section: "Operaciones", label: "Aprobaciones", href: "/approvals",  icon: "ti-checks",
     allowedAccountTypes: ["ORGANIZATION", "INTERNAL"] },
-  { section: "Operaciones", label: "Clientes",     href: "/clients",    icon: "ti-users",
-    allowedAccountTypes: ["ORGANIZATION", "INTERNAL"] },
-
-  // BannerBlaze-internal operations
+  // BannerBlaze-internal operations panels
   { section: "Operaciones", label: "Pantallas", href: "/screens", icon: "ti-device-tv",
+    platformOnly: true },
+  { section: "Operaciones", label: "Cuentas",   href: "/clients", icon: "ti-users",
     platformOnly: true },
 
   // Settings + billing — everyone (creators get a slimmer billing view)

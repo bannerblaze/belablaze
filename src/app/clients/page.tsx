@@ -2,20 +2,30 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { ClientsClient } from "./_client";
-import { mockClients, mockCampaigns } from "@/lib/mock-data";
-import { requireOrgContext } from "@/lib/org-context";
+import { checkPlatformStaffAccess } from "@/lib/access";
+import {
+  getAdminOverview,
+  getOrganizationUsers,
+  getCreatorUsers,
+} from "@/services/admin/users.service";
 
-function ClientsSkeleton() {
+/* INTERNAL admin panel — see layout.tsx for the access policy.
+ *
+ * The layout already short-circuits non-staff requests, but we re-check
+ * here as a belt-and-suspenders measure. */
+
+function PanelSkeleton() {
   return (
-    <div className="p-6 space-y-5 max-w-[1400px]">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[0, 1, 2, 3].map((i) => (
+    <div className="px-4 sm:px-6 lg:px-8 py-5 lg:py-6 space-y-6 max-w-[1500px]">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {[0, 1, 2, 3, 4, 5].map((i) => (
           <div key={i} className="h-24 rounded-xl bg-white/[0.03] animate-pulse" />
         ))}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        {[0, 1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="h-64 rounded-xl bg-white/[0.03] animate-pulse" />
+      <div className="h-12 w-72 rounded-xl bg-white/[0.03] animate-pulse" />
+      <div className="space-y-2">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-20 rounded-xl bg-white/[0.03] animate-pulse" />
         ))}
       </div>
     </div>
@@ -24,43 +34,30 @@ function ClientsSkeleton() {
 
 async function ClientsData() {
   await connection();
-  const hasDb = !!process.env.DATABASE_URL;
 
-  if (!hasDb) {
-    return (
-      <ClientsClient
-        clients={mockClients as Parameters<typeof ClientsClient>[0]["clients"]}
-        totalCampaigns={mockCampaigns.length}
-        canManage={false}
-      />
-    );
-  }
+  const blocked = await checkPlatformStaffAccess("/dashboard");
+  if (blocked) redirect(blocked);
 
-  const ctx = await requireOrgContext().catch(() => null);
-  if (!ctx) redirect("/onboarding");
-
-  const [{ getClients }, { getCampaignMetrics }] = await Promise.all([
-    import("@/services/clients.service"),
-    import("@/services/campaigns.service"),
+  const [overview, orgUsers, creatorUsers] = await Promise.all([
+    getAdminOverview(),
+    getOrganizationUsers(),
+    getCreatorUsers(),
   ]);
 
-  const [clients, metrics] = await Promise.all([
-    getClients(),
-    getCampaignMetrics(),
-  ]);
+  if (!overview) redirect("/dashboard");
 
   return (
     <ClientsClient
-      clients={clients as Parameters<typeof ClientsClient>[0]["clients"]}
-      totalCampaigns={metrics.total}
-      canManage={true}
+      overview={overview}
+      orgUsers={orgUsers}
+      creatorUsers={creatorUsers}
     />
   );
 }
 
 export default function ClientsPage() {
   return (
-    <Suspense fallback={<ClientsSkeleton />}>
+    <Suspense fallback={<PanelSkeleton />}>
       <ClientsData />
     </Suspense>
   );
