@@ -9,14 +9,14 @@ import {
   Building2, LogOut, X, Image as ImageIcon, CalendarRange,
   CreditCard, Activity,
 } from "lucide-react";
-import { cn, getInitials } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { useRole } from "@/hooks/use-role";
 import { NAV_ITEMS } from "@/types/rbac";
+import { UserIcon } from "@/components/ui/user-icon";
 import type { UserRole, AccountType } from "@/types";
 import type { PlatformRole } from "@/lib/platform";
-import { OrgSwitcher, type OrgListItem } from "./org-switcher";
 
 /* Maps NAV_ITEMS hrefs → lucide components so the existing icon rendering
  * is preserved while nav config lives centrally in src/types/rbac.ts. */
@@ -35,36 +35,13 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "/settings/activity":    Activity,
 };
 
-function Avatar({ imageUrl, name, size = "sm" }: { imageUrl?: string; name: string; size?: "sm" | "md" }) {
-  const dim = size === "sm" ? "w-8 h-8 text-xs" : "w-9 h-9 text-xs";
-  if (imageUrl) {
-    return (
-      <img
-        src={imageUrl}
-        alt={name}
-        className={cn(dim, "rounded-full object-cover ring-1 ring-white/10 flex-shrink-0")}
-      />
-    );
-  }
-  return (
-    <div className={cn(
-      dim,
-      "rounded-full bg-gradient-to-br from-[#B8EB23] to-[#8FBA10] flex items-center justify-center text-black font-bold flex-shrink-0"
-    )}>
-      {getInitials(name)}
-    </div>
-  );
-}
-
 interface SidebarContentProps {
   onClose?: () => void;
-  organizations: OrgListItem[];
-  canCreateOrg: boolean;
   accountType: AccountType | null;
   platformRole: PlatformRole;
 }
 
-function SidebarContent({ onClose, organizations, canCreateOrg, accountType, platformRole }: SidebarContentProps) {
+function SidebarContent({ onClose, accountType, platformRole }: SidebarContentProps) {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar } = useAppStore();
   const { user } = useUser();
@@ -141,13 +118,6 @@ function SidebarContent({ onClose, organizations, canCreateOrg, accountType, pla
         )}
       </div>
 
-      {/* Org switcher */}
-      {!collapsed && organizations.length > 0 && (
-        <div className="px-3 pt-3 pb-1">
-          <OrgSwitcher organizations={organizations} canCreate={canCreateOrg} compact />
-        </div>
-      )}
-
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-0.5">
         {visibleItems.map((item) => {
@@ -221,7 +191,7 @@ function SidebarContent({ onClose, organizations, canCreateOrg, accountType, pla
       {/* Footer */}
       <div className="border-t border-white/[0.06] p-3 space-y-1">
         <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-white/[0.04] transition-all group">
-          <Avatar imageUrl={user?.imageUrl ?? undefined} name={displayName} />
+          <UserIcon size="sm" />
           <AnimatePresence initial={false}>
             {!collapsed && (
               <motion.div
@@ -267,15 +237,11 @@ function SidebarContent({ onClose, organizations, canCreateOrg, accountType, pla
 }
 
 interface SidebarProps {
-  organizations?: OrgListItem[];
-  canCreateOrg?: boolean;
   accountType?: AccountType | null;
   platformRole?: PlatformRole;
 }
 
 export function Sidebar({
-  organizations = [],
-  canCreateOrg = false,
   accountType = null,
   platformRole = "USER",
 }: SidebarProps) {
@@ -290,19 +256,13 @@ export function Sidebar({
         transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
         className="hidden lg:flex flex-col h-screen bg-[#0f0f0f] border-r border-white/[0.06] flex-shrink-0 overflow-hidden z-30"
       >
-        <SidebarContent
-          organizations={organizations}
-          canCreateOrg={canCreateOrg}
-          accountType={accountType}
-          platformRole={platformRole}
-        />
+        <SidebarContent accountType={accountType} platformRole={platformRole} />
       </motion.aside>
 
       {/* Mobile sidebar overlay */}
       <AnimatePresence>
         {mobileSidebarOpen && (
           <>
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -311,7 +271,6 @@ export function Sidebar({
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
               onClick={() => setMobileSidebarOpen(false)}
             />
-            {/* Drawer */}
             <motion.aside
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
@@ -320,8 +279,6 @@ export function Sidebar({
               className="fixed left-0 top-0 bottom-0 w-[280px] bg-[#0f0f0f] border-r border-white/[0.06] z-50 lg:hidden overflow-hidden"
             >
               <SidebarContent
-                organizations={organizations}
-                canCreateOrg={canCreateOrg}
                 accountType={accountType}
                 platformRole={platformRole}
                 onClose={() => setMobileSidebarOpen(false)}

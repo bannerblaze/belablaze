@@ -8,22 +8,17 @@ import { MobileNav } from "./mobile-nav";
 import { Toaster } from "sonner";
 import { useAppStore } from "@/store";
 import { CommandPalette } from "@/components/command-palette";
-import type { OrgListItem } from "./org-switcher";
 import type { AccountType } from "@/types";
 import type { PlatformRole } from "@/lib/platform";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  organizations?: OrgListItem[];
-  canCreateOrg?: boolean;
   accountType?: AccountType | null;
   platformRole?: PlatformRole;
 }
 
 export function DashboardLayout({
   children,
-  organizations = [],
-  canCreateOrg = false,
   accountType = null,
   platformRole = "USER",
 }: DashboardLayoutProps) {
@@ -37,12 +32,7 @@ export function DashboardLayout({
 
   return (
     <div className="flex h-screen bg-[#0A0A0A] overflow-hidden">
-      <Sidebar
-        organizations={organizations}
-        canCreateOrg={canCreateOrg}
-        accountType={accountType}
-        platformRole={platformRole}
-      />
+      <Sidebar accountType={accountType} platformRole={platformRole} />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <Topbar />
         <main className="flex-1 overflow-y-auto pb-16 lg:pb-0">
@@ -50,7 +40,7 @@ export function DashboardLayout({
         </main>
       </div>
       <MobileNav />
-      <CommandPalette organizations={organizations} />
+      <CommandPalette />
       <Toaster
         position="bottom-right"
         theme="dark"

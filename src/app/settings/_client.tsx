@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   User, Bell, Shield, Palette, Globe, Zap,
-  Save, Camera, Mail, Phone,
+  Save, Mail, Phone,
   Building2, Key, BadgeCheck,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AccountProfileCard, type OrgProfileView, type CreatorProfileView } from "@/components/settings/account-profile-card";
 import { useUser } from "@clerk/nextjs";
-import { getInitials, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import type { UserRole, AccountType } from "@/types";
 
@@ -163,23 +163,10 @@ export function SettingsClient({ role, accountType, organization, creator }: Set
         {tab === "profile" && (
           <Card>
             <CardContent className="p-5 space-y-5">
-              {/* Avatar */}
+              {/* Identity */}
               <div className="flex items-center gap-4">
-                <div className="relative">
-                  {user?.imageUrl ? (
-                    <img
-                      src={user.imageUrl}
-                      alt={profile.name}
-                      className="w-16 h-16 rounded-2xl object-cover ring-1 ring-white/10"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#B8EB23] to-[#8FBA10] flex items-center justify-center text-black text-xl font-bold">
-                      {getInitials(profile.name || "U")}
-                    </div>
-                  )}
-                  <button className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#1a1a1a] border border-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors">
-                    <Camera className="w-3 h-3" />
-                  </button>
+                <div className="w-16 h-16 rounded-2xl bg-[#B8EB23]/10 ring-1 ring-[#B8EB23]/20 flex items-center justify-center text-[#B8EB23] flex-shrink-0">
+                  <User className="w-7 h-7" strokeWidth={1.6} />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-white">{profile.name || "Cargando..."}</p>

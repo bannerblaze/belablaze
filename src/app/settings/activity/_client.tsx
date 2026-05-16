@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { cn, getInitials } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const ENTITY_FILTERS = [
   { value: "", label: "Todos" },
@@ -194,14 +194,9 @@ export function ActivityClient({ items, total, page, totalPages }: Props) {
                         <div className="flex items-center gap-2 text-[11px] text-white/40">
                           {i.user ? (
                             <span className="flex items-center gap-1.5">
-                              {i.user.avatar ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={i.user.avatar} alt="" className="w-3.5 h-3.5 rounded-full" />
-                              ) : (
-                                <div className="w-3.5 h-3.5 rounded-full bg-[#B8EB23]/20 text-[#B8EB23] flex items-center justify-center text-[7px] font-bold">
-                                  {getInitials(i.user.name)}
-                                </div>
-                              )}
+                              <span className="w-3.5 h-3.5 rounded-full bg-white/[0.05] ring-1 ring-white/10 flex items-center justify-center text-white/55">
+                                <UserIcon className="w-2 h-2" strokeWidth={2} />
+                              </span>
                               {i.user.email}
                             </span>
                           ) : (

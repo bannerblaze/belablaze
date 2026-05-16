@@ -162,13 +162,3 @@ export async function getOrgContext(): Promise<OrgContext | null> {
   }
 }
 
-/** Returns every org owned by this user. Single-owner model, so
- *  typically 0 or 1 — but ORGANIZATION/INTERNAL accounts may spin
- *  up multiple parallel orgs. */
-export async function listUserOrganizations(userId: string) {
-  return db.organization.findMany({
-    where: { ownerId: userId },
-    orderBy: { createdAt: "asc" },
-    select: { id: true, name: true, slug: true, logoUrl: true },
-  });
-}

@@ -73,11 +73,8 @@ function Kbd({ children }: { children: React.ReactNode }) {
   );
 }
 
-interface OrgInfo { id: string; name: string; slug: string }
-
-export function CommandPalette({ organizations = [] }: { organizations?: OrgInfo[] } = {}) {
+export function CommandPalette() {
   const { commandOpen, setCommandOpen } = useAppStore();
-  void organizations; // available for future "switch org" commands
   const { recent, add: addToHistory, remove: removeFromHistory, clear: clearHistory } = useSearchHistory();
   const [query, setQuery] = useState("");
   const [activeIdx, setActiveIdx] = useState(0);

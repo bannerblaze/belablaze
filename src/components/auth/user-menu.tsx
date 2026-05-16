@@ -7,7 +7,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Settings, LogOut, User, ChevronDown, Shield, Building2,
 } from "lucide-react";
-import { cn, getInitials } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { UserIcon } from "@/components/ui/user-icon";
 
 import { useRole } from "@/hooks/use-role";
 import type { UserRole } from "@/types";
@@ -45,32 +46,6 @@ const ROLE_CONFIG: Record<UserRole, { label: string; color: string; bg: string; 
   },
 };
 
-function UserAvatar({ size = "sm" }: { size?: "sm" | "md" }) {
-  const { user } = useUser();
-  const name = user?.fullName ?? user?.firstName ?? "U";
-  const initials = getInitials(name);
-  const dim = size === "sm" ? "w-8 h-8 text-xs" : "w-10 h-10 text-sm";
-
-  if (user?.imageUrl) {
-    return (
-      <img
-        src={user.imageUrl}
-        alt={name}
-        className={cn(dim, "rounded-full object-cover ring-2 ring-white/10 flex-shrink-0")}
-      />
-    );
-  }
-
-  return (
-    <div className={cn(
-      dim,
-      "rounded-full bg-gradient-to-br from-[#B8EB23] to-[#8FBA10] flex items-center justify-center text-black font-bold flex-shrink-0"
-    )}>
-      {initials}
-    </div>
-  );
-}
-
 export function UserMenu() {
   const { user } = useUser();
   const { signOut } = useClerk();
@@ -106,7 +81,7 @@ export function UserMenu() {
             : "bg-white/[0.04] border-white/[0.07] hover:bg-white/[0.07] hover:border-white/[0.12]"
         )}
       >
-        <UserAvatar size="sm" />
+        <UserIcon size="sm" />
         <div className="hidden md:flex flex-col items-start leading-none">
           <span className="text-[13px] font-medium text-white max-w-[100px] truncate leading-none">{displayName}</span>
           <span className={cn("text-[10px] font-medium mt-0.5", roleConfig.color)}>{roleConfig.label}</span>
@@ -129,7 +104,7 @@ export function UserMenu() {
             {/* Profile header */}
             <div className="px-4 py-4 border-b border-white/[0.06]">
               <div className="flex items-center gap-3">
-                <UserAvatar size="md" />
+                <UserIcon size="md" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-white truncate leading-none">{displayName}</p>
                   <p className="text-[11px] text-white/40 mt-1 truncate">{displayEmail}</p>

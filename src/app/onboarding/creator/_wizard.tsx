@@ -98,7 +98,7 @@ export function CreatorOnboardingWizard({ initialName }: { initialName: string }
   const { register, handleSubmit, watch, formState: { errors }, trigger } = useForm<CreatorOnboardingInput>({
     defaultValues: {
       displayName: initialName, category: "", country: "Colombia", city: "",
-      instagram: "", tiktok: "", youtube: "", website: "", avatarUrl: "",
+      instagram: "", tiktok: "", youtube: "", website: "",
     },
   });
   const values = watch();
@@ -170,9 +170,6 @@ export function CreatorOnboardingWizard({ initialName }: { initialName: string }
                     <input {...register("city")} placeholder="Tu ciudad" className={inputCls} />
                   </Field>
                 </div>
-                <Field label="URL de tu avatar (opcional)" icon={<ImageIcon className="w-3 h-3" />}>
-                  <input {...register("avatarUrl")} placeholder="https://…/foto.jpg" className={inputCls} />
-                </Field>
               </motion.div>
             )}
 
