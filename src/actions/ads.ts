@@ -61,7 +61,7 @@ export async function submitAdForReview(adId: string) {
   const ad = await loadOrgAd(ctx.organizationId, adId);
   if (!ad) throw new Error("Anuncio no encontrado");
 
-  await db.ad.update({ where: { id: adId }, data: { status: "PENDING_REVIEW" } });
+  await db.ad.update({ where: { id: adId }, data: { status: "PENDING_REVIEW", submittedAt: new Date() } });
   await logAudit({
     action: "ad.update",
     entityType: "Ad",

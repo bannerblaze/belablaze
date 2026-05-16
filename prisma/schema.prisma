@@ -42,6 +42,7 @@ enum AdStatus {
   PENDING_REVIEW
   APPROVED
   REJECTED
+  PUBLISHED
   ACTIVE
   PAUSED
   EXPIRED
@@ -462,6 +463,10 @@ model Ad {
   qrUrl          String?
   qrEnabled      Boolean    @default(false)
   rejectionNote  String?
+  submittedAt    DateTime?
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  publishedAt    DateTime?
   impressions    Int        @default(0)
   clicks         Int        @default(0)
   qrScans        Int        @default(0)

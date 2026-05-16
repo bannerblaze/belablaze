@@ -2,32 +2,51 @@
 
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import { requireOrgContext } from "@/lib/org-context";
+import { isPlatformStaffSession } from "@/lib/access";
+import { getCurrentUser } from "@/lib/auth";
 import { logAudit } from "@/actions/audit";
 
-/* Tenant-scoped ad approval mutations.
+/* Platform-staff-only ad moderation mutations.
  *
- * Ads belong to campaigns, and campaigns carry organizationId. Each
- * action runs requireOrgContext() and loadOrgAd() so the ad's parent
- * campaign must belong to the same org — defends against cross-tenant
- * ID guessing. Owner can always approve their own ads. */
+ * All actions verify isPlatformStaffSession() — no org-scope restriction,
+ * since moderators review ads across all organizations. */
 
-async function loadOrgAd(orgId: string, adId: string) {
-  return db.ad.findFirst({
-    where: { id: adId, campaign: { organizationId: orgId } },
-    select: { id: true, status: true, title: true },
-  });
+async function requireStaff() {
+  const ok = await isPlatformStaffSession();
+  if (!ok) throw new Error("Acceso restringido al personal de BannerBlaze");
+}
+
+function revalidateApprovals() {
+  revalidatePath("/approvals");
+  revalidatePath("/ads");
+  revalidatePath("/dashboard");
 }
 
 export async function approveAd(adId: string) {
-  const ctx = await requireOrgContext();
+  await requireStaff();
 
-  const ad = await loadOrgAd(ctx.organizationId, adId);
+  const [ad, reviewer] = await Promise.all([
+    db.ad.findUnique({
+      where: { id: adId },
+      select: { id: true, status: true, title: true },
+    }),
+    getCurrentUser(),
+  ]);
+
   if (!ad) throw new Error("Anuncio no encontrado");
+  if (ad.status !== "PENDING_REVIEW") throw new Error("El anuncio no está en revisión");
+  if (!reviewer) throw new Error("No autenticado");
 
   await db.$transaction([
-    db.ad.update({ where: { id: adId }, data: { status: "APPROVED" } }),
-    db.adApproval.create({ data: { adId, userId: ctx.userId, approved: true } }),
+    db.ad.update({
+      where: { id: adId },
+      data: {
+        status: "APPROVED",
+        reviewedBy: reviewer.id,
+        reviewedAt: new Date(),
+      },
+    }),
+    db.adApproval.create({ data: { adId, userId: reviewer.id, approved: true } }),
   ]);
 
   await logAudit({
@@ -37,24 +56,39 @@ export async function approveAd(adId: string) {
     metadata: { title: ad.title, from: ad.status },
   });
 
-  revalidatePath("/approvals");
-  revalidatePath("/ads");
-  revalidatePath("/dashboard");
+  revalidateApprovals();
   return { success: true };
 }
 
 export async function rejectAd(adId: string, note: string) {
-  const ctx = await requireOrgContext();
+  await requireStaff();
 
   const trimmed = note.trim();
   if (!trimmed) throw new Error("El motivo de rechazo es obligatorio");
 
-  const ad = await loadOrgAd(ctx.organizationId, adId);
+  const [ad, reviewer] = await Promise.all([
+    db.ad.findUnique({
+      where: { id: adId },
+      select: { id: true, status: true, title: true },
+    }),
+    getCurrentUser(),
+  ]);
+
   if (!ad) throw new Error("Anuncio no encontrado");
+  if (ad.status !== "PENDING_REVIEW") throw new Error("El anuncio no está en revisión");
+  if (!reviewer) throw new Error("No autenticado");
 
   await db.$transaction([
-    db.ad.update({ where: { id: adId }, data: { status: "REJECTED", rejectionNote: trimmed } }),
-    db.adApproval.create({ data: { adId, userId: ctx.userId, approved: false, note: trimmed } }),
+    db.ad.update({
+      where: { id: adId },
+      data: {
+        status: "REJECTED",
+        rejectionNote: trimmed,
+        reviewedBy: reviewer.id,
+        reviewedAt: new Date(),
+      },
+    }),
+    db.adApproval.create({ data: { adId, userId: reviewer.id, approved: false, note: trimmed } }),
   ]);
 
   await logAudit({
@@ -64,8 +98,41 @@ export async function rejectAd(adId: string, note: string) {
     metadata: { title: ad.title, from: ad.status, note: trimmed },
   });
 
-  revalidatePath("/approvals");
-  revalidatePath("/ads");
-  revalidatePath("/dashboard");
+  revalidateApprovals();
+  return { success: true };
+}
+
+export async function publishAd(adId: string) {
+  await requireStaff();
+
+  const [ad, reviewer] = await Promise.all([
+    db.ad.findUnique({
+      where: { id: adId },
+      select: { id: true, status: true, title: true },
+    }),
+    getCurrentUser(),
+  ]);
+
+  if (!ad) throw new Error("Anuncio no encontrado");
+  if (ad.status !== "APPROVED") throw new Error("Solo se pueden publicar anuncios aprobados");
+  if (!reviewer) throw new Error("No autenticado");
+
+  await db.ad.update({
+    where: { id: adId },
+    data: {
+      status: "PUBLISHED",
+      publishedAt: new Date(),
+      reviewedBy: reviewer.id,
+    },
+  });
+
+  await logAudit({
+    action: "ad.publish",
+    entityType: "Ad",
+    entityId: adId,
+    metadata: { title: ad.title },
+  });
+
+  revalidateApprovals();
   return { success: true };
 }

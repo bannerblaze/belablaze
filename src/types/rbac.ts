@@ -62,7 +62,7 @@ export const NAV_ITEMS: NavItem[] = [
   { section: "Principal", label: "Calendario",   href: "/campaigns/calendar", icon: "ti-calendar-event",
     allowedAccountTypes: ["ORGANIZATION", "INTERNAL"] },
   { section: "Operaciones", label: "Aprobaciones", href: "/approvals",  icon: "ti-checks",
-    allowedAccountTypes: ["ORGANIZATION", "INTERNAL"] },
+    platformOnly: true },
   // BannerBlaze-internal operations panels
   { section: "Operaciones", label: "Pantallas", href: "/screens", icon: "ti-device-tv",
     platformOnly: true },

@@ -1,18 +1,25 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { ApprovalsClient } from "./_client";
-import { NoPermissionEmpty } from "@/components/ui/empty-state";
-import { getOrgContext } from "@/lib/org-context";
+import {
+  getModerationOverview,
+  getPendingAds,
+  getReviewedAds,
+} from "@/services/admin/approvals.service";
 
 function ApprovalsSkeleton() {
   return (
-    <div className="p-6 space-y-5 max-w-[900px]">
-      <div className="h-10 w-64 rounded-lg bg-white/[0.05] animate-pulse" />
-      <div className="h-14 rounded-xl bg-white/[0.03] animate-pulse" />
-      <div className="h-12 w-72 rounded-xl bg-white/[0.04] animate-pulse" />
+    <div className="px-4 sm:px-6 lg:px-8 py-5 lg:py-6 space-y-6 max-w-[1200px]">
+      <div className="h-10 w-72 rounded-xl bg-white/[0.05] animate-pulse" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-20 rounded-2xl bg-white/[0.03] animate-pulse" />
+        ))}
+      </div>
+      <div className="h-10 w-96 rounded-xl bg-white/[0.04] animate-pulse" />
       <div className="space-y-3">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="h-20 rounded-xl bg-white/[0.03] animate-pulse" />
+          <div key={i} className="h-24 rounded-xl bg-white/[0.03] animate-pulse" />
         ))}
       </div>
     </div>
@@ -22,26 +29,21 @@ function ApprovalsSkeleton() {
 async function ApprovalsData() {
   await connection();
 
-  const ctx = await getOrgContext();
-  if (!ctx) {
-    return (
-      <div className="p-6 max-w-[900px]">
-        <NoPermissionEmpty
-          title="Inicia sesión para continuar"
-          description="Necesitas estar autenticado y pertenecer a una organización."
-        />
-      </div>
-    );
-  }
-
-  const { getAdsForApprovals } = await import("@/services/ads.service");
-  const { pending, approved, rejected } = await getAdsForApprovals();
+  const [overview, pending, approved, rejected, published] = await Promise.all([
+    getModerationOverview(),
+    getPendingAds(),
+    getReviewedAds("APPROVED"),
+    getReviewedAds("REJECTED"),
+    getReviewedAds("PUBLISHED"),
+  ]);
 
   return (
     <ApprovalsClient
-      initialPending={pending as Parameters<typeof ApprovalsClient>[0]["initialPending"]}
-      initialApproved={approved as Parameters<typeof ApprovalsClient>[0]["initialApproved"]}
-      initialRejected={rejected as Parameters<typeof ApprovalsClient>[0]["initialRejected"]}
+      overview={overview}
+      initialPending={pending}
+      initialApproved={approved}
+      initialRejected={rejected}
+      initialPublished={published}
     />
   );
 }
