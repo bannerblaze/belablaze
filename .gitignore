@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Claude Code per-developer tooling (installed via `npx uipro-cli init --ai claude`)
+.claude/

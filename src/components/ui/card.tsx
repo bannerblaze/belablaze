@@ -6,20 +6,25 @@ interface CardProps {
   hover?: boolean;
   glass?: boolean;
   brand?: boolean;
+  elevated?: boolean;
 }
 
-export function Card({ children, className, hover = false, glass = false, brand = false }: CardProps) {
+export function Card({
+  children, className,
+  hover = false, glass = false, brand = false, elevated = false,
+}: CardProps) {
   return (
     <div
       className={cn(
-        "rounded-xl border",
+        "rounded-2xl border",
         glass
-          ? "bg-white/[0.03] border-white/[0.06] backdrop-blur-sm"
+          ? "bg-white/[0.02] border-white/[0.06] backdrop-blur-md"
           : brand
           ? "bg-[#B8EB23]/[0.04] border-[#B8EB23]/[0.15]"
-          : "bg-[#111111] border-white/[0.06]",
-        hover && "hover:border-white/10 hover:bg-[#161616] transition-all duration-200 cursor-pointer",
-        className
+          : "bg-[#0E0E10] border-white/[0.06]",
+        elevated && "shadow-elevated",
+        hover && "transition-all duration-200 cursor-pointer hover:border-white/[0.12] hover:bg-[#16161A]",
+        className,
       )}
     >
       {children}
@@ -37,16 +42,16 @@ interface CardHeaderProps {
 
 export function CardHeader({ title, subtitle, action, icon, className }: CardHeaderProps) {
   return (
-    <div className={cn("flex items-start justify-between gap-4 p-6 pb-0", className)}>
+    <div className={cn("flex items-start justify-between gap-4 p-5 pb-0", className)}>
       <div className="flex items-start gap-3 min-w-0">
         {icon && (
-          <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-white/60">
+          <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-white/65">
             {icon}
           </div>
         )}
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-white leading-none">{title}</h3>
-          {subtitle && <p className="text-xs text-white/40 mt-1">{subtitle}</p>}
+          <h3 className="text-sm font-semibold text-white leading-none tracking-tight">{title}</h3>
+          {subtitle && <p className="text-xs text-white/40 mt-1.5 leading-relaxed">{subtitle}</p>}
         </div>
       </div>
       {action && <div className="flex-shrink-0">{action}</div>}
@@ -55,9 +60,9 @@ export function CardHeader({ title, subtitle, action, icon, className }: CardHea
 }
 
 export function CardContent({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("p-6", className)}>{children}</div>;
+  return <div className={cn("p-5", className)}>{children}</div>;
 }
 
 export function CardDivider() {
-  return <div className="border-t border-white/[0.06] mx-6" />;
+  return <div className="border-t border-white/[0.05] mx-5" />;
 }

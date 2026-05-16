@@ -37,49 +37,51 @@ export function Topbar() {
   const action = actionConfig?.[1];
 
   return (
-    <header className="h-14 lg:h-16 flex items-center justify-between px-4 lg:px-6 border-b border-white/[0.06] bg-[#0A0A0A]/90 backdrop-blur-xl flex-shrink-0 z-20 gap-3">
+    <header className="h-14 lg:h-[56px] flex items-center justify-between px-4 lg:px-5 border-b border-white/[0.05] bg-[#070708]/85 backdrop-blur-xl flex-shrink-0 z-20 gap-3">
       {/* Left: hamburger (mobile) + breadcrumb */}
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-2.5 min-w-0">
         <button
           onClick={toggleMobileSidebar}
-          className="lg:hidden flex items-center justify-center w-9 h-9 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.06] transition-all flex-shrink-0"
+          className="lg:hidden flex items-center justify-center w-9 h-9 rounded-lg text-white/55 hover:text-white hover:bg-white/[0.05] transition-all flex-shrink-0"
           aria-label="Abrir menú"
         >
           <Menu className="w-5 h-5" strokeWidth={1.8} />
         </button>
 
-        <div className="min-w-0">
-          <div className="hidden sm:flex items-center gap-1.5 text-xs text-white/30 mb-0.5">
+        <div className="min-w-0 flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-white/30 font-medium">
             <span>BelaBlaze</span>
             <ChevronRight className="w-3 h-3" />
-            <span className="text-white/60">{pageInfo.title}</span>
           </div>
-          <h1 className="text-[14px] lg:text-[15px] font-semibold text-white leading-none truncate">
+          <h1 className="text-[14px] font-semibold text-white leading-none truncate tracking-tight">
             {pageInfo.title}
           </h1>
         </div>
       </div>
 
       {/* Right: controls */}
-      <div className="flex items-center gap-1.5 lg:gap-2 flex-shrink-0">
+      <div className="flex items-center gap-1.5 flex-shrink-0">
         {/* Realtime indicator */}
         <button
           onClick={() => setRealtime(!isRealtime)}
           className={cn(
-            "hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+            "hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all",
             isRealtime
-              ? "bg-[#B8EB23]/10 text-[#B8EB23] border border-[#B8EB23]/20"
-              : "bg-white/[0.04] text-white/40 border border-white/[0.06] hover:text-white"
+              ? "bg-[#B8EB23]/[0.08] text-[#B8EB23] ring-1 ring-[#B8EB23]/15"
+              : "bg-white/[0.03] text-white/45 ring-1 ring-white/[0.06] hover:text-white hover:bg-white/[0.05]",
           )}
         >
           {isRealtime ? (
             <>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#B8EB23] animate-pulse" />
+              <span className="relative flex w-1.5 h-1.5">
+                <span className="absolute inset-0 rounded-full bg-[#B8EB23] animate-ping opacity-60" />
+                <span className="relative w-1.5 h-1.5 rounded-full bg-[#B8EB23]" />
+              </span>
               En vivo
             </>
           ) : (
             <>
-              <WifiOff className="w-3.5 h-3.5" />
+              <WifiOff className="w-3 h-3" />
               Pausado
             </>
           )}
@@ -88,12 +90,12 @@ export function Topbar() {
         {/* Search — triggers CMD+K palette */}
         <button
           onClick={() => setCommandOpen(true)}
-          className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white hover:border-white/10 transition-all text-xs min-w-[180px] group"
+          className="hidden lg:inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/[0.03] ring-1 ring-white/[0.06] text-white/45 hover:text-white hover:ring-white/[0.12] hover:bg-white/[0.05] transition-all text-[11px] min-w-[200px] group"
         >
-          <Search className="w-3.5 h-3.5 flex-shrink-0 group-hover:text-[#B8EB23] transition-colors" />
-          <span>Buscar...</span>
-          <div className="ml-auto flex items-center gap-0.5 text-white/20">
-            <Command className="w-3 h-3" />
+          <Search className="w-3.5 h-3.5 flex-shrink-0" />
+          <span className="font-medium">Buscar...</span>
+          <div className="ml-auto inline-flex items-center gap-0.5 px-1 py-0.5 rounded-md bg-white/[0.04] text-white/30 text-[10px] font-mono">
+            <Command className="w-2.5 h-2.5" />
             <span>K</span>
           </div>
         </button>
@@ -103,12 +105,12 @@ export function Topbar() {
           <button
             ref={notifBtnRef}
             onClick={() => setNotifOpen((o) => !o)}
-            className="relative p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/50 hover:text-white hover:border-white/10 transition-all"
+            className="relative p-2 rounded-lg bg-white/[0.03] ring-1 ring-white/[0.06] text-white/55 hover:text-white hover:ring-white/[0.12] hover:bg-white/[0.05] transition-all"
             aria-label="Notificaciones"
           >
-            <Bell className="w-4 h-4" strokeWidth={1.8} />
+            <Bell className="w-[15px] h-[15px]" strokeWidth={1.8} />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 text-[9px] font-bold rounded-full bg-[#B8EB23] text-black">
+              <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[16px] h-4 px-1 text-[9px] font-bold rounded-full bg-[#B8EB23] text-black ring-2 ring-[#070708]">
                 {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
@@ -123,13 +125,16 @@ export function Topbar() {
         {/* User menu */}
         <UserMenu />
 
+        {/* Vertical divider before primary action */}
+        {action && <div className="hidden sm:block w-px h-5 bg-white/[0.08] mx-1" />}
+
         {/* Primary action */}
         {action && (
           <a
             href={action.href}
-            className="hidden sm:flex items-center gap-2 px-3 lg:px-4 py-2 rounded-lg bg-[#B8EB23] text-black text-xs lg:text-sm font-semibold hover:bg-[#D4F564] transition-all shadow-[0_0_20px_rgba(184,235,35,0.2)] hover:shadow-[0_0_30px_rgba(184,235,35,0.35)]"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 lg:px-3.5 py-2 rounded-lg bg-[#B8EB23] text-black text-xs lg:text-[13px] font-semibold hover:bg-[#C5F034] active:bg-[#A5D820] transition-all shadow-[0_1px_0_0_rgba(255,255,255,0.2)_inset,0_0_20px_-2px_rgba(184,235,35,0.35)] hover:shadow-[0_1px_0_0_rgba(255,255,255,0.25)_inset,0_0_28px_0_rgba(184,235,35,0.5)]"
           >
-            <Plus className="w-3.5 h-3.5 lg:w-4 lg:h-4" strokeWidth={2.5} />
+            <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
             <span className="hidden md:inline">{action.label}</span>
           </a>
         )}

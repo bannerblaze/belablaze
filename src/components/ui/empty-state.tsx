@@ -31,8 +31,8 @@ function ActionButton({
   variant?: "primary" | "secondary";
 }) {
   const cls = variant === "primary"
-    ? "px-4 py-2 rounded-lg bg-[#B8EB23] text-black text-sm font-semibold hover:bg-[#D4F564] transition-all shadow-[0_0_20px_rgba(184,235,35,0.15)]"
-    : "px-4 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white/60 text-sm font-medium hover:bg-white/[0.06] hover:text-white transition-all";
+    ? "inline-flex items-center px-3.5 py-2 rounded-lg bg-[#B8EB23] text-black text-sm font-semibold hover:bg-[#C5F034] active:bg-[#A5D820] transition-all shadow-[0_1px_0_0_rgba(255,255,255,0.2)_inset,0_0_20px_-4px_rgba(184,235,35,0.35)]"
+    : "inline-flex items-center px-3.5 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white/65 text-sm font-medium hover:bg-white/[0.07] hover:text-white hover:border-white/[0.14] transition-all";
 
   if (href) return <Link href={href} className={cls}>{label}</Link>;
   return <button onClick={onClick} className={cls}>{label}</button>;
@@ -45,30 +45,36 @@ export function EmptyState({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
+      transition={{ duration: 0.32, ease: [0.4, 0, 0.2, 1] }}
       className={cn(
         "flex flex-col items-center justify-center text-center",
-        compact ? "py-10 px-6" : "py-20 px-8",
-        className
+        compact ? "py-10 px-6" : "py-16 px-8",
+        className,
       )}
     >
-      {/* Icon container with glow */}
+      {/* Refined icon container — concentric dotted halo */}
       <div className="relative mb-5">
-        <div className="absolute inset-0 rounded-2xl bg-[#B8EB23]/5 blur-xl" />
-        <div className="relative w-16 h-16 rounded-2xl bg-[#111111] border border-white/[0.08] flex items-center justify-center text-white/25">
-          <div className="scale-125">{icon}</div>
+        <div className="absolute -inset-3 rounded-full bg-white/[0.015] blur-md" />
+        <div className="relative w-14 h-14 rounded-2xl bg-[#0E0E10] ring-1 ring-white/[0.06] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] flex items-center justify-center text-white/35">
+          <div className="scale-110">{icon}</div>
         </div>
       </div>
 
-      <h3 className={cn("font-semibold text-white mb-2", compact ? "text-sm" : "text-base")}>
+      <h3 className={cn(
+        "font-semibold text-white mb-2 tracking-tight",
+        compact ? "text-sm" : "text-[15px]",
+      )}>
         {title}
       </h3>
-      <p className={cn("text-white/40 leading-relaxed max-w-xs", compact ? "text-xs" : "text-sm")}>
+      <p className={cn(
+        "text-white/40 leading-relaxed max-w-sm",
+        compact ? "text-xs" : "text-[13px]",
+      )}>
         {description}
       </p>
 
       {(action || secondaryAction) && (
-        <div className="flex items-center gap-3 mt-6">
+        <div className="flex items-center gap-2.5 mt-6">
           {action && (
             <ActionButton label={action.label} href={action.href} onClick={action.onClick} variant="primary" />
           )}
