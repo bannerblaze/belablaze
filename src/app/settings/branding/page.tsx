@@ -35,7 +35,7 @@ export default async function BrandingPage() {
           brandColor={org.brandColor ?? null}
           website={org.website ?? null}
           industry={org.industry ?? null}
-          canEdit={ctx.role === "OWNER" || ctx.role === "ADMIN"}
+          canEdit={true}
         />
       </div>
     </SettingsShell>

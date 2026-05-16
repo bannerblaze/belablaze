@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCampaignById } from "@/services/campaigns.service";
 import { db } from "@/lib/db";
 import { getOrgContext } from "@/lib/org-context";
-import { can } from "@/lib/rbac";
 import { logAudit } from "@/actions/audit";
 
 async function loadOrgCampaign(orgId: string, campaignId: string) {
@@ -19,7 +18,6 @@ export async function GET(
   try {
     const ctx = await getOrgContext();
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (!can(ctx.role, "campaigns:view")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await routeCtx.params;
     const campaign = await getCampaignById(id);
@@ -38,7 +36,6 @@ export async function PATCH(
   try {
     const ctx = await getOrgContext();
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (!can(ctx.role, "campaigns:update")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await routeCtx.params;
     const exists = await loadOrgCampaign(ctx.organizationId, id);
@@ -72,7 +69,6 @@ export async function DELETE(
   try {
     const ctx = await getOrgContext();
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (!can(ctx.role, "campaigns:delete")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await routeCtx.params;
     const exists = await loadOrgCampaign(ctx.organizationId, id);

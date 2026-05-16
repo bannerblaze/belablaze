@@ -3,7 +3,6 @@
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { requireOrgContext } from "@/lib/org-context";
-import { assertCan } from "@/lib/rbac";
 import { logAudit } from "@/actions/audit";
 
 /* Tenant-scoped customer-brand mutations. Slugs are unique per org so
@@ -43,7 +42,6 @@ async function loadOrgClient(orgId: string, clientId: string) {
 
 export async function createClient(formData: FormData) {
   const ctx = await requireOrgContext();
-  assertCan(ctx.role, "clients:manage");
 
   const name = (formData.get("name") as string)?.trim();
   if (!name || name.length < 2) throw new Error("Nombre inválido");
@@ -77,7 +75,6 @@ export async function createClient(formData: FormData) {
 
 export async function updateClient(clientId: string, formData: FormData) {
   const ctx = await requireOrgContext();
-  assertCan(ctx.role, "clients:manage");
 
   const existing = await loadOrgClient(ctx.organizationId, clientId);
   if (!existing) throw new Error("Cliente no encontrado");
@@ -102,7 +99,6 @@ export async function updateClient(clientId: string, formData: FormData) {
 
 export async function deleteClient(clientId: string) {
   const ctx = await requireOrgContext();
-  assertCan(ctx.role, "clients:manage");
 
   const existing = await loadOrgClient(ctx.organizationId, clientId);
   if (!existing) throw new Error("Cliente no encontrado");

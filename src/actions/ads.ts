@@ -3,7 +3,6 @@
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { requireOrgContext } from "@/lib/org-context";
-import { assertCan } from "@/lib/rbac";
 import { logAudit } from "@/actions/audit";
 
 /* Tenant-scoped ad mutations. Ads inherit org from their parent campaign,
@@ -19,7 +18,6 @@ async function loadOrgAd(orgId: string, adId: string) {
 
 export async function createAd(formData: FormData) {
   const ctx = await requireOrgContext();
-  assertCan(ctx.role, "ads:create");
 
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
@@ -59,7 +57,6 @@ export async function createAd(formData: FormData) {
 
 export async function submitAdForReview(adId: string) {
   const ctx = await requireOrgContext();
-  assertCan(ctx.role, "ads:update");
 
   const ad = await loadOrgAd(ctx.organizationId, adId);
   if (!ad) throw new Error("Anuncio no encontrado");
@@ -81,7 +78,6 @@ export async function submitAdForReview(adId: string) {
 
 export async function updateAdStatus(adId: string, status: "ACTIVE" | "PAUSED" | "DRAFT") {
   const ctx = await requireOrgContext();
-  assertCan(ctx.role, "ads:update");
 
   const ad = await loadOrgAd(ctx.organizationId, adId);
   if (!ad) throw new Error("Anuncio no encontrado");
@@ -102,14 +98,12 @@ export async function updateAdStatus(adId: string, status: "ACTIVE" | "PAUSED" |
 
 export async function deleteAd(adId: string) {
   const ctx = await requireOrgContext();
-  assertCan(ctx.role, "ads:delete");
 
   const ad = await loadOrgAd(ctx.organizationId, adId);
   if (!ad) throw new Error("Anuncio no encontrado");
 
-  // Active ads keep an extra hard guard: only OWNER/ADMIN can drop them.
-  if (ad.status === "ACTIVE" && ctx.role !== "OWNER" && ctx.role !== "ADMIN") {
-    throw new Error("No puedes eliminar un anuncio activo");
+  if (ad.status === "ACTIVE") {
+    throw new Error("No puedes eliminar un anuncio activo — pásalo a PAUSED primero.");
   }
 
   await db.ad.delete({ where: { id: adId } });

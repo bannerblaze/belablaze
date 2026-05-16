@@ -9,16 +9,14 @@ import { getCurrentUser } from "@/lib/auth";
 import { isAdminWhitelisted } from "@/config/admin-whitelist";
 import { checkAdminRateLimit } from "@/lib/rate-limit";
 import { sendAdminAlert } from "@/lib/security-alerts";
-import type { OrgRole } from "@/types";
 
 /* ──────────────────────────────────────────────────────────────────────
  * Onboarding -> Organization bootstrap.
  *
- * Every successful onboarding completion atomically provisions an
- * Organization + OrganizationMember (OWNER) + default Workspace +
- * trialing Subscription. The user becomes the org owner and their
- * activeOrgId is set so every subsequent request resolves to that
- * tenant via `requireOrgContext()`.
+ * Every successful onboarding atomically provisions an Organization
+ * (with ownerId = user.id), default Workspace, and trialing
+ * Subscription. The user becomes the sole owner — there are no member
+ * rows because the product is single-owner.
  * ────────────────────────────────────────────────────────────────────── */
 
 async function uniqueOrgSlug(base: string): Promise<string> {
@@ -36,16 +34,14 @@ async function uniqueOrgSlug(base: string): Promise<string> {
 async function bootstrapOrganization(input: {
   userId: string;
   name: string;
-  ownerRole?: OrgRole;
   logoUrl?: string | null;
   website?: string | null;
   industry?: string | null;
   size?: string | null;
 }): Promise<{ id: string; slug: string }> {
   const slug = await uniqueOrgSlug(input.name);
-  // The Prisma schema still carries `plan` columns from the legacy
-  // tier system; we let the schema-level @default fill them. They are
-  // not read by any application code anymore.
+  // Legacy schema columns (plan, member rows) rely on Prisma @defaults
+  // and are no longer read by any application code.
   const org = await db.organization.create({
     data: {
       name: input.name,
@@ -55,9 +51,6 @@ async function bootstrapOrganization(input: {
       website: input.website ?? null,
       industry: input.industry ?? null,
       size: input.size ?? null,
-      members: {
-        create: { userId: input.userId, role: input.ownerRole ?? "OWNER" },
-      },
       workspaces: {
         create: { name: "Producción", type: "PRODUCTION" },
       },
@@ -162,7 +155,6 @@ export async function completeCompanyOnboarding(input: CompanyOnboardingInput): 
   await bootstrapOrganization({
     userId: user.id,
     name: data.companyName,
-    ownerRole: "OWNER",
     logoUrl: data.logoUrl ?? null,
     website: data.website ?? null,
     industry: data.industry ?? null,
@@ -222,7 +214,6 @@ export async function completeCreatorOnboarding(input: CreatorOnboardingInput): 
   await bootstrapOrganization({
     userId: user.id,
     name: data.displayName,
-    ownerRole: "OWNER",
     logoUrl: data.avatarUrl ?? null,
     website: data.website ?? null,
     industry: data.category ?? null,
@@ -354,23 +345,13 @@ export async function completeAdminOnboarding(input: AdminOnboardingInput): Prom
     metadata: { clerkId: user.clerkId, name: parsed.data.name },
   }, true);
 
-  // Admins join the BannerBlaze master org if it exists; otherwise we
-  // create one so they have a tenant to operate in.
-  const masterOrg = await db.organization.findUnique({ where: { slug: "bannerblaze" } });
-  if (masterOrg) {
-    await db.organizationMember.upsert({
-      where: { organizationId_userId: { organizationId: masterOrg.id, userId: user.id } },
-      create: { organizationId: masterOrg.id, userId: user.id, role: "ADMIN" },
-      update: { role: "ADMIN" },
-    });
-    await db.user.update({ where: { id: user.id }, data: { activeOrgId: masterOrg.id } });
-  } else {
-    await bootstrapOrganization({
-      userId: user.id,
-      name: "BannerBlaze",
-      ownerRole: "OWNER",
-    });
-  }
+  // Admins get their own org so the rest of the app has a tenant to
+  // scope by. They reach the BannerBlaze-internal operational panels
+  // via PlatformRole, not via shared org membership.
+  await bootstrapOrganization({
+    userId: user.id,
+    name: parsed.data.name,
+  });
 
   await syncRoleToClerk("ADMIN");
   revalidatePath("/", "layout");

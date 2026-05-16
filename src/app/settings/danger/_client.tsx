@@ -2,10 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, LogOut } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
-import { deleteOrganization, leaveOrganization } from "@/actions/organizations";
+import { deleteOrganization } from "@/actions/organizations";
 
 interface Props {
   organizationId: string;
@@ -13,23 +13,10 @@ interface Props {
   isOwner: boolean;
 }
 
-export function DangerClient({ organizationId, organizationName, isOwner }: Props) {
+export function DangerClient({ organizationName }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [confirm, setConfirm] = useState("");
-
-  const onLeave = () => {
-    if (!window.confirm(`¿Salir de ${organizationName}?`)) return;
-    startTransition(async () => {
-      const res = await leaveOrganization(organizationId);
-      if (res.ok) {
-        toast.success("Has salido de la organización");
-        router.push("/onboarding");
-      } else {
-        toast.error(res.error);
-      }
-    });
-  };
 
   const onDelete = () => {
     if (confirm !== organizationName) {
@@ -47,19 +34,11 @@ export function DangerClient({ organizationId, organizationName, isOwner }: Prop
     });
   };
 
-  if (!isOwner) {
-    return (
-      <Button variant="outline" onClick={onLeave} disabled={pending} icon={<LogOut className="w-3.5 h-3.5" />}>
-        Salir de {organizationName}
-      </Button>
-    );
-  }
-
   return (
     <div className="space-y-4">
       <p className="text-xs text-white/50">
         Eres el propietario. Eliminar la organización borra <strong className="text-red-300">todos los datos</strong>
-        {" "}(campañas, anuncios, pantallas, media, miembros). Esta acción no se puede deshacer.
+        {" "}(campañas, anuncios, pantallas, media). Esta acción no se puede deshacer.
       </p>
       <div>
         <label className="text-xs font-semibold text-white/50 mb-1.5 block">

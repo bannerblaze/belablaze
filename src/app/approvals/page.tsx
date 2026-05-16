@@ -3,7 +3,6 @@ import { connection } from "next/server";
 import { ApprovalsClient } from "./_client";
 import { NoPermissionEmpty } from "@/components/ui/empty-state";
 import { getOrgContext } from "@/lib/org-context";
-import { can, ORG_ROLE_LABELS } from "@/lib/rbac";
 
 function ApprovalsSkeleton() {
   return (
@@ -23,10 +22,7 @@ function ApprovalsSkeleton() {
 async function ApprovalsData() {
   await connection();
 
-  // Permission gate uses the FASE 6 OrgRole RBAC matrix. Non-approvers
-  // get an elegant restricted screen labelled with their current role.
   const ctx = await getOrgContext();
-
   if (!ctx) {
     return (
       <div className="p-6 max-w-[900px]">
@@ -34,14 +30,6 @@ async function ApprovalsData() {
           title="Inicia sesión para continuar"
           description="Necesitas estar autenticado y pertenecer a una organización."
         />
-      </div>
-    );
-  }
-
-  if (!can(ctx.role, "ads:approve")) {
-    return (
-      <div className="p-6 max-w-[900px]">
-        <NoPermissionEmpty currentRole={ORG_ROLE_LABELS[ctx.role]} />
       </div>
     );
   }

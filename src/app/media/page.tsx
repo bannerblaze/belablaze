@@ -1,13 +1,11 @@
 import { redirect } from "next/navigation";
 import { requireOrgContext } from "@/lib/org-context";
-import { can } from "@/lib/rbac";
 import { listMedia, getMediaStats } from "@/actions/media";
 import { MediaClient } from "./_client";
 
 export default async function MediaPage() {
   const ctx = await requireOrgContext().catch(() => null);
   if (!ctx) redirect("/onboarding");
-  if (!can(ctx.role, "media:view")) redirect("/dashboard");
 
   const [assets, stats] = await Promise.all([
     listMedia(),
@@ -16,8 +14,8 @@ export default async function MediaPage() {
 
   return (
     <MediaClient
-      canUpload={can(ctx.role, "media:upload")}
-      canDelete={can(ctx.role, "media:delete")}
+      canUpload={true}
+      canDelete={true}
       stats={stats}
       assets={assets.map((a) => ({
         id: a.id,

@@ -37,10 +37,9 @@ export async function getCurrentSubscription() {
 
 export async function getUsage() {
   const ctx = await requireOrgContext();
-  const [campaigns, screens, members, media] = await Promise.all([
+  const [campaigns, screens, media] = await Promise.all([
     db.campaign.count({ where: { organizationId: ctx.organizationId } }),
     db.screen.count({ where: { organizationId: ctx.organizationId } }),
-    db.organizationMember.count({ where: { organizationId: ctx.organizationId } }),
     db.mediaAsset.aggregate({
       where: { organizationId: ctx.organizationId, isArchived: false },
       _sum: { size: true },
@@ -50,7 +49,6 @@ export async function getUsage() {
   return {
     campaigns,
     screens,
-    members,
     mediaAssets: media._count,
     storageMB: Math.round(((media._sum.size ?? 0) / 1024 / 1024) * 10) / 10,
   };

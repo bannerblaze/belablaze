@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  User, Users, CreditCard, Activity, Shield, Code2, Webhook,
+  User, CreditCard, Activity, Shield, Code2, Webhook,
   Palette, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -20,15 +20,13 @@ type NavItem = {
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   exact?: boolean;
   /** Item only renders for these accountTypes. Creators (PERSON)
-   *  never need Equipo / API Keys / Webhooks / Branding / Audit.
+   *  never need API Keys / Webhooks / Branding / Audit.
    *  SUPER_ADMIN bypasses this filter. */
   forAccountTypes?: AccountType[];
 };
 
 const PRIMARY: NavItem[] = [
   { href: "/settings",          label: "Perfil",       icon: User, exact: true },
-  { href: "/settings/team",     label: "Equipo",       icon: Users,
-    forAccountTypes: ["ORGANIZATION", "INTERNAL"] },
   { href: "/settings/billing",  label: "Facturación",  icon: CreditCard },
   { href: "/settings/activity", label: "Actividad",    icon: Activity,
     forAccountTypes: ["ORGANIZATION", "INTERNAL"] },

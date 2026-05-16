@@ -3,7 +3,6 @@ import { getScreens, getScreenMetrics } from "@/services/screens.service";
 import { db } from "@/lib/db";
 import { getOrgContext } from "@/lib/org-context";
 import { isPlatformStaffSession } from "@/lib/access";
-import { can } from "@/lib/rbac";
 import { logAudit } from "@/actions/audit";
 
 /* INTERNAL-only API. Non-staff callers get 403 before any DB access.
@@ -50,9 +49,6 @@ export async function POST(req: NextRequest) {
 
     const ctx = await getOrgContext();
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (!can(ctx.role, "screens:create")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
 
     const body = await req.json();
     const { name, type, city, address, width, height, resolutionWidth, resolutionHeight, dailyTraffic, pricePerSecond, orientation } = body;

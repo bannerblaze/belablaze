@@ -5,21 +5,21 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { requireOrgContext, listUserOrganizations } from "@/lib/org-context";
-import { assertCan } from "@/lib/rbac";
 import { logAudit } from "@/actions/audit";
 
 /* ──────────────────────────────────────────────────────────────────────
- * Organization server actions.
+ * Organization server actions — single-owner model.
  *
- * createOrganization()       owner = caller, OWNER membership, default
- *                            workspace, trialing subscription
- * updateOrganization()       partial update of brand/profile fields
- * switchOrganization()       sets User.activeOrgId after membership check
- * leaveOrganization()        removes membership (except OWNER)
- * deleteOrganization()       cascades via Prisma onDelete (OWNER only)
+ * createOrganization()  caller becomes the sole owner, default
+ *                       workspace and trialing subscription created.
+ *                       No member rows: ownerId on Organization is the
+ *                       authoritative "who's in this org" answer.
+ * updateOrganization()  partial brand/profile update.
+ * switchOrganization()  sets User.activeOrgId after verifying the
+ *                       target org is owned by the caller.
+ * deleteOrganization()  cascades via Prisma onDelete.
  *
- * All mutating actions revalidate the layout cache so the sidebar + org
- * switcher reflect the change immediately.
+ * leaveOrganization() is gone — there are no non-owner members to leave.
  * ────────────────────────────────────────────────────────────────────── */
 
 type Result<T = undefined> =
@@ -67,9 +67,6 @@ export async function createOrganization(input: z.infer<typeof createSchema>): P
       website: parsed.data.website || null,
       industry: parsed.data.industry || null,
       size: parsed.data.size || null,
-      members: {
-        create: { userId: user.id, role: "OWNER", joinedAt: new Date() },
-      },
       workspaces: {
         create: { name: "Producción", type: "PRODUCTION" },
       },
@@ -99,7 +96,6 @@ const updateSchema = z.object({
 
 export async function updateOrganization(input: z.infer<typeof updateSchema>): Promise<Result> {
   const ctx = await requireOrgContext();
-  assertCan(ctx.role, "org:update");
 
   const parsed = updateSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
@@ -127,11 +123,11 @@ export async function switchOrganization(organizationId: string): Promise<Result
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Sesión inválida." };
 
-  const membership = await db.organizationMember.findUnique({
-    where: { organizationId_userId: { organizationId, userId: user.id } },
+  const owns = await db.organization.findFirst({
+    where: { id: organizationId, ownerId: user.id },
     select: { id: true },
   });
-  if (!membership) return { ok: false, error: "No eres miembro de esa organización." };
+  if (!owns) return { ok: false, error: "No eres propietario de esa organización." };
 
   await db.user.update({ where: { id: user.id }, data: { activeOrgId: organizationId } });
   await logAudit({ action: "org.switch", entityType: "Organization", entityId: organizationId });
@@ -139,37 +135,18 @@ export async function switchOrganization(organizationId: string): Promise<Result
   return { ok: true };
 }
 
-export async function leaveOrganization(organizationId: string): Promise<Result> {
-  const user = await getCurrentUser();
-  if (!user) return { ok: false, error: "Sesión inválida." };
-
-  const membership = await db.organizationMember.findUnique({
-    where: { organizationId_userId: { organizationId, userId: user.id } },
-  });
-  if (!membership) return { ok: false, error: "No eres miembro." };
-  if (membership.role === "OWNER") {
-    return { ok: false, error: "El propietario no puede abandonar su organización. Transfiere la propiedad primero." };
-  }
-
-  await db.organizationMember.delete({ where: { id: membership.id } });
-  if (user.activeOrgId === organizationId) {
-    const next = await db.organizationMember.findFirst({ where: { userId: user.id }, orderBy: { joinedAt: "asc" } });
-    await db.user.update({ where: { id: user.id }, data: { activeOrgId: next?.organizationId ?? null } });
-  }
-  await logAudit({ action: "member.leave", entityType: "Organization", entityId: organizationId });
-  revalidatePath("/", "layout");
-  return { ok: true };
-}
-
 export async function deleteOrganization(): Promise<Result> {
   const ctx = await requireOrgContext();
-  if (ctx.role !== "OWNER") return { ok: false, error: "Sólo el propietario puede eliminar la organización." };
-
   await db.organization.delete({ where: { id: ctx.organizationId } });
+
   const user = await getCurrentUser();
   if (user) {
-    const next = await db.organizationMember.findFirst({ where: { userId: user.id }, orderBy: { joinedAt: "asc" } });
-    await db.user.update({ where: { id: user.id }, data: { activeOrgId: next?.organizationId ?? null } });
+    const next = await db.organization.findFirst({
+      where: { ownerId: user.id },
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    });
+    await db.user.update({ where: { id: user.id }, data: { activeOrgId: next?.id ?? null } });
   }
   await logAudit({ action: "org.delete", entityType: "Organization", entityId: ctx.organizationId });
   revalidatePath("/", "layout");

@@ -16,15 +16,12 @@ import { NextResponse } from "next/server";
  *   person do inside their org". Those are different concerns:
  *
  *     - Global Role  → who is this user to the platform.
- *     - OrgRole      → what can they do inside their active organization.
+ *     (per-org RBAC removed — every org has exactly one user, the owner.)
  *
- *   Paying customers carry the lowercase "client" global Role, but
- *   they are OWNER/ADMIN inside their own org. Per-feature decisions
- *   (billing, team, audit, etc.) must be made server-side in each page
- *   where we have the full OrgContext + RBAC matrix from
- *   src/lib/rbac.ts. The earlier `isSuperAdminRoute` / `isAdminRoute` /
- *   `isStaffRoute` matchers here were redirecting customers away from
- *   their own product — removed.
+ *   Per-page decisions (internal operations, accountType-only surfaces)
+ *   are made server-side via src/lib/access.ts. The earlier
+ *   `isSuperAdminRoute` / `isAdminRoute` / `isStaffRoute` matchers here
+ *   were redirecting customers away from their own product — removed.
  * ────────────────────────────────────────────────────────────────────── */
 
 const isPublicRoute = createRouteMatcher([

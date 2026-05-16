@@ -4,7 +4,7 @@ import type { AccountType } from "@/types";
 /* ──────────────────────────────────────────────────────────────────────
  * PlatformRole — the top axis of the BelaBlaze access model.
  *
- * BelaBlaze has THREE orthogonal access axes:
+ * BelaBlaze has TWO access axes (single-owner product):
  *
  *   1. PlatformRole  (this file)   — who you are to BannerBlaze itself.
  *      Decides: cross-tenant access, internal admin tooling.
@@ -13,12 +13,10 @@ import type { AccountType } from "@/types";
  *      Decides: which sidebar items are even relevant
  *      (creator vs business vs internal staff).
  *
- *   3. OrgRole       (per tenant)  — what you can do inside one org.
- *      Decides: write/manage permissions enforced via src/lib/rbac.ts.
- *
- * The product no longer has plan tiers or per-feature billing flags —
- * what you see is determined entirely by AccountType + OrgRole, with
- * SUPER_ADMIN as the BannerBlaze-internal bypass for support work.
+ * Per-org RBAC is gone — every user IS the owner of their own org, so
+ * "what can this user do inside their org?" collapses to "everything".
+ * Cross-tenant access lives in SUPER_ADMIN; internal-only operations
+ * live behind isPlatformStaff (SUPER_ADMIN + SUPPORT).
  * ────────────────────────────────────────────────────────────────────── */
 
 export type PlatformRole = "SUPER_ADMIN" | "SUPPORT" | "USER";

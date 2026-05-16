@@ -13,13 +13,10 @@ import type { AccountType } from "@/types";
  *                      no Pantallas/Aprobaciones/Clientes/Equipo/
  *                      Audit/API Keys/Webhooks/Branding), INTERNAL
  *                      (BannerBlaze staff).
- *   3. OrgRole       — what the user can do *inside* their org. Lives
- *                      in src/lib/rbac.ts and is enforced via
- *                      assertCan() inside actions and pages.
  *
- * No PlanTier, no per-plan feature flags. The product is one product;
- * what you can do depends on what kind of account you are and what
- * role you have in your org.
+ * Per-org RBAC is gone — every authenticated user IS the owner of
+ * their own org, so "can this user do X in this org?" is always true.
+ * What you see is decided by AccountType + PlatformRole only.
  * ────────────────────────────────────────────────────────────────────── */
 
 /** Returns the redirect target a server component should send the

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getOrgContext } from "@/lib/org-context";
-import { can } from "@/lib/rbac";
 import { logAudit } from "@/actions/audit";
 
 /* Tenant-scoped ad endpoint. Every operation verifies the ad belongs
@@ -21,7 +20,6 @@ export async function GET(
   try {
     const ctx = await getOrgContext();
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (!can(ctx.role, "ads:view")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await routeCtx.params;
     const ad = await db.ad.findFirst({
@@ -47,7 +45,6 @@ export async function PATCH(
   try {
     const ctx = await getOrgContext();
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (!can(ctx.role, "ads:update")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await routeCtx.params;
     const existing = await loadOrgAd(ctx.organizationId, id);
@@ -77,7 +74,6 @@ export async function DELETE(
   try {
     const ctx = await getOrgContext();
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (!can(ctx.role, "ads:delete")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await routeCtx.params;
     const existing = await loadOrgAd(ctx.organizationId, id);

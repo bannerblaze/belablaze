@@ -7,9 +7,13 @@ export type ScreenStatus = "ONLINE" | "OFFLINE" | "MAINTENANCE" | "RESERVED";
 export type ScreenType = "LED_INDOOR" | "LED_OUTDOOR" | "LCD" | "PROJECTION" | "INTERACTIVE";
 export type AdFormat = "IMAGE" | "VIDEO" | "HTML5" | "INTERACTIVE";
 
-/* FASE 6 — multi-tenant types */
-export type OrgRole = "OWNER" | "ADMIN" | "EXECUTIVE" | "MANAGER" | "EDITOR" | "ANALYST" | "VIEWER";
-export type InvitationStatus = "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED";
+/* Multi-tenant types — single-owner model.
+ *
+ * BelaBlaze no longer has members, invitations or per-org roles. The
+ * `OrgRole`, `OrganizationMember` and `Invitation` types that used to
+ * live here have been removed. The Prisma schema still carries the
+ * tables/enums via @default for legacy data; nothing in the app
+ * reads them. */
 export type WorkspaceType = "PRODUCTION" | "STAGING" | "TEST";
 export type MediaType = "IMAGE" | "VIDEO" | "DOCUMENT" | "AUDIO";
 export type SubscriptionStatus = "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "INCOMPLETE";
@@ -28,31 +32,6 @@ export interface Organization {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface OrganizationMember {
-  id: string;
-  organizationId: string;
-  userId: string;
-  role: OrgRole;
-  permissions: string[];
-  invitedBy?: string | null;
-  joinedAt: string;
-  lastActiveAt?: string | null;
-  user?: { id: string; email: string; name: string; avatar?: string | null };
-}
-
-export interface Invitation {
-  id: string;
-  email: string;
-  token: string;
-  organizationId: string;
-  role: OrgRole;
-  status: InvitationStatus;
-  invitedBy: string;
-  expiresAt: string;
-  acceptedAt?: string | null;
-  createdAt: string;
 }
 
 export interface MediaAssetDTO {

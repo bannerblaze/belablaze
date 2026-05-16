@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdsForApprovals } from "@/services/ads.service";
 import { db } from "@/lib/db";
 import { getOrgContext } from "@/lib/org-context";
-import { can } from "@/lib/rbac";
 import { logAudit } from "@/actions/audit";
 
 export async function GET(_req: NextRequest) {
@@ -21,9 +20,6 @@ export async function POST(req: NextRequest) {
   try {
     const ctx = await getOrgContext();
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (!can(ctx.role, "ads:approve")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
 
     const { adId, action, note } = await req.json();
     if (!adId || !action) return NextResponse.json({ error: "Missing adId or action" }, { status: 400 });

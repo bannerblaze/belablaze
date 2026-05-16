@@ -16,14 +16,13 @@ export async function DashboardShell({ children }: { children: React.ReactNode }
   let organizations: OrgListItem[] = [];
 
   if (user) {
-    const memberships = await listUserOrganizations(user.id);
-    organizations = memberships.map((m) => ({
-      id: m.organization.id,
-      name: m.organization.name,
-      slug: m.organization.slug,
-      logoUrl: m.organization.logoUrl,
-      role: m.role,
-      isActive: m.organizationId === user.activeOrgId,
+    const orgs = await listUserOrganizations(user.id);
+    organizations = orgs.map((o) => ({
+      id: o.id,
+      name: o.name,
+      slug: o.slug,
+      logoUrl: o.logoUrl,
+      isActive: o.id === user.activeOrgId,
     }));
   }
 

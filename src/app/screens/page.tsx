@@ -5,7 +5,6 @@ import { ScreensClient } from "./_client";
 import { mockScreens } from "@/lib/mock-data";
 import { requireOrgContext } from "@/lib/org-context";
 import { checkPlatformStaffAccess } from "@/lib/access";
-import { can } from "@/lib/rbac";
 
 /* INTERNAL-only module — see layout.tsx for the access policy.
  *
@@ -51,7 +50,6 @@ async function ScreensData() {
 
   const ctx = await requireOrgContext().catch(() => null);
   if (!ctx) redirect("/onboarding");
-  if (!can(ctx.role, "screens:view")) redirect("/dashboard");
 
   const { getScreens } = await import("@/services/screens.service");
   const screens = await getScreens();
@@ -59,8 +57,8 @@ async function ScreensData() {
   return (
     <ScreensClient
       screens={screens as Parameters<typeof ScreensClient>[0]["screens"]}
-      canCreate={can(ctx.role, "screens:create")}
-      canManage={can(ctx.role, "screens:update")}
+      canCreate={true}
+      canManage={true}
     />
   );
 }

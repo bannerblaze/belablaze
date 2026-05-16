@@ -21,7 +21,6 @@ export type OrgListItem = {
   name: string;
   slug: string;
   logoUrl?: string | null;
-  role: string;
   isActive: boolean;
 };
 
@@ -91,7 +90,7 @@ export function OrgSwitcher({ organizations, compact = false, canCreate = false 
         <div className="flex-1 min-w-0 text-left">
           <p className="text-xs font-semibold text-white truncate leading-none">{active.name}</p>
           <p className="text-[10px] font-medium uppercase tracking-wider text-white/40 mt-0.5 truncate">
-            {active.role}
+            {active.slug}
           </p>
         </div>
         <ChevronDown className={cn("w-3.5 h-3.5 text-white/40 flex-shrink-0 transition-transform", open && "rotate-180")} />
@@ -125,7 +124,7 @@ export function OrgSwitcher({ organizations, compact = false, canCreate = false 
                     </div>
                     <div className="flex-1 min-w-0 text-left">
                       <p className="text-xs font-semibold text-white truncate leading-none">{org.name}</p>
-                      <p className="text-[10px] text-white/40 mt-0.5">{org.role}</p>
+                      <p className="text-[10px] text-white/40 mt-0.5">/{org.slug}</p>
                     </div>
                     {org.id === active.id && <Check className="w-3.5 h-3.5 text-[#B8EB23] flex-shrink-0" />}
                   </button>

@@ -4,17 +4,11 @@ import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireOrgContext } from "@/lib/org-context";
-import { assertCan } from "@/lib/rbac";
 import { logAudit } from "@/actions/audit";
 
-/* ──────────────────────────────────────────────────────────────────────
- * Tenant-scoped campaign mutations.
- *
- * Every action calls requireOrgContext() + assertCan() so that:
- *   • A user can only mutate campaigns inside their active organization
- *   • The RBAC matrix (src/lib/rbac.ts) decides which role can do what
- *   • Audit log captures actor, org, action, entity for every change
- * ────────────────────────────────────────────────────────────────────── */
+/* Tenant-scoped campaign mutations. Each action resolves the active
+ * org via requireOrgContext() (caller is by definition the owner)
+ * and writes through with an audit-log entry. */
 
 async function loadOrgCampaign(orgId: string, campaignId: string) {
   return db.campaign.findFirst({
@@ -25,7 +19,6 @@ async function loadOrgCampaign(orgId: string, campaignId: string) {
 
 export async function createCampaign(formData: FormData) {
   const ctx = await requireOrgContext();
-  assertCan(ctx.role, "campaigns:create");
 
   const name = formData.get("name") as string;
   const description = formData.get("description") as string;
@@ -70,7 +63,6 @@ export async function createCampaign(formData: FormData) {
 
 export async function updateCampaignStatus(campaignId: string, status: string) {
   const ctx = await requireOrgContext();
-  assertCan(ctx.role, "campaigns:update");
 
   const campaign = await loadOrgCampaign(ctx.organizationId, campaignId);
   if (!campaign) throw new Error("Campaña no encontrada");
@@ -102,7 +94,6 @@ export async function updateCampaign(campaignId: string, data: {
   targetCities?: string[];
 }) {
   const ctx = await requireOrgContext();
-  assertCan(ctx.role, "campaigns:update");
 
   const campaign = await loadOrgCampaign(ctx.organizationId, campaignId);
   if (!campaign) throw new Error("Campaña no encontrada");
@@ -130,7 +121,6 @@ export async function updateCampaign(campaignId: string, data: {
 
 export async function deleteCampaign(campaignId: string) {
   const ctx = await requireOrgContext();
-  assertCan(ctx.role, "campaigns:delete");
 
   const campaign = await loadOrgCampaign(ctx.organizationId, campaignId);
   if (!campaign) throw new Error("Campaña no encontrada");

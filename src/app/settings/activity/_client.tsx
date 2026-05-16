@@ -19,8 +19,6 @@ const ENTITY_FILTERS = [
   { value: "Ad", label: "Anuncios" },
   { value: "Screen", label: "Pantallas" },
   { value: "Client", label: "Clientes" },
-  { value: "OrganizationMember", label: "Miembros" },
-  { value: "Invitation", label: "Invitaciones" },
   { value: "MediaAsset", label: "Media" },
   { value: "Subscription", label: "Facturación" },
 ];
@@ -47,8 +45,6 @@ interface Props {
 function iconForEntity(entityType: string) {
   switch (entityType) {
     case "Organization": return Building2;
-    case "OrganizationMember":
-    case "Invitation": return UserIcon;
     case "Campaign":
     case "Ad": return Megaphone;
     case "Screen": return MonitorPlay;

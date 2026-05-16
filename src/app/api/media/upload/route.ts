@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireOrgContext } from "@/lib/org-context";
-import { assertCan } from "@/lib/rbac";
 import { uploadFile, validateMime, inferMediaType, MAX_UPLOAD_BYTES, ACCEPTED_MIME } from "@/lib/storage";
 import { logAudit } from "@/actions/audit";
 
@@ -13,7 +12,6 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   try {
     const ctx = await requireOrgContext();
-    assertCan(ctx.role, "media:upload");
 
     const form = await req.formData();
     const file = form.get("file");

@@ -4,14 +4,12 @@ import { checkAccountTypeAccess } from "@/lib/access";
 import { listAuditLogs } from "@/actions/audit";
 import { SettingsShell } from "@/components/settings/settings-shell";
 import { ActivityClient } from "./_client";
-import { can } from "@/lib/rbac";
 
 export default async function ActivityPage({
   searchParams,
 }: { searchParams: Promise<{ page?: string; action?: string; entityType?: string }> }) {
   const ctx = await requireOrgContext().catch(() => null);
   if (!ctx) redirect("/onboarding");
-  if (!can(ctx.role, "audit:view")) redirect("/settings");
 
   // Audit log is for ORGANIZATION + INTERNAL accounts. Creators (PERSON)
   // can't reach this even by typing the URL.

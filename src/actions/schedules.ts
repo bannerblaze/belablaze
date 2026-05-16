@@ -4,7 +4,6 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireOrgContext } from "@/lib/org-context";
-import { assertCan } from "@/lib/rbac";
 import { logAudit } from "@/actions/audit";
 import type { ScheduleStatus } from "@/types";
 
@@ -76,7 +75,6 @@ async function detectConflict(
 
 export async function createSchedule(input: ScheduleInput): Promise<Result<{ id: string; status: ScheduleStatus }>> {
   const ctx = await requireOrgContext();
-  assertCan(ctx.role, "campaigns:schedule");
 
   const parsed = scheduleSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
@@ -120,7 +118,6 @@ export async function createSchedule(input: ScheduleInput): Promise<Result<{ id:
 
 export async function updateScheduleStatus(scheduleId: string, status: ScheduleStatus): Promise<Result> {
   const ctx = await requireOrgContext();
-  assertCan(ctx.role, "campaigns:schedule");
 
   const schedule = await db.campaignSchedule.findUnique({ where: { id: scheduleId } });
   if (!schedule || schedule.organizationId !== ctx.organizationId) return { ok: false, error: "Schedule no encontrado." };
@@ -133,7 +130,6 @@ export async function updateScheduleStatus(scheduleId: string, status: ScheduleS
 
 export async function deleteSchedule(scheduleId: string): Promise<Result> {
   const ctx = await requireOrgContext();
-  assertCan(ctx.role, "campaigns:schedule");
 
   const schedule = await db.campaignSchedule.findUnique({ where: { id: scheduleId } });
   if (!schedule || schedule.organizationId !== ctx.organizationId) return { ok: false, error: "Schedule no encontrado." };

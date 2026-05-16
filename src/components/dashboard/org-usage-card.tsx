@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Layers, MonitorPlay, Users, HardDrive, ArrowRight, BarChart3 } from "lucide-react";
+import { Layers, MonitorPlay, HardDrive, ArrowRight, BarChart3 } from "lucide-react";
 import { db } from "@/lib/db";
 import { getOrgContext } from "@/lib/org-context";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -34,10 +34,9 @@ export async function OrgUsageCard() {
   const ctx = await getOrgContext();
   if (!ctx) return null;
 
-  const [campaigns, screens, members, media] = await Promise.all([
+  const [campaigns, screens, media] = await Promise.all([
     db.campaign.count({ where: { organizationId: ctx.organizationId } }),
     db.screen.count({ where: { organizationId: ctx.organizationId } }),
-    db.organizationMember.count({ where: { organizationId: ctx.organizationId } }),
     db.mediaAsset.aggregate({
       where: { organizationId: ctx.organizationId, isArchived: false },
       _sum: { size: true },
@@ -66,7 +65,6 @@ export async function OrgUsageCard() {
       <CardContent className="pt-2 divide-y divide-white/[0.04]">
         <MetricRow icon={Layers}      label="Campañas"          value={campaigns} />
         <MetricRow icon={MonitorPlay} label="Pantallas"          value={screens} />
-        <MetricRow icon={Users}       label="Miembros"           value={members} />
         <MetricRow icon={HardDrive}   label="Almacenamiento"     value={storageMB} suffix="MB" />
       </CardContent>
     </Card>

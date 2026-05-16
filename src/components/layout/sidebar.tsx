@@ -7,13 +7,12 @@ import {
   LayoutDashboard, Megaphone, MonitorPlay, BarChart3,
   ClipboardCheck, Settings, ChevronLeft, Zap, Layers,
   Building2, LogOut, X, Image as ImageIcon, CalendarRange,
-  Users, CreditCard, Activity,
+  CreditCard, Activity,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { useAppStore } from "@/store";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { useRole } from "@/hooks/use-role";
-import { usePermissions } from "@/hooks/usePermissions";
 import { NAV_ITEMS } from "@/types/rbac";
 import type { UserRole, AccountType } from "@/types";
 import type { PlatformRole } from "@/lib/platform";
@@ -31,7 +30,6 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "/analytics":            BarChart3,
   "/approvals":            ClipboardCheck,
   "/clients":              Building2,
-  "/settings/team":        Users,
   "/settings":             Settings,
   "/settings/billing":     CreditCard,
   "/settings/activity":    Activity,
@@ -75,7 +73,6 @@ function SidebarContent({ onClose, organizations, canCreateOrg, accountType, pla
 
   const displayName = user?.fullName ?? user?.firstName ?? "Usuario";
   const role = useRole() ?? "EXECUTIVE";
-  const { user: permUser } = usePermissions();
 
   const roleLabel: Record<UserRole, string> = {
     ADMIN: "Administrador",
@@ -90,15 +87,12 @@ function SidebarContent({ onClose, organizations, canCreateOrg, accountType, pla
     return pathname.startsWith(href);
   };
 
-  /* Visibility = Role match AND (no AccountType restriction OR account
-   * matches) AND (not platformOnly OR user is platform staff).
-   *
-   * Platform admins (admin@bannerblaze.com etc.) bypass every filter so
-   * they can navigate any tenant's UI during support work. */
+  /* Visibility = (no AccountType restriction OR account matches)
+   *           AND (not platformOnly OR user is platform staff).
+   * SUPER_ADMIN bypasses every filter for support work. */
   const isPlatformStaff = platformRole === "SUPER_ADMIN" || platformRole === "SUPPORT";
   const visibleItems = NAV_ITEMS.filter((item) => {
     if (platformRole === "SUPER_ADMIN") return true;
-    if (!item.allowedRoles.includes(permUser.role)) return false;
     if (item.platformOnly && !isPlatformStaff) return false;
     if (item.allowedAccountTypes && accountType
         && !item.allowedAccountTypes.includes(accountType)) {

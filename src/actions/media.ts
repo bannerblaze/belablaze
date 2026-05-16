@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireOrgContext } from "@/lib/org-context";
-import { assertCan } from "@/lib/rbac";
 import { uploadFile, deleteFile, validateMime, inferMediaType, MAX_UPLOAD_BYTES, ACCEPTED_MIME } from "@/lib/storage";
 import { logAudit } from "@/actions/audit";
 
@@ -33,7 +32,6 @@ export interface UploadInput {
 
 export async function uploadMediaFromBuffer(input: UploadInput): Promise<Result<{ id: string; url: string }>> {
   const ctx = await requireOrgContext();
-  assertCan(ctx.role, "media:upload");
 
   if (!validateMime(input.mimeType)) {
     return { ok: false, error: `Tipo no permitido. Aceptados: ${ACCEPTED_MIME.join(", ")}` };
@@ -86,7 +84,6 @@ export async function uploadMediaFromBuffer(input: UploadInput): Promise<Result<
 
 export async function deleteMedia(assetId: string): Promise<Result> {
   const ctx = await requireOrgContext();
-  assertCan(ctx.role, "media:delete");
 
   const asset = await db.mediaAsset.findUnique({ where: { id: assetId } });
   if (!asset || asset.organizationId !== ctx.organizationId) {
@@ -102,7 +99,6 @@ export async function deleteMedia(assetId: string): Promise<Result> {
 
 export async function listMedia(input?: { type?: "IMAGE" | "VIDEO" | "DOCUMENT" | "AUDIO"; search?: string }) {
   const ctx = await requireOrgContext();
-  assertCan(ctx.role, "media:view");
 
   return db.mediaAsset.findMany({
     where: {

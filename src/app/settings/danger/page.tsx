@@ -21,12 +21,12 @@ export default async function DangerPage() {
         </div>
 
         <Card className="border-red-400/20">
-          <CardHeader title="Salir de la organización" subtitle="Pierdes acceso inmediato. Tu rol y data quedan intactos." />
+          <CardHeader title="Eliminar organización" subtitle="Borra esta organización y toda su data. Esta acción no se puede deshacer." />
           <CardContent>
             <DangerClient
               organizationId={ctx.organizationId}
               organizationName={ctx.organizationName}
-              isOwner={ctx.role === "OWNER"}
+              isOwner={true}
             />
           </CardContent>
         </Card>

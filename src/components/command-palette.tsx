@@ -42,7 +42,6 @@ const NAV_DEFS: Array<{ id: string; label: string; icon: React.ReactNode; catego
   { id: "nav-analytics", label: "Analytics", icon: <BarChart3 className="w-4 h-4" />, category: "Navegar a", href: "/analytics", shortcut: ["G", "L"] },
   { id: "nav-approvals", label: "Aprobaciones", icon: <ClipboardCheck className="w-4 h-4" />, category: "Navegar a", href: "/approvals", shortcut: ["G", "P"] },
   { id: "nav-clients", label: "Clientes", icon: <Building2 className="w-4 h-4" />, category: "Navegar a", href: "/clients", shortcut: ["G", "K"] },
-  { id: "nav-team", label: "Equipo", icon: <Settings className="w-4 h-4" />, category: "Navegar a", href: "/settings/team", description: "Miembros e invitaciones" },
   { id: "nav-billing", label: "Facturación", icon: <Settings className="w-4 h-4" />, category: "Navegar a", href: "/settings/billing", description: "Plan + uso" },
   { id: "nav-activity", label: "Actividad", icon: <Settings className="w-4 h-4" />, category: "Navegar a", href: "/settings/activity", description: "Audit logs" },
   { id: "nav-settings", label: "Configuración", icon: <Settings className="w-4 h-4" />, category: "Navegar a", href: "/settings", shortcut: ["G", ","] },

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { CreditCard, Clock, Layers, MonitorPlay, Users, HardDrive, FileText } from "lucide-react";
+import { CreditCard, Clock, Layers, MonitorPlay, HardDrive, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -9,7 +9,7 @@ interface Props {
   status: string;
   currentPeriodEnd: string;
   trialEndsAt: string | null;
-  usage: { campaigns: number; screens: number; members: number; mediaAssets: number; storageMB: number };
+  usage: { campaigns: number; screens: number; mediaAssets: number; storageMB: number };
 }
 
 const STATUS_LABEL: Record<string, { label: string; tone: string }> = {
@@ -88,7 +88,6 @@ export function BillingClient({ status, currentPeriodEnd, trialEndsAt, usage }: 
           >
             <UsageRow icon={Layers}      label="Campañas"        value={usage.campaigns} />
             <UsageRow icon={MonitorPlay} label="Pantallas"        value={usage.screens} />
-            <UsageRow icon={Users}       label="Miembros"         value={usage.members} />
             <UsageRow icon={HardDrive}   label="Archivos media"   value={usage.mediaAssets} />
             <UsageRow icon={HardDrive}   label="Almacenamiento"   value={usage.storageMB} suffix="MB" />
           </motion.div>
