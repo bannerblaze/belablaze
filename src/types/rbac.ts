@@ -69,9 +69,8 @@ export const NAV_ITEMS: NavItem[] = [
   { section: "Operaciones", label: "Cuentas",   href: "/clients", icon: "ti-users",
     platformOnly: true },
 
-  // Settings + billing — everyone (creators get a slimmer billing view)
+  // Settings — everyone
   { section: "Admin", label: "Configuración", href: "/settings",          icon: "ti-settings" },
-  { section: "Admin", label: "Facturación",   href: "/settings/billing",  icon: "ti-credit-card" },
 
   // Audit log: ORGANIZATION + INTERNAL only (creators never see it)
   { section: "Admin", label: "Audit Log", href: "/settings/activity", icon: "ti-list-details",

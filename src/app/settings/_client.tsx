@@ -101,7 +101,6 @@ export function SettingsClient({ role, accountType, organization, creator }: Set
     approvals: true,
     campaigns: true,
     screens: false,
-    billing: true,
     weekly: true,
     realtime: true,
   });
@@ -224,9 +223,6 @@ export function SettingsClient({ role, accountType, organization, creator }: Set
               </SettingRow>
               <SettingRow label="Estado de pantallas" description="Alertas cuando una pantalla se desconecta">
                 <Toggle checked={notifs.screens} onChange={() => setNotifs(n => ({ ...n, screens: !n.screens }))} />
-              </SettingRow>
-              <SettingRow label="Facturación y créditos" description="Límites de crédito y nuevas facturas">
-                <Toggle checked={notifs.billing} onChange={() => setNotifs(n => ({ ...n, billing: !n.billing }))} />
               </SettingRow>
 
               <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3 mt-5">Resúmenes</p>

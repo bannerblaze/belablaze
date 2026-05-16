@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Megaphone, MonitorPlay, BarChart3,
   ClipboardCheck, Settings, ChevronLeft, Zap, Layers,
   Building2, LogOut, X, Image as ImageIcon, CalendarRange,
-  CreditCard, Activity,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
@@ -31,7 +31,6 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "/approvals":            ClipboardCheck,
   "/clients":              Building2,
   "/settings":             Settings,
-  "/settings/billing":     CreditCard,
   "/settings/activity":    Activity,
 };
 

@@ -15,7 +15,7 @@ export async function SettingsShell({ children }: { children: React.ReactNode })
     <div className="px-4 sm:px-6 lg:px-8 py-5 lg:py-6 max-w-[1400px]">
       <div className="mb-6">
         <h1 className="text-lg font-bold text-white">Configuración</h1>
-        <p className="text-xs text-white/40 mt-0.5">Gestiona tu organización, equipo, facturación y más</p>
+        <p className="text-xs text-white/40 mt-0.5">Gestiona tu perfil, seguridad y preferencias</p>
       </div>
       <div className="flex flex-col lg:flex-row gap-6">
         <SettingsNav accountType={accountType} isPlatformAdmin={isPlatformAdmin} />

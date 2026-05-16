@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  User, CreditCard, Activity, Shield, Code2, Webhook,
+  User, Activity, Shield, Code2, Webhook,
   Palette, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -27,7 +27,6 @@ type NavItem = {
 
 const PRIMARY: NavItem[] = [
   { href: "/settings",          label: "Perfil",       icon: User, exact: true },
-  { href: "/settings/billing",  label: "Facturación",  icon: CreditCard },
   { href: "/settings/activity", label: "Actividad",    icon: Activity,
     forAccountTypes: ["ORGANIZATION", "INTERNAL"] },
   { href: "/settings/security", label: "Seguridad",    icon: Shield },
