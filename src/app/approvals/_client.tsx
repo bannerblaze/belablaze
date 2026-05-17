@@ -79,17 +79,17 @@ function OverviewStrip({ overview }: { overview: ModerationOverview | null }) {
   ] as const;
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {tiles.map((t) => (
         <div
           key={t.label}
-          className="rounded-2xl bg-[#0F0F0F] border border-white/[0.06] p-4 relative overflow-hidden"
+          className="relative rounded-2xl bg-[#0E0E10] border border-white/[0.06] px-5 py-5 min-h-[112px] flex flex-col justify-between overflow-hidden shadow-[inset_0_1px_0_0_rgba(255,255,255,0.03)]"
         >
-          <div className={cn("absolute left-0 top-0 bottom-0 w-0.5", t.bar)} />
-          <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-white/35 mb-1.5">
+          <div className={cn("absolute left-0 top-3 bottom-3 w-[2px] rounded-r-full", t.bar)} />
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/40">
             {t.label}
           </p>
-          <p className={cn("text-2xl font-black tabular-nums", t.accent)}>
+          <p className={cn("text-[28px] font-bold tabular-nums leading-none mt-2", t.accent)}>
             {t.value}
           </p>
         </div>
@@ -148,22 +148,22 @@ function AdRow({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.97 }}
       transition={{ duration: 0.22 }}
-      className={cn("rounded-xl border bg-[#0F0F0F] overflow-hidden", borderColor)}
+      className={cn("rounded-2xl border bg-[#0E0E10] overflow-hidden", borderColor)}
     >
       {/* Collapsed header */}
       <div
-        className="flex items-center gap-4 px-4 py-3.5 cursor-pointer hover:bg-white/[0.02] transition-colors"
+        className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-white/[0.02] transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
-        <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0", iconBg)}>
-          {FORMAT_ICONS[ad.format] ?? <ImageIcon className="w-3.5 h-3.5" />}
+        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ring-1 ring-white/[0.04]", iconBg)}>
+          {FORMAT_ICONS[ad.format] ?? <ImageIcon className="w-4 h-4" />}
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-white truncate">{ad.title}</p>
-              <div className="flex items-center gap-2 mt-0.5 text-[11px] text-white/40">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+              <p className="text-[14px] font-semibold text-white truncate leading-tight">{ad.title}</p>
+              <div className="flex items-center gap-2 text-[11px] text-white/45">
                 <span className="truncate">{ad.campaign?.name}</span>
                 {ad.org && (
                   <>
@@ -174,25 +174,25 @@ function AdRow({
                 )}
                 {ad.ownerEmail && (
                   <>
-                    <span className="text-white/20">·</span>
-                    <Mail className="w-2.5 h-2.5 flex-shrink-0" />
+                    <span className="text-white/20 hidden sm:inline">·</span>
+                    <Mail className="w-2.5 h-2.5 flex-shrink-0 hidden sm:inline" />
                     <span className="truncate hidden sm:inline">{ad.ownerEmail}</span>
                   </>
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="text-[10px] text-white/30 hidden md:block">
+            <div className="flex items-center gap-2.5 flex-shrink-0">
+              <span className="text-[11px] text-white/30 hidden md:block">
                 {ad.submittedAt
                   ? <>Enviado {formatRelativeTime(ad.submittedAt)}</>
                   : formatRelativeTime(ad.createdAt)}
               </span>
-              <span className="text-[10px] font-semibold text-white/40 bg-white/[0.04] px-2 py-0.5 rounded-md">
+              <span className="text-[10px] font-semibold text-white/50 bg-white/[0.04] ring-1 ring-white/[0.04] px-2 py-1 rounded-md leading-none">
                 {FORMAT_LABELS[ad.format] ?? ad.format}
               </span>
               {expanded
-                ? <ChevronUp className="w-3.5 h-3.5 text-white/30" />
-                : <ChevronDown className="w-3.5 h-3.5 text-white/30" />}
+                ? <ChevronUp className="w-4 h-4 text-white/35" />
+                : <ChevronDown className="w-4 h-4 text-white/35" />}
             </div>
           </div>
         </div>
@@ -457,7 +457,7 @@ export function ApprovalsClient({
   };
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-5 lg:py-6 space-y-6 max-w-[1200px]">
+    <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-7 max-w-[1280px]">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -4 }}
@@ -465,36 +465,36 @@ export function ApprovalsClient({
         transition={{ duration: 0.3 }}
         className="flex items-start justify-between gap-3"
       >
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-lg lg:text-xl font-bold text-white tracking-tight">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl lg:text-[22px] font-bold text-white tracking-tight">
               Moderación de anuncios
             </h1>
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-yellow-400/10 border border-yellow-400/20 text-[9px] font-bold uppercase tracking-wider text-yellow-400">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-yellow-400/[0.08] border border-yellow-400/20 text-[10px] font-bold uppercase tracking-wider text-yellow-400">
               <ShieldCheck className="w-2.5 h-2.5" />
               Interno
             </span>
           </div>
-          <p className="text-xs text-white/45 max-w-xl">
+          <p className="text-[13px] text-white/45 max-w-2xl leading-relaxed">
             Revisión y publicación de anuncios DOOH — flujo completo: revisión → aprobación → publicación. Solo visible para personal de BannerBlaze.
           </p>
         </div>
       </motion.div>
 
       {/* Workflow breadcrumb */}
-      <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="flex items-center gap-2 flex-wrap">
         {[
           { label: "Cliente envía anuncio",    icon: <ImageIcon className="w-3 h-3" />,     active: true },
           { label: "En revisión",              icon: <Clock className="w-3 h-3" />,          active: tab === "PENDING_REVIEW" },
           { label: "Aprobado / Rechazado",     icon: <ClipboardCheck className="w-3 h-3" />, active: tab === "APPROVED" || tab === "REJECTED" },
           { label: "Publicado",                icon: <Rocket className="w-3 h-3" />,         active: tab === "PUBLISHED" },
         ].map((step, i) => (
-          <div key={i} className="flex items-center gap-1.5">
+          <div key={i} className="flex items-center gap-2">
             <div className={cn(
-              "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold",
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold ring-1",
               step.active
-                ? "bg-[#B8EB23]/10 text-[#B8EB23] border border-[#B8EB23]/20"
-                : "bg-white/[0.03] text-white/30 border border-white/[0.04]",
+                ? "bg-[#B8EB23]/[0.08] text-[#B8EB23] ring-[#B8EB23]/20"
+                : "bg-white/[0.02] text-white/35 ring-white/[0.05]",
             )}>
               {step.icon}
               <span className="hidden sm:inline">{step.label}</span>
@@ -508,23 +508,23 @@ export function ApprovalsClient({
       <OverviewStrip overview={overview} />
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 p-1 rounded-xl bg-[#0F0F0F] border border-white/[0.06] w-fit">
+      <div className="flex items-center gap-1 p-1 rounded-xl bg-[#0E0E10] border border-white/[0.06] w-fit">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
             className={cn(
-              "inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all",
+              "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold transition-all",
               tab === t.key
                 ? "bg-white/[0.07] text-white"
-                : "text-white/40 hover:text-white hover:bg-white/[0.03]",
+                : "text-white/45 hover:text-white hover:bg-white/[0.03]",
             )}
           >
             <span className={cn("w-1.5 h-1.5 rounded-full", t.dot)} />
             {t.label}
             <span className={cn(
-              "px-1.5 py-0.5 rounded-md text-[10px] tabular-nums font-bold",
-              tab === t.key ? "bg-black/30 text-white/70" : "bg-white/[0.04] text-white/40",
+              "px-1.5 py-0.5 rounded-md text-[10px] tabular-nums font-bold leading-none",
+              tab === t.key ? "bg-black/30 text-white/75" : "bg-white/[0.05] text-white/45",
             )}>
               {t.count}
             </span>
@@ -533,7 +533,7 @@ export function ApprovalsClient({
       </div>
 
       {/* Ad list */}
-      <div className="space-y-2.5">
+      <div className="space-y-3">
         <AnimatePresence mode="popLayout">
           {currentList.map((ad, i) => (
             <motion.div

@@ -16,6 +16,7 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/analytics": { title: "Analytics", subtitle: "Métricas e insights de rendimiento" },
   "/approvals": { title: "Aprobaciones", subtitle: "Workflow de revisión de anuncios" },
   "/clients": { title: "Clientes", subtitle: "Gestión de cuentas y empresas" },
+  "/historial": { title: "Historial", subtitle: "Línea de tiempo de la cuenta" },
   "/settings": { title: "Configuración", subtitle: "Preferencias de la plataforma" },
 };
 
@@ -90,11 +91,11 @@ export function Topbar() {
         {/* Search — triggers CMD+K palette */}
         <button
           onClick={() => setCommandOpen(true)}
-          className="hidden lg:inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/[0.03] ring-1 ring-white/[0.06] text-white/45 hover:text-white hover:ring-white/[0.12] hover:bg-white/[0.05] transition-all text-[11px] min-w-[200px] group"
+          className="hidden lg:inline-flex items-center gap-2.5 pl-3 pr-2 py-2 rounded-lg bg-white/[0.03] ring-1 ring-white/[0.06] text-white/45 hover:text-white hover:ring-white/[0.12] hover:bg-white/[0.05] transition-all text-xs min-w-[220px] group"
         >
           <Search className="w-3.5 h-3.5 flex-shrink-0" />
           <span className="font-medium">Buscar...</span>
-          <div className="ml-auto inline-flex items-center gap-0.5 px-1 py-0.5 rounded-md bg-white/[0.04] text-white/30 text-[10px] font-mono">
+          <div className="ml-auto inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-white/[0.05] text-white/40 text-[10px] font-mono">
             <Command className="w-2.5 h-2.5" />
             <span>K</span>
           </div>

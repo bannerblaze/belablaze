@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Megaphone, MonitorPlay, BarChart3,
   ClipboardCheck, Settings, Building2, Plus, Search, Zap, Layers,
-  ArrowRight, Clock, X, CornerDownLeft, Command as CmdIcon,
+  ArrowRight, Clock, X, CornerDownLeft,
 } from "lucide-react";
 import { useAppStore } from "@/store";
 import { useSearchHistory } from "@/store/search-history";
@@ -42,6 +42,7 @@ const NAV_DEFS: Array<{ id: string; label: string; icon: React.ReactNode; catego
   { id: "nav-analytics", label: "Analytics", icon: <BarChart3 className="w-4 h-4" />, category: "Navegar a", href: "/analytics", shortcut: ["G", "L"] },
   { id: "nav-approvals", label: "Aprobaciones", icon: <ClipboardCheck className="w-4 h-4" />, category: "Navegar a", href: "/approvals", shortcut: ["G", "P"] },
   { id: "nav-clients", label: "Clientes", icon: <Building2 className="w-4 h-4" />, category: "Navegar a", href: "/clients", shortcut: ["G", "K"] },
+  { id: "nav-historial", label: "Historial", icon: <Clock className="w-4 h-4" />, category: "Navegar a", href: "/historial", description: "Línea de tiempo de la cuenta" },
   { id: "nav-activity", label: "Actividad", icon: <Settings className="w-4 h-4" />, category: "Navegar a", href: "/settings/activity", description: "Audit logs" },
   { id: "nav-settings", label: "Configuración", icon: <Settings className="w-4 h-4" />, category: "Navegar a", href: "/settings", shortcut: ["G", ","] },
   { id: "create-campaign", label: "Nueva campaña", icon: <Plus className="w-4 h-4" />, category: "Crear", href: "/campaigns/new", description: "Crear nueva campaña publicitaria", shortcut: ["C", "C"] },
@@ -66,7 +67,7 @@ function HighlightedText({ text, matches }: { text: string; matches?: number[] }
 
 function Kbd({ children }: { children: React.ReactNode }) {
   return (
-    <kbd className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-medium text-white/40 bg-white/[0.05] rounded border border-white/[0.08]">
+    <kbd className="inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 text-[10px] font-semibold text-white/55 bg-white/[0.05] rounded-md ring-1 ring-white/[0.08] leading-none font-mono">
       {children}
     </kbd>
   );
@@ -255,12 +256,12 @@ export function CommandPalette() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: -12 }}
             transition={{ duration: duration.fast, ease: easing.spring }}
-            className="fixed top-[14%] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[600px] z-[201]"
+            className="fixed top-[14%] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[640px] z-[201]"
           >
-            <div className="bg-[#0F0F0F]/95 backdrop-blur-xl border border-white/[0.12] rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.8)] overflow-hidden">
+            <div className="bg-[#0E0E10]/95 backdrop-blur-2xl ring-1 ring-white/[0.08] rounded-2xl shadow-[0_32px_96px_-12px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.04)_inset] overflow-hidden">
               {/* Search input */}
-              <div className="flex items-center gap-3 px-4 py-4 border-b border-white/[0.06]">
-                <Search className="w-4 h-4 text-white/30 flex-shrink-0" />
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-white/[0.05]">
+                <Search className="w-4 h-4 text-white/35 flex-shrink-0" />
                 <input
                   ref={inputRef}
                   type="text"
@@ -268,7 +269,7 @@ export function CommandPalette() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  className="flex-1 bg-transparent text-sm text-white placeholder-white/30 focus:outline-none"
+                  className="flex-1 bg-transparent text-[14px] text-white placeholder-white/30 focus:outline-none"
                   autoComplete="off"
                   spellCheck="false"
                   aria-label="Buscar"
@@ -279,7 +280,7 @@ export function CommandPalette() {
                 {query && !searching && (
                   <button
                     onClick={() => setQuery("")}
-                    className="text-white/30 hover:text-white transition-colors flex-shrink-0"
+                    className="text-white/35 hover:text-white transition-colors flex-shrink-0 p-1 -m-1 rounded"
                     aria-label="Limpiar"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -289,7 +290,7 @@ export function CommandPalette() {
               </div>
 
               {/* Results */}
-              <div ref={listRef} className="max-h-[420px] overflow-y-auto py-2">
+              <div ref={listRef} className="max-h-[440px] overflow-y-auto py-2.5">
                 {/* Recent searches (empty query state) */}
                 {showRecent && (
                   <div>
@@ -346,8 +347,8 @@ export function CommandPalette() {
 
                 {/* Grouped results */}
                 {grouped.map(([category, catItems]) => (
-                  <div key={category}>
-                    <p className="px-4 pt-3 pb-1.5 text-[10px] font-semibold text-white/25 uppercase tracking-widest">
+                  <div key={category} className="px-2">
+                    <p className="px-3 pt-3 pb-2 text-[10px] font-bold text-white/30 uppercase tracking-[0.1em]">
                       {category}
                     </p>
                     {catItems.map((item) => {
@@ -360,22 +361,22 @@ export function CommandPalette() {
                           onClick={() => item.href && go(item.href, query.trim() || undefined)}
                           onMouseEnter={() => setActiveIdx(idx)}
                           className={cn(
-                            "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all",
-                            isActive ? "bg-[#B8EB23]/[0.08]" : "hover:bg-white/[0.04]"
+                            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors",
+                            isActive ? "bg-[#B8EB23]/[0.08]" : "hover:bg-white/[0.03]",
                           )}
                         >
                           <div className={cn(
-                            "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all",
-                            isActive ? "bg-[#B8EB23]/15 text-[#B8EB23]" : "bg-white/[0.06] text-white/40"
+                            "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all ring-1",
+                            isActive ? "bg-[#B8EB23]/15 text-[#B8EB23] ring-[#B8EB23]/20" : "bg-white/[0.04] text-white/45 ring-white/[0.04]",
                           )}>
                             {item.icon}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className={cn("text-sm font-medium truncate", isActive ? "text-white" : "text-white")}>
+                            <p className="text-[13px] font-medium text-white truncate leading-tight">
                               <HighlightedText text={item.label} matches={item.matches} />
                             </p>
                             {item.description && (
-                              <p className="text-[11px] text-white/35 truncate mt-0.5">{item.description}</p>
+                              <p className="text-[11px] text-white/35 truncate mt-1">{item.description}</p>
                             )}
                           </div>
                           {item.shortcut && (
@@ -384,7 +385,7 @@ export function CommandPalette() {
                             </div>
                           )}
                           {isActive && (
-                            <CornerDownLeft className="w-3.5 h-3.5 text-[#B8EB23]/60 flex-shrink-0 ml-1" />
+                            <CornerDownLeft className="w-3.5 h-3.5 text-[#B8EB23]/60 flex-shrink-0" />
                           )}
                         </button>
                       );
@@ -394,15 +395,15 @@ export function CommandPalette() {
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between px-4 py-3 border-t border-white/[0.06]">
-                <div className="flex items-center gap-3 text-[10px] text-white/30">
-                  <span className="flex items-center gap-1"><Kbd>↑</Kbd><Kbd>↓</Kbd> navegar</span>
-                  <span className="hidden sm:flex items-center gap-1"><Kbd>↵</Kbd> abrir</span>
-                  <span className="hidden md:flex items-center gap-1"><Kbd>ESC</Kbd> cerrar</span>
+              <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-white/[0.05] bg-white/[0.015]">
+                <div className="flex items-center gap-3 text-[10px] text-white/35 font-medium">
+                  <span className="flex items-center gap-1.5"><span className="flex items-center gap-0.5"><Kbd>↑</Kbd><Kbd>↓</Kbd></span> navegar</span>
+                  <span className="hidden sm:flex items-center gap-1.5"><Kbd>↵</Kbd> abrir</span>
+                  <span className="hidden md:flex items-center gap-1.5"><Kbd>ESC</Kbd> cerrar</span>
                 </div>
-                <div className="flex items-center gap-1 text-[10px] text-white/25">
-                  <CmdIcon className="w-2.5 h-2.5" />
-                  <span>K en cualquier momento</span>
+                <div className="hidden sm:flex items-center gap-1.5 text-[10px] text-white/30 font-medium">
+                  <Kbd>⌘ K</Kbd>
+                  <span>en cualquier momento</span>
                 </div>
               </div>
             </div>

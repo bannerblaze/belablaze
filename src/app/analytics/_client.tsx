@@ -109,9 +109,9 @@ export function AnalyticsClient({ chartData, metrics: m, topCampaigns, cityMetri
       {/* Metric cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <MetricCard title="Impresiones" value={m.totalImpressions} delta={m.impressionsDelta} icon={<Eye className="w-5 h-5" />} highlight index={0} />
-        <MetricCard title="Clicks totales" value={totalClicks} delta={12.8} icon={<MousePointerClick className="w-5 h-5" />} index={1} />
+        <MetricCard title="Clicks totales" value={totalClicks} icon={<MousePointerClick className="w-5 h-5" />} index={1} />
         <MetricCard title="Escaneos QR" value={m.qrScans} delta={m.qrScansDelta} icon={<QrCode className="w-5 h-5" />} index={2} />
-        <MetricCard title="Engagement" value={`${m.avgEngagement}%`} delta={0.4} icon={<TrendingUp className="w-5 h-5" />} index={3} />
+        <MetricCard title="Engagement" value={`${m.avgEngagement}%`} icon={<TrendingUp className="w-5 h-5" />} index={3} />
       </div>
 
       {/* Main chart */}

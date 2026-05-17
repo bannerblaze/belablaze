@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { TrendingUp, TrendingDown } from "lucide-react";
 import { cn, formatNumber, formatPercent } from "@/lib/utils";
 
 interface MetricCardProps {
@@ -17,6 +17,9 @@ interface MetricCardProps {
   index?: number;
 }
 
+/* Treat `delta === 0` or `undefined` as "no comparable data" and hide
+ * the badge — avoids fake `±0.0%` placeholders on empty/new accounts. */
+
 export function MetricCard({
   title,
   value,
@@ -29,8 +32,8 @@ export function MetricCard({
   highlight = false,
   index = 0,
 }: MetricCardProps) {
-  const isPositive = delta !== undefined && delta > 0;
-  const isNegative = delta !== undefined && delta < 0;
+  const hasDelta = delta !== undefined && delta !== 0;
+  const isPositive = hasDelta && (delta as number) > 0;
 
   return (
     <motion.div
@@ -62,17 +65,14 @@ export function MetricCard({
             {icon}
           </div>
 
-          {delta !== undefined && (
+          {hasDelta && (
             <div className={cn(
-              "inline-flex items-center gap-1 h-6 px-2 rounded-md text-[11px] font-semibold flex-shrink-0 tabular-nums leading-none",
-              isPositive ? "bg-green-400/[0.08] text-green-400 ring-1 ring-green-400/15" :
-              isNegative ? "bg-red-400/[0.08] text-red-400 ring-1 ring-red-400/15" :
-              "bg-white/[0.04] text-white/40 ring-1 ring-white/[0.05]",
+              "inline-flex items-center gap-1 h-6 px-2 rounded-md text-[11px] font-semibold flex-shrink-0 tabular-nums leading-none ring-1",
+              isPositive ? "bg-green-400/[0.08] text-green-400 ring-green-400/15" :
+                          "bg-red-400/[0.08] text-red-400 ring-red-400/15",
             )}>
-              {isPositive ? <TrendingUp className="w-3 h-3" strokeWidth={2.5} /> :
-               isNegative ? <TrendingDown className="w-3 h-3" strokeWidth={2.5} /> :
-               <Minus className="w-3 h-3" strokeWidth={2.5} />}
-              {isPositive ? "+" : ""}{formatPercent(Math.abs(delta ?? 0), 1)}
+              {isPositive ? <TrendingUp className="w-3 h-3" strokeWidth={2.5} /> : <TrendingDown className="w-3 h-3" strokeWidth={2.5} />}
+              {isPositive ? "+" : ""}{formatPercent(Math.abs(delta as number), 1)}
             </div>
           )}
         </div>
@@ -90,7 +90,7 @@ export function MetricCard({
             {suffix && <span className="text-xs text-white/40 font-medium flex-shrink-0">{suffix}</span>}
           </div>
           <p className="text-[13px] text-white/70 font-medium truncate">{title}</p>
-          {delta !== undefined && (
+          {hasDelta && (
             <p className="text-[11px] text-white/35 truncate">{deltaLabel}</p>
           )}
         </div>

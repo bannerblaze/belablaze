@@ -190,8 +190,8 @@ export function AdsClient({ initialAds, campaigns }: { initialAds: Ad[]; campaig
       {/* Summary metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <MetricCard title="Total anuncios" value={ads.length} icon={<Zap className="w-5 h-5" />} index={0} />
-        <MetricCard title="Impresiones totales" value={totalImpressions} delta={14.2} icon={<Eye className="w-5 h-5" />} highlight index={1} />
-        <MetricCard title="CTR promedio" value={`${avgCTR.toFixed(2)}%`} delta={0.3} icon={<ArrowUpDown className="w-5 h-5" />} index={2} />
+        <MetricCard title="Impresiones totales" value={totalImpressions} icon={<Eye className="w-5 h-5" />} highlight index={1} />
+        <MetricCard title="CTR promedio" value={`${avgCTR.toFixed(2)}%`} icon={<ArrowUpDown className="w-5 h-5" />} index={2} />
         <MetricCard title="Pendientes revisión" value={pendingCount} icon={<Filter className="w-5 h-5" />} index={3} />
       </div>
 
@@ -202,13 +202,13 @@ export function AdsClient({ initialAds, campaigns }: { initialAds: Ad[]; campaig
           <div className="flex items-center gap-3 flex-1 min-w-0">
             {/* Search */}
             <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/35 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Buscar anuncios..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 h-9 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#B8EB23]/40 transition-all"
+                className="w-full pl-11 pr-9 h-10 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#B8EB23]/40 transition-all"
               />
               {search && (
                 <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white">

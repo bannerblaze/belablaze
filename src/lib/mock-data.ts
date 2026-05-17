@@ -247,18 +247,18 @@ export const mockAds: Ad[] = [
 
 export const mockDashboardMetrics: DashboardMetrics = {
   totalImpressions: 4850000,
-  impressionsDelta: 18.4,
+  impressionsDelta: 0,
   activeCampaigns: 2,
   campaignsDelta: 0,
   totalRevenue: 195000000,
-  revenueDelta: 24.2,
+  revenueDelta: 0,
   avgEngagement: 3.8,
-  engagementDelta: 0.6,
+  engagementDelta: 0,
   screensOnline: 6,
   screensTotal: 8,
   pendingApprovals: 2,
   qrScans: 15600,
-  qrScansDelta: 32.1,
+  qrScansDelta: 0,
 };
 
 export const mockChartData = generateMockMetrics(30);

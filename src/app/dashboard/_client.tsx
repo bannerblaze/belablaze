@@ -2,20 +2,18 @@
 
 import { motion } from "framer-motion";
 import {
-  Eye, DollarSign, Zap,
-  ClipboardCheck, QrCode, Activity, ArrowUpRight,
-  CheckCircle2, XCircle, AlertCircle, Circle, Radio,
+  Eye, DollarSign,
+  ClipboardCheck, QrCode, Activity, ArrowUpRight, Radio,
 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
-import { StatusBadge, Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/badge";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { RealtimeChart } from "@/components/dashboard/realtime-chart";
 import { CampaignStatusChart } from "@/components/dashboard/campaign-status-chart";
 import { useRealtimeMetrics } from "@/hooks/use-realtime";
 import {
-  formatCurrency, formatNumber, formatRelativeTime,
-  formatDate, getStatusConfig, truncate,
+  formatCurrency, formatDate, getStatusConfig, truncate,
 } from "@/lib/utils";
 import Link from "next/link";
 import type { DashboardMetrics, ChartDataPoint } from "@/types";
@@ -26,17 +24,6 @@ const stagger = (i: number) => ({
   animate: { opacity: 1, y: 0 },
   transition: { duration: 0.4, delay: i * 0.08 },
 });
-
-function ActivityIcon({ action }: { action: string }) {
-  const icons: Record<string, React.ReactNode> = {
-    APPROVE: <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />,
-    REJECT: <XCircle className="w-3.5 h-3.5 text-red-400" />,
-    CREATE: <Zap className="w-3.5 h-3.5 text-[#B8EB23]" />,
-    UPDATE: <AlertCircle className="w-3.5 h-3.5 text-blue-400" />,
-    PAUSE: <Circle className="w-3.5 h-3.5 text-orange-400" />,
-  };
-  return <>{icons[action] ?? <Circle className="w-3.5 h-3.5 text-white/30" />}</>;
-}
 
 function LiveBadge() {
   return (
@@ -76,6 +63,7 @@ type ScreenSummary = {
 interface DashboardClientProps {
   metrics: DashboardMetrics;
   chartData: ChartDataPoint[];
+  /** Kept in props for compatibility — surfaced on /historial now, not here. */
   recentActivity: ActivityItem[];
   campaigns: CampaignSummary[];
   screens: ScreenSummary[];
@@ -85,7 +73,6 @@ interface DashboardClientProps {
 export function DashboardClient({
   metrics: initialMetrics,
   chartData,
-  recentActivity,
   campaigns,
   screens,
   userName,
@@ -307,90 +294,43 @@ export function DashboardClient({
           </Card>
         </motion.div>
 
-        {/* Screens + Activity */}
-        <div className="xl:col-span-5 space-y-5">
-          <motion.div {...stagger(4)}>
-            <Card>
-              <CardHeader
-                title="Estado de pantallas"
-                subtitle={`${m.screensOnline}/${m.screensTotal} en línea`}
-                action={
-                  <Link href="/screens">
-                    <button className="text-xs text-white/40 hover:text-[#B8EB23] transition-colors flex items-center gap-1">
-                      Ver todo <ArrowUpRight className="w-3 h-3" />
-                    </button>
-                  </Link>
-                }
-              />
-              <CardContent className="pt-4 grid grid-cols-2 gap-2.5">
-                {screens.slice(0, 4).map((screen) => {
-                  const cfg = getStatusConfig(screen.status);
-                  const isOnline = screen.status === "ONLINE";
-                  return (
-                    <div
-                      key={screen.id}
-                      className="flex items-center gap-2.5 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/10 transition-all"
-                    >
-                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot} ${isOnline ? "animate-pulse" : ""}`} />
-                      <div className="min-w-0">
-                        <p className="text-[12px] font-medium text-white truncate leading-none">{screen.name.split("—")[0].trim()}</p>
-                        <p className="text-[10px] text-white/35 mt-0.5">{screen.city} · {cfg.label}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-                {screens.length === 0 && (
-                  <div className="col-span-2 py-6 text-center text-xs text-white/30">Sin pantallas</div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div {...stagger(5)}>
-            <Card>
-              <CardHeader title="Actividad reciente" icon={<Activity className="w-4 h-4" />} />
-              <CardContent className="pt-4 space-y-0">
-                {recentActivity.slice(0, 5).map((activity, i) => (
-                  <motion.div
-                    key={activity.id}
-                    initial={{ opacity: 0, x: 8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.4 + i * 0.04 }}
-                    className="flex items-start gap-3 py-3 border-b border-white/[0.04] last:border-0"
+        {/* Screens */}
+        <motion.div {...stagger(4)} className="xl:col-span-5">
+          <Card className="h-full">
+            <CardHeader
+              title="Estado de pantallas"
+              subtitle={`${m.screensOnline}/${m.screensTotal} en línea`}
+              action={
+                <Link href="/screens">
+                  <button className="text-xs text-white/40 hover:text-[#B8EB23] transition-colors flex items-center gap-1">
+                    Ver todo <ArrowUpRight className="w-3 h-3" />
+                  </button>
+                </Link>
+              }
+            />
+            <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {screens.slice(0, 6).map((screen) => {
+                const cfg = getStatusConfig(screen.status);
+                const isOnline = screen.status === "ONLINE";
+                return (
+                  <div
+                    key={screen.id}
+                    className="flex items-center gap-2.5 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/10 transition-all"
                   >
-                    <div className="w-6 h-6 rounded-full bg-white/[0.04] flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <ActivityIcon action={activity.action} />
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot} ${isOnline ? "animate-pulse" : ""}`} />
+                    <div className="min-w-0">
+                      <p className="text-[12px] font-medium text-white truncate leading-none">{screen.name.split("—")[0].trim()}</p>
+                      <p className="text-[10px] text-white/35 mt-0.5">{screen.city} · {cfg.label}</p>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[13px] text-white font-medium leading-snug truncate">{activity.entityName}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[11px] text-white/35">{activity.user}</span>
-                        <span className="text-white/20">·</span>
-                        <span className="text-[11px] text-white/30">{formatRelativeTime(activity.time)}</span>
-                      </div>
-                    </div>
-                    <Badge
-                      variant={
-                        activity.action === "APPROVE" ? "success" :
-                        activity.action === "REJECT" ? "danger" :
-                        activity.action === "CREATE" ? "brand" : "default"
-                      }
-                      size="sm"
-                    >
-                      {activity.action === "APPROVE" ? "Aprobado" :
-                       activity.action === "REJECT" ? "Rechazado" :
-                       activity.action === "CREATE" ? "Creado" :
-                       activity.action === "PAUSE" ? "Pausado" : "Actualizado"}
-                    </Badge>
-                  </motion.div>
-                ))}
-                {recentActivity.length === 0 && (
-                  <p className="text-sm text-white/30 text-center py-8">Sin actividad reciente</p>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
+                  </div>
+                );
+              })}
+              {screens.length === 0 && (
+                <div className="col-span-full py-6 text-center text-xs text-white/30">Sin pantallas</div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
 
       {/* Pending approvals CTA */}
