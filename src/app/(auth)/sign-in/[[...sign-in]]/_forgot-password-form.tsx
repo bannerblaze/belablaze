@@ -34,8 +34,8 @@ interface FieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
 
 function Field({ label, icon, error, right, ...props }: FieldProps) {
   return (
-    <div className="space-y-1.5">
-      <label className="text-xs font-semibold text-white/50 flex items-center gap-1.5">
+    <div className="space-y-2">
+      <label className="text-[11px] font-semibold text-white/55 flex items-center gap-1.5 tracking-wide">
         {icon}
         {label}
       </label>
@@ -43,11 +43,11 @@ function Field({ label, icon, error, right, ...props }: FieldProps) {
         <input
           {...props}
           className={cn(
-            "w-full h-11 px-3 rounded-xl bg-white/[0.04] border text-sm text-white placeholder-white/20 focus:outline-none transition-all",
+            "w-full h-11 px-3.5 rounded-xl bg-white/[0.03] border text-sm text-white placeholder-white/25 focus:outline-none transition-all duration-150",
             right ? "pr-10" : "",
             error
-              ? "border-red-400/40 focus:border-red-400/60"
-              : "border-white/[0.08] focus:border-[#B8EB23]/50 focus:bg-white/[0.06]"
+              ? "border-red-400/40 focus:border-red-400/60 focus:shadow-[0_0_0_3px_rgba(248,113,113,0.12)]"
+              : "border-white/[0.08] focus:border-[#B8EB23]/45 focus:bg-white/[0.05] focus:shadow-[0_0_0_3px_rgba(184,235,35,0.12)]",
           )}
         />
         {right && (
@@ -55,7 +55,7 @@ function Field({ label, icon, error, right, ...props }: FieldProps) {
         )}
       </div>
       {error && (
-        <p className="text-xs text-red-400 flex items-center gap-1.5">
+        <p className="text-[11px] text-red-400 flex items-center gap-1.5">
           <AlertCircle className="w-3 h-3 flex-shrink-0" />
           {error}
         </p>
@@ -155,24 +155,31 @@ export function ForgotPasswordForm() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-      className="mx-auto w-full max-w-[420px]"
+      className="w-full"
     >
-      <div className="rounded-2xl border border-white/[0.07] bg-[#111111] p-8 shadow-2xl shadow-black/60">
-        {/* Logo */}
-        <div className="flex items-center gap-2.5 mb-8">
-          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#B8EB23] shadow-[0_0_20px_rgba(184,235,35,0.35)]">
-            <Zap className="w-5 h-5 text-black" strokeWidth={2.5} />
-          </div>
-          <div className="flex flex-col leading-none">
-            <span className="text-[15px] font-bold tracking-tight text-white">
-              Bela<span className="text-[#B8EB23]">Blaze</span>
-            </span>
-            <span className="text-[9px] text-white/35 tracking-widest uppercase font-medium mt-0.5">
-              by BannerBlaze
-            </span>
+      <div className="relative rounded-2xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-xl p-7 sm:p-8 shadow-[0_24px_64px_-12px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.03)_inset]">
+        <div
+          aria-hidden
+          className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent"
+        />
+
+        {/* Logo (mobile only) */}
+        <div className="flex items-center justify-center mb-6 lg:hidden">
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#B8EB23] shadow-[0_1px_0_0_rgba(255,255,255,0.25)_inset,0_0_24px_-2px_rgba(184,235,35,0.45)]">
+              <Zap className="w-5 h-5 text-black" strokeWidth={2.5} />
+            </div>
+            <div className="flex flex-col leading-none">
+              <span className="text-[15px] font-bold tracking-tight text-white">
+                Bela<span className="text-[#B8EB23]">Blaze</span>
+              </span>
+              <span className="text-[9px] text-white/35 tracking-[0.18em] uppercase font-semibold mt-1">
+                by BannerBlaze
+              </span>
+            </div>
           </div>
         </div>
 
@@ -182,26 +189,26 @@ export function ForgotPasswordForm() {
             {STEPS.map((s, i) => (
               <StepDot key={s} active={i === stepIndex} done={i < stepIndex} />
             ))}
-            <span className="text-xs text-white/25 ml-1.5">Paso {stepIndex + 1} de 3</span>
+            <span className="text-[11px] text-white/30 ml-2 font-medium">Paso {stepIndex + 1} de 3</span>
           </div>
         )}
 
         <AnimatePresence mode="wait" initial={false}>
           {/* ── Step 1: Email ── */}
           {step === "email" && (
-            <motion.div key="email" initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.2 }}>
+            <motion.div key="email" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} transition={{ duration: 0.2 }}>
               <div className="mb-6">
-                <div className="w-11 h-11 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mb-4">
-                  <KeyRound className="w-5 h-5 text-white/60" />
+                <div className="w-11 h-11 rounded-2xl bg-white/[0.04] ring-1 ring-white/[0.08] flex items-center justify-center mb-4">
+                  <KeyRound className="w-5 h-5 text-white/65" />
                 </div>
-                <h1 className="text-xl font-bold text-white tracking-tight">Recuperar contraseña</h1>
-                <p className="text-sm text-white/40 mt-1">
+                <h1 className="text-[22px] font-bold text-white tracking-tight">Recuperar contraseña</h1>
+                <p className="text-[13px] text-white/45 mt-1.5 leading-relaxed">
                   Ingresa tu correo y te enviaremos un código de verificación
                 </p>
               </div>
               {error && (
                 <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
-                  className="flex items-start gap-2.5 p-3 rounded-xl bg-red-400/[0.08] border border-red-400/20 text-red-400 text-sm mb-5"
+                  className="flex items-start gap-2.5 p-3 rounded-xl bg-red-400/[0.08] border border-red-400/20 text-red-300 text-sm mb-5"
                 >
                   <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   {error}
@@ -210,7 +217,7 @@ export function ForgotPasswordForm() {
               <form onSubmit={handleEmail} className="space-y-4">
                 <Field
                   label="Correo electrónico"
-                  icon={<Mail className="w-3.5 h-3.5" />}
+                  icon={<Mail className="w-3 h-3" />}
                   type="email"
                   placeholder="tu@empresa.com"
                   value={email}
@@ -219,7 +226,7 @@ export function ForgotPasswordForm() {
                   autoFocus
                 />
                 <button type="submit" disabled={!signIn || loading}
-                  className="w-full h-11 rounded-xl bg-[#B8EB23] hover:bg-[#caf23a] text-black font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_24px_rgba(184,235,35,0.2)]"
+                  className="w-full h-11 rounded-xl bg-[#B8EB23] hover:bg-[#C5F034] active:bg-[#A5D820] text-black font-semibold text-sm transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_1px_0_0_rgba(255,255,255,0.25)_inset,0_0_28px_-4px_rgba(184,235,35,0.45)] hover:shadow-[0_1px_0_0_rgba(255,255,255,0.3)_inset,0_0_36px_-2px_rgba(184,235,35,0.6)]"
                 >
                   {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                   Enviar código
@@ -230,24 +237,24 @@ export function ForgotPasswordForm() {
 
           {/* ── Step 2: Code ── */}
           {step === "code" && (
-            <motion.div key="code" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.2 }}>
+            <motion.div key="code" initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} transition={{ duration: 0.2 }}>
               <div className="mb-6">
-                <h1 className="text-xl font-bold text-white tracking-tight">Código de verificación</h1>
-                <p className="text-sm text-white/40 mt-1">
-                  Revisa <span className="text-white/70 font-medium">{email}</span> e ingresa el código
+                <h1 className="text-[22px] font-bold text-white tracking-tight">Código de verificación</h1>
+                <p className="text-[13px] text-white/45 mt-1.5">
+                  Revisa <span className="text-white/75 font-medium">{email}</span> e ingresa el código
                 </p>
               </div>
               {error && (
                 <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
-                  className="flex items-start gap-2.5 p-3 rounded-xl bg-red-400/[0.08] border border-red-400/20 text-red-400 text-sm mb-5"
+                  className="flex items-start gap-2.5 p-3 rounded-xl bg-red-400/[0.08] border border-red-400/20 text-red-300 text-sm mb-5"
                 >
                   <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   {error}
                 </motion.div>
               )}
               <form onSubmit={handleCode} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-white/50">Código de 6 dígitos</label>
+                <div className="space-y-2">
+                  <label className="text-[11px] font-semibold text-white/55 tracking-wide">Código de 6 dígitos</label>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -256,18 +263,18 @@ export function ForgotPasswordForm() {
                     value={code}
                     onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
                     autoFocus
-                    className="w-full h-14 px-4 rounded-xl bg-white/[0.04] border border-white/[0.08] text-2xl text-white placeholder-white/20 focus:outline-none focus:border-[#B8EB23]/50 transition-all text-center tracking-[0.4em] font-mono"
+                    className="w-full h-14 px-4 rounded-xl bg-white/[0.03] border border-white/[0.08] text-2xl text-white placeholder-white/20 focus:outline-none focus:border-[#B8EB23]/45 focus:bg-white/[0.05] focus:shadow-[0_0_0_3px_rgba(184,235,35,0.12)] transition-all text-center tracking-[0.4em] font-mono"
                   />
                 </div>
                 <button type="submit" disabled={!signIn || loading || code.length < 6}
-                  className="w-full h-11 rounded-xl bg-[#B8EB23] hover:bg-[#caf23a] text-black font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_24px_rgba(184,235,35,0.2)]"
+                  className="w-full h-11 rounded-xl bg-[#B8EB23] hover:bg-[#C5F034] active:bg-[#A5D820] text-black font-semibold text-sm transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_1px_0_0_rgba(255,255,255,0.25)_inset,0_0_28px_-4px_rgba(184,235,35,0.45)] hover:shadow-[0_1px_0_0_rgba(255,255,255,0.3)_inset,0_0_36px_-2px_rgba(184,235,35,0.6)]"
                 >
                   {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                   Verificar código
                 </button>
               </form>
               <button type="button" onClick={() => { setStep("email"); setCode(""); setError(""); }}
-                className="w-full mt-4 text-xs text-white/30 hover:text-white transition-colors flex items-center justify-center gap-1.5"
+                className="w-full mt-4 text-[11px] text-white/35 hover:text-white transition-colors flex items-center justify-center gap-1.5 font-medium"
               >
                 <ArrowLeft className="w-3 h-3" />
                 Cambiar correo electrónico
@@ -277,14 +284,14 @@ export function ForgotPasswordForm() {
 
           {/* ── Step 3: New Password ── */}
           {step === "password" && (
-            <motion.div key="password" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.2 }}>
+            <motion.div key="password" initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} transition={{ duration: 0.2 }}>
               <div className="mb-6">
-                <h1 className="text-xl font-bold text-white tracking-tight">Nueva contraseña</h1>
-                <p className="text-sm text-white/40 mt-1">Elige una contraseña segura para tu cuenta</p>
+                <h1 className="text-[22px] font-bold text-white tracking-tight">Nueva contraseña</h1>
+                <p className="text-[13px] text-white/45 mt-1.5">Elige una contraseña segura para tu cuenta</p>
               </div>
               {error && (
                 <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
-                  className="flex items-start gap-2.5 p-3 rounded-xl bg-red-400/[0.08] border border-red-400/20 text-red-400 text-sm mb-5"
+                  className="flex items-start gap-2.5 p-3 rounded-xl bg-red-400/[0.08] border border-red-400/20 text-red-300 text-sm mb-5"
                 >
                   <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   {error}
@@ -293,7 +300,7 @@ export function ForgotPasswordForm() {
               <form onSubmit={handlePassword} className="space-y-4">
                 <Field
                   label="Nueva contraseña"
-                  icon={<KeyRound className="w-3.5 h-3.5" />}
+                  icon={<KeyRound className="w-3 h-3" />}
                   type={showPassword ? "text" : "password"}
                   placeholder="Mínimo 8 caracteres"
                   value={password}
@@ -301,7 +308,7 @@ export function ForgotPasswordForm() {
                   autoFocus
                   right={
                     <button type="button" onClick={() => setShowPassword((v) => !v)}
-                      className="text-white/30 hover:text-white/60 transition-colors" tabIndex={-1}
+                      className="text-white/30 hover:text-white/65 transition-colors p-0.5" tabIndex={-1}
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -309,7 +316,7 @@ export function ForgotPasswordForm() {
                 />
                 <Field
                   label="Confirmar contraseña"
-                  icon={<KeyRound className="w-3.5 h-3.5" />}
+                  icon={<KeyRound className="w-3 h-3" />}
                   type={showConfirm ? "text" : "password"}
                   placeholder="Repite tu nueva contraseña"
                   value={confirmPassword}
@@ -317,14 +324,14 @@ export function ForgotPasswordForm() {
                   error={confirmPassword && password !== confirmPassword ? "Las contraseñas no coinciden" : undefined}
                   right={
                     <button type="button" onClick={() => setShowConfirm((v) => !v)}
-                      className="text-white/30 hover:text-white/60 transition-colors" tabIndex={-1}
+                      className="text-white/30 hover:text-white/65 transition-colors p-0.5" tabIndex={-1}
                     >
                       {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   }
                 />
                 <button type="submit" disabled={!signIn || loading || password !== confirmPassword || password.length < 8}
-                  className="w-full h-11 rounded-xl bg-[#B8EB23] hover:bg-[#caf23a] text-black font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_24px_rgba(184,235,35,0.2)]"
+                  className="w-full h-11 rounded-xl bg-[#B8EB23] hover:bg-[#C5F034] active:bg-[#A5D820] text-black font-semibold text-sm transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_1px_0_0_rgba(255,255,255,0.25)_inset,0_0_28px_-4px_rgba(184,235,35,0.45)] hover:shadow-[0_1px_0_0_rgba(255,255,255,0.3)_inset,0_0_36px_-2px_rgba(184,235,35,0.6)]"
                 >
                   {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                   Cambiar contraseña
@@ -340,12 +347,12 @@ export function ForgotPasswordForm() {
                 initial={{ scale: 0.5, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
-                className="w-14 h-14 rounded-2xl bg-[#B8EB23]/10 border border-[#B8EB23]/25 flex items-center justify-center mx-auto mb-5"
+                className="w-14 h-14 rounded-2xl bg-[#B8EB23]/10 ring-1 ring-[#B8EB23]/25 flex items-center justify-center mx-auto mb-5"
               >
                 <CheckCircle2 className="w-7 h-7 text-[#B8EB23]" />
               </motion.div>
-              <h1 className="text-xl font-bold text-white">¡Contraseña actualizada!</h1>
-              <p className="text-sm text-white/40 mt-2">Iniciando sesión automáticamente…</p>
+              <h1 className="text-[22px] font-bold text-white tracking-tight">¡Contraseña actualizada!</h1>
+              <p className="text-[13px] text-white/45 mt-2">Iniciando sesión automáticamente…</p>
               <div className="mt-5 flex justify-center">
                 <Loader2 className="w-5 h-5 text-[#B8EB23]/60 animate-spin" />
               </div>
@@ -354,15 +361,15 @@ export function ForgotPasswordForm() {
         </AnimatePresence>
 
         {step !== "done" && (
-          <p className="text-center text-xs text-white/30 mt-6">
-            <Link href="/sign-in" className="text-white/50 hover:text-[#B8EB23] transition-colors flex items-center justify-center gap-1.5">
+          <p className="text-center text-[12px] text-white/35 mt-6">
+            <Link href="/sign-in" className="text-white/55 hover:text-[#B8EB23] transition-colors flex items-center justify-center gap-1.5 font-medium">
               <ArrowLeft className="w-3 h-3" />
               Volver al inicio de sesión
             </Link>
           </p>
         )}
       </div>
-      <p className="text-center text-[11px] text-white/20 mt-5">
+      <p className="text-center text-[11px] text-white/25 mt-5 font-medium">
         Plataforma DOOH para equipos de alto rendimiento
       </p>
     </motion.div>
