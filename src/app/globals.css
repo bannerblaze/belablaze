@@ -170,6 +170,12 @@ body {
   animation: pulse-brand 2s ease-in-out infinite;
 }
 
+/* Slow breathing glow — for cinematic auth background */
+@keyframes auth-breathe {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: 0.85; transform: scale(1.04); }
+}
+
 /* Shimmer loading animation */
 @keyframes shimmer {
   0% { background-position: -200% 0; }

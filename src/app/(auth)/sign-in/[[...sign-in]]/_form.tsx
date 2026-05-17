@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSignIn } from "@clerk/nextjs";
 import { motion } from "framer-motion";
-import { Mail, Lock, Eye, EyeOff, Zap, Loader2, AlertCircle } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function GoogleIcon() {
@@ -147,34 +147,17 @@ export function SignInForm() {
       className="w-full"
     >
       {/* Glass card — premium dark with backdrop blur */}
-      <div className="relative rounded-2xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-xl p-7 sm:p-8 shadow-[0_24px_64px_-12px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.03)_inset]">
+      <div className="relative rounded-3xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-xl p-6 sm:p-8 shadow-[0_24px_64px_-12px_rgba(0,0,0,0.6),0_0_36px_-12px_rgba(184,235,35,0.08),0_0_0_1px_rgba(255,255,255,0.03)_inset]">
         {/* Top edge highlight */}
         <div
           aria-hidden
-          className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent"
+          className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent"
         />
 
-        {/* Logo — visible on mobile (when brand panel hidden) + adds identity on desktop */}
-        <div className="flex items-center justify-center mb-6 lg:hidden">
-          <div className="flex items-center gap-2.5">
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#B8EB23] shadow-[0_1px_0_0_rgba(255,255,255,0.25)_inset,0_0_24px_-2px_rgba(184,235,35,0.45)]">
-              <Zap className="w-5 h-5 text-black" strokeWidth={2.5} />
-            </div>
-            <div className="flex flex-col leading-none">
-              <span className="text-[15px] font-bold tracking-tight text-white">
-                Bela<span className="text-[#B8EB23]">Blaze</span>
-              </span>
-              <span className="text-[9px] text-white/35 tracking-[0.18em] uppercase font-semibold mt-1">
-                by BannerBlaze
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Heading */}
-        <div className="mb-6">
-          <h1 className="text-[22px] font-bold text-white tracking-tight">Bienvenido de nuevo</h1>
-          <p className="text-[13px] text-white/45 mt-1.5">Ingresa a tu cuenta para continuar</p>
+        {/* Heading — centered on mobile to match hero alignment */}
+        <div className="mb-6 text-center lg:text-left">
+          <h1 className="text-[22px] font-bold text-white tracking-tight">Inicia sesión en tu cuenta</h1>
+          <p className="text-[13px] text-white/45 mt-1.5">Accede a tu plataforma para continuar</p>
         </div>
 
         {/* Google */}

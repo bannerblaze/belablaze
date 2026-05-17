@@ -1,31 +1,35 @@
 import { AuthBackground } from "@/components/auth/auth-background";
 import { AuthBrandPanel } from "@/components/auth/auth-brand-panel";
 
-/* Auth shell — 2-column cinematic layout.
+/* Auth shell — responsive cinematic layout.
  *
- *   Desktop (lg+):  [ Form card | Brand panel ]
- *   Mobile:         [ Form card ]  (brand panel hidden)
+ *   Mobile  (< lg):  stacked, hero on top, form below
+ *   Desktop (≥ lg):  2-col grid, form left, hero right
  *
- * The form card always centers itself within its column; the brand
- * panel sits flush-left in its column so the two compositions are
- * balanced around the viewport center. */
+ * Hero stays visible on both viewports — on mobile it adapts to a
+ * centered hero block above the form. Each side breathes vertically. */
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative min-h-screen bg-[#070708] overflow-hidden">
+    <div className="relative min-h-screen bg-[#070708] overflow-x-hidden">
       <AuthBackground />
 
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-5 sm:p-8 lg:p-12">
-        <div className="w-full max-w-[1180px] grid lg:grid-cols-2 gap-10 lg:gap-20 items-center">
-          {/* Form column — centered on mobile, right-aligned on desktop
-              so it sits closer to the brand panel for visual balance. */}
-          <div className="flex justify-center lg:justify-end">
-            <div className="w-full max-w-[440px]">{children}</div>
+      <div
+        className="relative z-10 min-h-screen flex items-center justify-center px-5 sm:px-8 lg:px-12 py-10 lg:py-12"
+        style={{
+          paddingTop: "max(2.5rem, env(safe-area-inset-top))",
+          paddingBottom: "max(2.5rem, env(safe-area-inset-bottom))",
+        }}
+      >
+        <div className="w-full max-w-[1180px] flex flex-col items-center gap-10 lg:grid lg:grid-cols-2 lg:gap-20 lg:items-center">
+          {/* Brand hero — order-1 mobile (top), order-2 desktop (right) */}
+          <div className="order-1 lg:order-2 w-full flex justify-center lg:justify-start">
+            <AuthBrandPanel />
           </div>
 
-          {/* Brand panel — hidden on mobile, left-aligned in its column */}
-          <div className="hidden lg:flex justify-start">
-            <AuthBrandPanel />
+          {/* Form card — order-2 mobile (bottom), order-1 desktop (left) */}
+          <div className="order-2 lg:order-1 w-full flex justify-center lg:justify-end">
+            <div className="w-full max-w-[440px]">{children}</div>
           </div>
         </div>
       </div>

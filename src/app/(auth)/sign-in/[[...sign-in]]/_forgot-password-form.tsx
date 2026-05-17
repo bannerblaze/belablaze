@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useSignIn } from "@clerk/nextjs";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Mail, Zap, Loader2, AlertCircle, KeyRound, Eye, EyeOff, CheckCircle2, ArrowLeft,
+  Mail, Loader2, AlertCircle, KeyRound, Eye, EyeOff, CheckCircle2, ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -160,32 +160,15 @@ export function ForgotPasswordForm() {
       transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
       className="w-full"
     >
-      <div className="relative rounded-2xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-xl p-7 sm:p-8 shadow-[0_24px_64px_-12px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.03)_inset]">
+      <div className="relative rounded-3xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-xl p-6 sm:p-8 shadow-[0_24px_64px_-12px_rgba(0,0,0,0.6),0_0_36px_-12px_rgba(184,235,35,0.08),0_0_0_1px_rgba(255,255,255,0.03)_inset]">
         <div
           aria-hidden
-          className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent"
+          className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent"
         />
-
-        {/* Logo (mobile only) */}
-        <div className="flex items-center justify-center mb-6 lg:hidden">
-          <div className="flex items-center gap-2.5">
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#B8EB23] shadow-[0_1px_0_0_rgba(255,255,255,0.25)_inset,0_0_24px_-2px_rgba(184,235,35,0.45)]">
-              <Zap className="w-5 h-5 text-black" strokeWidth={2.5} />
-            </div>
-            <div className="flex flex-col leading-none">
-              <span className="text-[15px] font-bold tracking-tight text-white">
-                Bela<span className="text-[#B8EB23]">Blaze</span>
-              </span>
-              <span className="text-[9px] text-white/35 tracking-[0.18em] uppercase font-semibold mt-1">
-                by BannerBlaze
-              </span>
-            </div>
-          </div>
-        </div>
 
         {/* Step indicator */}
         {step !== "done" && (
-          <div className="flex items-center gap-1.5 mb-6">
+          <div className="flex items-center justify-center lg:justify-start gap-1.5 mb-6">
             {STEPS.map((s, i) => (
               <StepDot key={s} active={i === stepIndex} done={i < stepIndex} />
             ))}
@@ -197,8 +180,8 @@ export function ForgotPasswordForm() {
           {/* ── Step 1: Email ── */}
           {step === "email" && (
             <motion.div key="email" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} transition={{ duration: 0.2 }}>
-              <div className="mb-6">
-                <div className="w-11 h-11 rounded-2xl bg-white/[0.04] ring-1 ring-white/[0.08] flex items-center justify-center mb-4">
+              <div className="mb-6 text-center lg:text-left">
+                <div className="w-11 h-11 rounded-2xl bg-white/[0.04] ring-1 ring-white/[0.08] flex items-center justify-center mb-4 mx-auto lg:mx-0">
                   <KeyRound className="w-5 h-5 text-white/65" />
                 </div>
                 <h1 className="text-[22px] font-bold text-white tracking-tight">Recuperar contraseña</h1>
@@ -238,7 +221,7 @@ export function ForgotPasswordForm() {
           {/* ── Step 2: Code ── */}
           {step === "code" && (
             <motion.div key="code" initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} transition={{ duration: 0.2 }}>
-              <div className="mb-6">
+              <div className="mb-6 text-center lg:text-left">
                 <h1 className="text-[22px] font-bold text-white tracking-tight">Código de verificación</h1>
                 <p className="text-[13px] text-white/45 mt-1.5">
                   Revisa <span className="text-white/75 font-medium">{email}</span> e ingresa el código
@@ -285,7 +268,7 @@ export function ForgotPasswordForm() {
           {/* ── Step 3: New Password ── */}
           {step === "password" && (
             <motion.div key="password" initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} transition={{ duration: 0.2 }}>
-              <div className="mb-6">
+              <div className="mb-6 text-center lg:text-left">
                 <h1 className="text-[22px] font-bold text-white tracking-tight">Nueva contraseña</h1>
                 <p className="text-[13px] text-white/45 mt-1.5">Elige una contraseña segura para tu cuenta</p>
               </div>
