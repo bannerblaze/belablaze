@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Search, X, LayoutGrid, List, Plus, ArrowUpDown,
+  X, LayoutGrid, List, Plus, ArrowUpDown,
   Layers, Sun, Moon, Building2,
 } from "lucide-react";
 import { ScreenCard, ScreenRow, type CardScreen } from "./screen-card";
@@ -127,13 +127,12 @@ export function ScreensInventory({ screens, selectedId, onSelect, canCreate, onC
         {/* Row 1: search + view + sort */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/35 pointer-events-none" />
             <input
               type="text"
               placeholder="Buscar pantalla, ciudad o código…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-11 pr-9 h-10 rounded-lg bg-[#080808] border border-white/[0.08] text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#B8EB23]/40 focus:bg-[#0A0A0A] transition-all"
+              className="w-full px-3.5 pr-9 h-10 rounded-lg bg-[#080808] border border-white/[0.08] text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#B8EB23]/40 focus:bg-[#0A0A0A] transition-all"
             />
             {search && (
               <button

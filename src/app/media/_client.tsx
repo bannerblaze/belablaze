@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Image as ImageIcon, Video, FileText, Music,
-  UploadCloud, Search, Grid3x3, Trash2, X, Loader2, CheckCircle2,
+  UploadCloud, Grid3x3, Trash2, X, Loader2, CheckCircle2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -230,13 +230,12 @@ export function MediaClient({ canUpload, canDelete, stats, assets }: Props) {
           })}
         </div>
         <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/35 pointer-events-none" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar..."
-            className="w-full h-10 pl-11 pr-3 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/[0.12]"
+            className="w-full h-10 px-3.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/[0.12]"
           />
         </div>
       </div>

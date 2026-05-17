@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Search, X, Building2, UserCheck, ShieldCheck, ArrowUpDown,
+  X, Building2, UserCheck, ShieldCheck, ArrowUpDown,
 } from "lucide-react";
 import { UsersOverview } from "@/components/admin/users-overview";
 import { OrgUsersTable } from "@/components/admin/org-users-table";
@@ -168,7 +168,6 @@ export function ClientsClient({ overview, orgUsers, creatorUsers }: Props) {
         <div className="rounded-xl bg-[#0F0F0F] border border-white/[0.06] p-3 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/35 pointer-events-none" />
               <input
                 type="text"
                 placeholder={
@@ -178,7 +177,7 @@ export function ClientsClient({ overview, orgUsers, creatorUsers }: Props) {
                 }
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-11 pr-9 h-10 rounded-lg bg-[#080808] border border-white/[0.08] text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#B8EB23]/40 focus:bg-[#0A0A0A] transition-all"
+                className="w-full px-3.5 pr-9 h-10 rounded-lg bg-[#080808] border border-white/[0.08] text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#B8EB23]/40 focus:bg-[#0A0A0A] transition-all"
               />
               {search && (
                 <button
