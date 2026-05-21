@@ -2,15 +2,16 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { ScreensClient } from "./_client";
-import { mockScreens } from "@/lib/mock-data";
 import { requireOrgContext } from "@/lib/org-context";
-import { checkPlatformStaffAccess } from "@/lib/access";
 
-/* INTERNAL-only module — see layout.tsx for the access policy.
+/* ──────────────────────────────────────────────────────────────────────
+ * /screens — DOOH fleet operations console.
  *
- * The layout already short-circuits non-staff requests, but we re-check
- * here as a belt-and-suspenders measure (the layout could be bypassed
- * if Next ever changes how server components are invoked). */
+ * Layout already gates by accountType (ORGANIZATION | INTERNAL). This
+ * page resolves the org context and streams real screen data from the
+ * database. Errors during data fetch are caught and surfaced as empty
+ * state rather than crashing the server component.
+ * ────────────────────────────────────────────────────────────────────── */
 
 function ScreensSkeleton() {
   return (
@@ -32,27 +33,18 @@ function ScreensSkeleton() {
 async function ScreensData() {
   await connection();
 
-  // Layer 2: re-check platform staff at the page level.
-  const blocked = await checkPlatformStaffAccess("/dashboard");
-  if (blocked) redirect(blocked);
-
-  const hasDb = !!process.env.DATABASE_URL;
-
-  if (!hasDb) {
-    return (
-      <ScreensClient
-        screens={mockScreens as Parameters<typeof ScreensClient>[0]["screens"]}
-        canCreate={false}
-        canManage={false}
-      />
-    );
-  }
-
   const ctx = await requireOrgContext().catch(() => null);
   if (!ctx) redirect("/onboarding");
 
-  const { getScreens } = await import("@/services/screens.service");
-  const screens = await getScreens();
+  let screens: Awaited<ReturnType<typeof import("@/services/screens.service")["getScreens"]>> = [];
+
+  try {
+    const { getScreens } = await import("@/services/screens.service");
+    screens = await getScreens();
+  } catch {
+    // DB error — show empty state, user can still create screens
+    screens = [];
+  }
 
   return (
     <ScreensClient

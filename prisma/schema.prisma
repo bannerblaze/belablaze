@@ -367,11 +367,12 @@ model Client {
 
 model Screen {
   id               String       @id @default(cuid())
-  organizationId   String?
+  organizationId   String
   name             String
+  slug             String       @unique
   code             String       @unique
   type             ScreenType   @default(LED_OUTDOOR)
-  status           ScreenStatus @default(ONLINE)
+  status           ScreenStatus @default(OFFLINE)
   city             String
   address          String
   latitude         Float?
@@ -386,11 +387,13 @@ model Screen {
   orientation      String       @default("landscape")
   thumbnail        String?
   notes            String?
+  playerKey        String       @unique @default(cuid())
+  lastSeenAt       DateTime?
   lastPingAt       DateTime?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
-  organization    Organization?    @relation(fields: [organizationId], references: [id])
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   campaignScreens CampaignScreen[]
   adSchedules     AdSchedule[]
 
@@ -398,6 +401,7 @@ model Screen {
   @@index([status])
   @@index([isActive])
   @@index([organizationId])
+  @@map("screens")
 }
 
 model Campaign {

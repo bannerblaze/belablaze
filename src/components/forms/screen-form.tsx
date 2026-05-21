@@ -1,12 +1,13 @@
 "use client";
 
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, MonitorPlay, MapPin, Maximize2, DollarSign, Users, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { createScreen } from "@/actions/screens";
+import { createScreen } from "@/actions/screens/create-screen";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -21,7 +22,7 @@ const schema = z.object({
   resolutionHeight: z.number().optional(),
   dailyTraffic: z.number().min(0).optional(),
   pricePerSecond: z.number().min(0).optional(),
-  orientation: z.string().optional(),
+  orientation: z.enum(["landscape", "portrait"]).default("landscape"),
   notes: z.string().optional(),
 });
 
@@ -58,6 +59,7 @@ function Field({ label, error, children }: { label: string; error?: string; chil
 
 export function ScreenFormModal({ open, onClose, onSuccess }: ScreenFormProps) {
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
@@ -89,6 +91,7 @@ export function ScreenFormModal({ open, onClose, onSuccess }: ScreenFormProps) {
         });
         toast.success("Pantalla creada exitosamente");
         reset();
+        router.refresh();
         onSuccess?.();
         onClose();
       } catch (e) {

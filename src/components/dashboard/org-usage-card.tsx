@@ -4,7 +4,7 @@ import { getOrgContext } from "@/lib/org-context";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 /* Server component: minimalist "what's in this account" snapshot.
- * No plans, no limits, no subscription link — just live counts. */
+ * All DB queries are wrapped so a single failure never breaks the card. */
 
 function MetricRow({
   icon: Icon, label, value, suffix,
@@ -29,19 +29,28 @@ function MetricRow({
 }
 
 export async function OrgUsageCard() {
-  const ctx = await getOrgContext();
+  const ctx = await getOrgContext().catch(() => null);
   if (!ctx) return null;
 
-  const [campaigns, screens, media] = await Promise.all([
-    db.campaign.count({ where: { organizationId: ctx.organizationId } }),
-    db.screen.count({ where: { organizationId: ctx.organizationId } }),
-    db.mediaAsset.aggregate({
-      where: { organizationId: ctx.organizationId, isArchived: false },
-      _sum: { size: true },
-    }),
-  ]);
+  let campaigns = 0;
+  let screens = 0;
+  let storageMB = 0;
 
-  const storageMB = Math.round(((media._sum.size ?? 0) / 1024 / 1024) * 10) / 10;
+  try {
+    const [c, s, media] = await Promise.all([
+      db.campaign.count({ where: { organizationId: ctx.organizationId } }),
+      db.screen.count({ where: { organizationId: ctx.organizationId } }),
+      db.mediaAsset.aggregate({
+        where: { organizationId: ctx.organizationId, isArchived: false },
+        _sum: { size: true },
+      }),
+    ]);
+    campaigns = c;
+    screens = s;
+    storageMB = Math.round(((media._sum.size ?? 0) / 1024 / 1024) * 10) / 10;
+  } catch {
+    // DB unavailable — show zeros, don't crash
+  }
 
   return (
     <Card>
@@ -51,9 +60,9 @@ export async function OrgUsageCard() {
         icon={<BarChart3 className="w-4 h-4" />}
       />
       <CardContent className="pt-3 divide-y divide-white/[0.04]">
-        <MetricRow icon={Layers}      label="Campañas"        value={campaigns} />
-        <MetricRow icon={MonitorPlay} label="Pantallas"        value={screens} />
-        <MetricRow icon={HardDrive}   label="Almacenamiento"   value={storageMB} suffix="MB" />
+        <MetricRow icon={Layers}      label="Campañas"       value={campaigns} />
+        <MetricRow icon={MonitorPlay} label="Pantallas"       value={screens} />
+        <MetricRow icon={HardDrive}   label="Almacenamiento" value={storageMB} suffix="MB" />
       </CardContent>
     </Card>
   );

@@ -23,6 +23,7 @@ const EMPTY_METRICS: DashboardMetrics = {
 };
 
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
+  try {
   const ctx = await getOrgContext();
   if (!ctx) return EMPTY_METRICS;
 
@@ -89,9 +90,13 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     qrScans,
     qrScansDelta: delta(qrScans, prevQrScans),
   };
+  } catch {
+    return EMPTY_METRICS;
+  }
 }
 
 export async function getChartData(days = 30): Promise<ChartDataPoint[]> {
+  try {
   const ctx = await getOrgContext();
   if (!ctx) return [];
 
@@ -109,13 +114,16 @@ export async function getChartData(days = 30): Promise<ChartDataPoint[]> {
   });
 
   return metrics.map((m) => ({
-    date: m.date.toISOString().split("T")[0],
+    date: m.date.toISOString().split("T")[0]!,
     impressions: m._sum.impressions ?? 0,
     clicks: m._sum.clicks ?? 0,
     engagements: m._sum.engagements ?? 0,
     qrScans: m._sum.qrScans ?? 0,
     revenue: (m._sum.impressions ?? 0) * 0.0015,
   }));
+  } catch {
+    return [];
+  }
 }
 
 export async function getTopCampaigns(limit = 5) {
@@ -186,24 +194,27 @@ export async function getCityMetrics() {
 }
 
 export async function getRecentActivity(limit = 8) {
-  const ctx = await getOrgContext();
-  if (!ctx) return [];
+  try {
+    const ctx = await getOrgContext();
+    if (!ctx) return [];
 
-  // Org-scoped activity comes from the FASE 6 AuditLog table.
-  const logs = await db.auditLog.findMany({
-    where: { organizationId: ctx.organizationId },
-    take: limit,
-    orderBy: { createdAt: "desc" },
-    include: { user: { select: { name: true, avatar: true } } },
-  });
+    const logs = await db.auditLog.findMany({
+      where: { organizationId: ctx.organizationId },
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: { user: { select: { name: true, avatar: true } } },
+    });
 
-  return logs.map((log) => ({
-    id: log.id,
-    action: log.action,
-    entity: log.entityType,
-    entityId: log.entityId ?? "",
-    entityName: log.entityType,
-    user: log.user?.name ?? "Sistema",
-    time: log.createdAt.toISOString(),
-  }));
+    return logs.map((log) => ({
+      id: log.id,
+      action: log.action,
+      entity: log.entityType,
+      entityId: log.entityId ?? "",
+      entityName: log.entityType,
+      user: log.user?.name ?? "Sistema",
+      time: log.createdAt.toISOString(),
+    }));
+  } catch {
+    return [];
+  }
 }

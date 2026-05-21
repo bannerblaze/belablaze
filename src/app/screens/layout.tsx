@@ -1,28 +1,21 @@
 import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
-import { checkPlatformStaffAccess } from "@/lib/access";
+import { checkAccountTypeAccess } from "@/lib/access";
 
 /* ──────────────────────────────────────────────────────────────────────
- * /screens is a BannerBlaze-internal operations module.
+ * /screens — DOOH fleet management.
  *
- * Access is restricted to platform staff:
- *   • SUPER_ADMIN — admin@bannerblaze.com, ceo@bannerblaze.com, or any
- *     email in ADMIN_WHITELIST_EMAILS
- *   • SUPPORT    — accountType = INTERNAL
+ * Access: ORGANIZATION accounts (org owners managing their own screen
+ * network) + INTERNAL accounts (BannerBlaze staff with cross-org ops).
+ * PERSON (creator) accounts are redirected to /dashboard.
  *
- * ORGANIZATION accounts (business customers) and PERSON accounts
- * (creators) MUST NOT reach this surface — not via sidebar, not via
- * direct URL, not via API. The gate runs at the layout level so EVERY
- * route under /screens/* (current + future) inherits it without having
- * to remember the check on each page.
- *
- * Defense-in-depth: this is the first of five layers (layout → page →
- * actions → service → API).
+ * This gate runs at layout level so every future /screens/* route
+ * inherits it automatically.
  * ────────────────────────────────────────────────────────────────────── */
 
 export default async function Layout({ children }: { children: React.ReactNode }) {
-  const blocked = await checkPlatformStaffAccess("/dashboard");
+  const blocked = await checkAccountTypeAccess(["ORGANIZATION", "INTERNAL"], "/dashboard");
   if (blocked) redirect(blocked);
 
   return (

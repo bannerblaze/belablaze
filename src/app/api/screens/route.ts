@@ -2,19 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { getScreens, getScreenMetrics } from "@/services/screens.service";
 import { db } from "@/lib/db";
 import { getOrgContext } from "@/lib/org-context";
-import { isPlatformStaffSession } from "@/lib/access";
 import { logAudit } from "@/actions/audit";
 
-/* INTERNAL-only API. Non-staff callers get 403 before any DB access.
- * The service layer also re-checks, so even a bypass here returns
- * empty rows rather than tenant data. */
+/* Org-scoped REST endpoint for DOOH screens.
+ * Callers must be authenticated with a resolvable org context.
+ * Server Actions are preferred for mutations; this route exists for
+ * external integrations and the player heartbeat path. */
 
 export async function GET(req: NextRequest) {
   try {
-    if (!(await isPlatformStaffSession())) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
     const ctx = await getOrgContext();
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -43,14 +39,22 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    if (!(await isPlatformStaffSession())) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
     const ctx = await getOrgContext();
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const body = await req.json();
+    const body = await req.json() as {
+      name?: string;
+      type?: string;
+      city?: string;
+      address?: string;
+      width?: string | number;
+      height?: string | number;
+      resolutionWidth?: string | number;
+      resolutionHeight?: string | number;
+      dailyTraffic?: string | number;
+      pricePerSecond?: string | number;
+      orientation?: string;
+    };
     const { name, type, city, address, width, height, resolutionWidth, resolutionHeight, dailyTraffic, pricePerSecond, orientation } = body;
 
     if (!name || !city || !address || !width || !height) {
@@ -58,24 +62,30 @@ export async function POST(req: NextRequest) {
     }
 
     const code = `SCR-${Date.now().toString(36).toUpperCase()}`;
+    const slug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 40)
+      .concat(`-${Date.now().toString(36)}`);
 
     const screen = await db.screen.create({
       data: {
         name,
+        slug,
         code,
         organizationId: ctx.organizationId,
-        type: type ?? "LED_OUTDOOR",
+        type: (type ?? "LED_OUTDOOR") as import("@prisma/client").ScreenType,
         city,
         address,
-        width: parseInt(width),
-        height: parseInt(height),
-        resolutionWidth: parseInt(resolutionWidth ?? "1920"),
-        resolutionHeight: parseInt(resolutionHeight ?? "1080"),
-        dailyTraffic: parseInt(dailyTraffic ?? "0"),
-        pricePerSecond: parseFloat(pricePerSecond ?? "0"),
-        orientation: orientation ?? "landscape",
-        status: "ONLINE",
-        lastPingAt: new Date(),
+        width:           parseInt(String(width)),
+        height:          parseInt(String(height)),
+        resolutionWidth: parseInt(String(resolutionWidth ?? "1920")),
+        resolutionHeight: parseInt(String(resolutionHeight ?? "1080")),
+        dailyTraffic:   parseInt(String(dailyTraffic ?? "0")),
+        pricePerSecond: parseFloat(String(pricePerSecond ?? "0")),
+        orientation:    orientation ?? "landscape",
+        status:         "OFFLINE",
       },
     });
 
