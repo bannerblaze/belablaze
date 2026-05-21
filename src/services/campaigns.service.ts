@@ -45,11 +45,28 @@ export async function getCampaigns(filters: FilterOptions = {}) {
   });
 
   return campaigns.map((c) => ({
-    ...c,
-    startDate: c.startDate.toISOString(),
-    endDate: c.endDate.toISOString(),
-    createdAt: c.createdAt.toISOString(),
-    updatedAt: c.updatedAt.toISOString(),
+    id:              c.id,
+    organizationId:  c.organizationId,
+    name:            c.name,
+    description:     c.description,
+    status:          c.status,
+    clientId:        c.clientId,
+    userId:          c.userId,
+    budget:          c.budget,
+    spent:           c.spent,
+    startDate:       c.startDate.toISOString(),
+    endDate:         c.endDate.toISOString(),
+    targetCities:    c.targetCities,
+    targetAudience:  c.targetAudience ?? null,
+    impressionsGoal: c.impressionsGoal ?? null,
+    impressions:     c.impressions,
+    conversions:     c.conversions,
+    engagements:     c.engagements,
+    createdAt:       c.createdAt.toISOString(),
+    updatedAt:       c.updatedAt.toISOString(),
+    client:          c.client
+      ? { id: c.client.id, name: c.client.name, slug: c.client.slug, industry: c.client.industry ?? null }
+      : null,
   }));
   } catch {
     return [];

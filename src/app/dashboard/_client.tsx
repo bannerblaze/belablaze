@@ -99,10 +99,11 @@ export function DashboardClient({
         className="flex flex-col sm:flex-row sm:items-start justify-between gap-3"
       >
         <div>
-          <h1 className="text-xl lg:text-2xl font-bold text-white tracking-tight">
-            {greeting}, <span className="text-[#B8EB23]">{userName.split(" ")[0]}</span>
+          <h1 suppressHydrationWarning className="text-xl lg:text-2xl font-bold text-white tracking-tight">
+            {greeting}, <span className="text-[#B8EB23]">{userName.split(" ")[0] ?? userName}</span>
           </h1>
-          <p className="text-xs lg:text-sm text-white/40 mt-1">
+          {/* suppressHydrationWarning prevents mismatch when server/client timezones differ */}
+          <p suppressHydrationWarning className="text-xs lg:text-sm text-white/40 mt-1">
             {new Date().toLocaleDateString("es-CO", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
           </p>
         </div>
@@ -263,7 +264,7 @@ export function DashboardClient({
                         >
                           <td className="px-3 py-3.5 first:pl-0">
                             <div className="font-medium text-sm text-white truncate max-w-[160px]">{truncate(c.name, 22)}</div>
-                            <div className="text-[11px] text-white/30 mt-0.5">{formatDate(c.endDate)}</div>
+                            <div className="text-[11px] text-white/30 mt-0.5">{c.endDate ? formatDate(c.endDate) : "—"}</div>
                           </td>
                           <td className="px-3 py-3.5">
                             <span className="text-xs text-white/60 truncate max-w-[100px] block">{c.client?.name ?? "—"}</span>
@@ -319,7 +320,7 @@ export function DashboardClient({
                   >
                     <div className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot} ${isOnline ? "animate-pulse" : ""}`} />
                     <div className="min-w-0">
-                      <p className="text-[12px] font-medium text-white truncate leading-none">{screen.name.split("—")[0].trim()}</p>
+                      <p className="text-[12px] font-medium text-white truncate leading-none">{(screen.name ?? "").split("—")[0]?.trim() ?? screen.name}</p>
                       <p className="text-[10px] text-white/35 mt-0.5">{screen.city} · {cfg.label}</p>
                     </div>
                   </div>

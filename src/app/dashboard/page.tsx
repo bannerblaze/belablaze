@@ -13,11 +13,13 @@ import { getScreens } from "@/services/screens.service";
 import type { DashboardMetrics, ChartDataPoint } from "@/types";
 
 /* ──────────────────────────────────────────────────────────────────────
- * Dashboard page — tolerant rendering.
+ * Dashboard — tolerant rendering.
  *
- * Imports are static so Turbopack can resolve server-only module chains
- * correctly at compile time. Each data source has its own fallback so
- * a single failing service never crashes the whole page.
+ * Static imports (not dynamic) so Turbopack can resolve server-only
+ * module chains correctly at compile time.
+ *
+ * Each data source is individually wrapped in safe() so one failing
+ * service never crashes the whole page.
  * ────────────────────────────────────────────────────────────────────── */
 
 const EMPTY_METRICS: DashboardMetrics = {
@@ -36,8 +38,14 @@ async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
 
 async function DashboardData() {
   const hasDb = !!process.env.DATABASE_URL;
-  const clerkUser = await currentUser();
-  const userName = clerkUser?.fullName ?? clerkUser?.firstName ?? "Usuario";
+
+  let userName = "Usuario";
+  try {
+    const clerkUser = await currentUser();
+    userName = clerkUser?.fullName ?? clerkUser?.firstName ?? "Usuario";
+  } catch {
+    // Clerk unavailable — use default
+  }
 
   if (!hasDb) {
     return (
