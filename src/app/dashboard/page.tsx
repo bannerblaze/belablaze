@@ -7,15 +7,17 @@ import {
   mockDashboardMetrics, mockChartData, mockRecentActivity,
   mockCampaigns, mockScreens,
 } from "@/lib/mock-data";
+import { getDashboardMetrics, getChartData, getRecentActivity } from "@/services/analytics.service";
+import { getCampaigns } from "@/services/campaigns.service";
+import { getScreens } from "@/services/screens.service";
 import type { DashboardMetrics, ChartDataPoint } from "@/types";
 
 /* ──────────────────────────────────────────────────────────────────────
  * Dashboard page — tolerant rendering.
  *
- * Each data source is fetched independently with its own fallback.
- * A single failing service never crashes the whole page — it just shows
- * an empty state for that widget. This is intentional: the dashboard
- * is a "health-at-a-glance" surface and must always render.
+ * Imports are static so Turbopack can resolve server-only module chains
+ * correctly at compile time. Each data source has its own fallback so
+ * a single failing service never crashes the whole page.
  * ────────────────────────────────────────────────────────────────────── */
 
 const EMPTY_METRICS: DashboardMetrics = {
@@ -28,12 +30,8 @@ const EMPTY_METRICS: DashboardMetrics = {
   qrScans: 0, qrScansDelta: 0,
 };
 
-async function safeCall<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
-  try {
-    return await fn();
-  } catch {
-    return fallback;
-  }
+async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+  try { return await fn(); } catch { return fallback; }
 }
 
 async function DashboardData() {
@@ -54,22 +52,12 @@ async function DashboardData() {
     );
   }
 
-  const [
-    { getDashboardMetrics, getChartData, getRecentActivity },
-    { getCampaigns },
-    { getScreens },
-  ] = await Promise.all([
-    import("@/services/analytics.service"),
-    import("@/services/campaigns.service"),
-    import("@/services/screens.service"),
-  ]);
-
   const [metrics, chartData, recentActivity, campaigns, screens] = await Promise.all([
-    safeCall(() => getDashboardMetrics(), EMPTY_METRICS),
-    safeCall(() => getChartData(30), [] as ChartDataPoint[]),
-    safeCall(() => getRecentActivity(6), []),
-    safeCall(() => getCampaigns({ limit: 4 }), []),
-    safeCall(() => getScreens({ limit: 4 }), []),
+    safe(() => getDashboardMetrics(), EMPTY_METRICS),
+    safe(() => getChartData(30), [] as ChartDataPoint[]),
+    safe(() => getRecentActivity(6), []),
+    safe(() => getCampaigns({ limit: 4 }), []),
+    safe(() => getScreens({ limit: 4 }), []),
   ]);
 
   return (

@@ -12,6 +12,7 @@ import { getOrgContext } from "@/lib/org-context";
  * ────────────────────────────────────────────────────────────────────── */
 
 export async function getCampaigns(filters: FilterOptions = {}) {
+  try {
   const ctx = await getOrgContext();
   if (!ctx) return [];
 
@@ -50,6 +51,9 @@ export async function getCampaigns(filters: FilterOptions = {}) {
     createdAt: c.createdAt.toISOString(),
     updatedAt: c.updatedAt.toISOString(),
   }));
+  } catch {
+    return [];
+  }
 }
 
 export async function getCampaignById(id: string) {
