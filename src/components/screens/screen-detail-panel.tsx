@@ -6,7 +6,9 @@ import {
   X, MapPin, Maximize2, Monitor, Users, Activity,
   RefreshCw, Pencil, MoreHorizontal, Signal, Building2,
   Calendar, AlertCircle, Ruler, Cpu, Layers, Trash2,
+  ExternalLink,
 } from "lucide-react";
+import Link from "next/link";
 import { ScreenStatusBadge } from "./screen-status-badge";
 import { AssignCampaignsModal } from "./assign-campaigns-modal";
 import { Button } from "@/components/ui/button";
@@ -381,37 +383,48 @@ export function ScreenDetailPanel({ screen, open, onClose, canManage, onEdit }: 
             </div>
 
             {/* ───────── footer actions ───────── */}
-            {canManage && (
-              <div className="px-5 py-4 border-t border-white/[0.06] bg-gradient-to-t from-white/[0.02] to-transparent flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="flex-1"
-                  icon={<RefreshCw className={cn("w-3.5 h-3.5", isPinging && "animate-spin")} />}
-                  onClick={handlePing}
-                  loading={isPinging}
-                >
-                  Ping
-                </Button>
-                {onEdit && (
+            <div className="px-5 py-4 border-t border-white/[0.06] bg-gradient-to-t from-white/[0.02] to-transparent space-y-2">
+              {/* View full detail */}
+              <Link
+                href={`/screens/${screen.id}`}
+                className="flex items-center justify-center gap-2 w-full h-9 rounded-xl bg-[#B8EB23]/[0.07] border border-[#B8EB23]/20 text-[#B8EB23]/80 hover:bg-[#B8EB23]/[0.12] hover:text-[#B8EB23] transition-all text-[12px] font-semibold"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Mission Control
+              </Link>
+
+              {canManage && (
+                <div className="flex items-center gap-2">
                   <Button
                     variant="ghost"
                     size="sm"
                     className="flex-1"
-                    icon={<Pencil className="w-3.5 h-3.5" />}
-                    onClick={() => onEdit(screen)}
+                    icon={<RefreshCw className={cn("w-3.5 h-3.5", isPinging && "animate-spin")} />}
+                    onClick={handlePing}
+                    loading={isPinging}
                   >
-                    Editar
+                    Ping
                   </Button>
-                )}
-                <button
-                  className="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.05] transition-colors"
-                  aria-label="Más opciones"
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </button>
-              </div>
-            )}
+                  {onEdit && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="flex-1"
+                      icon={<Pencil className="w-3.5 h-3.5" />}
+                      onClick={() => onEdit(screen)}
+                    >
+                      Editar
+                    </Button>
+                  )}
+                  <button
+                    className="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.05] transition-colors"
+                    aria-label="Más opciones"
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
           </motion.aside>
         </>
       )}
