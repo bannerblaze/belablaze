@@ -105,14 +105,38 @@ async function deleteVercelBlob(storageKey: string): Promise<void> {
 /* ─── Cloudflare R2 driver (S3-compatible) ──────────────────────────── */
 
 async function uploadR2(input: UploadInput): Promise<UploadResult> {
+  console.log("[storage] driver=r2 uploadR2 called", {
+    organizationId: input.organizationId,
+    fileName:       input.fileName,
+    contentType:    input.contentType,
+    sizeBytes:      input.buffer.byteLength,
+    STORAGE_DRIVER: process.env.STORAGE_DRIVER,
+    R2_ENDPOINT:    process.env.R2_ENDPOINT ?? "(not set)",
+    R2_BUCKET_NAME: process.env.R2_BUCKET_NAME ?? "(not set)",
+    R2_PUBLIC_URL:  process.env.R2_PUBLIC_URL ?? "(not set)",
+    R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID
+      ? process.env.R2_ACCESS_KEY_ID.slice(0, 8) + "…"
+      : "(not set)",
+  });
+
   const { uploadToR2 } = await import("./r2");
   const key = buildKey(input.organizationId, input.fileName);
   const buf = input.buffer instanceof Buffer ? input.buffer : Buffer.from(input.buffer);
-  const url = await uploadToR2(key, buf, input.contentType);
-  return { storageKey: key, url, driver: "r2", size: buf.byteLength };
+
+  console.log("[storage] r2 storageKey:", key);
+
+  try {
+    const url = await uploadToR2(key, buf, input.contentType);
+    console.log("[storage] r2 upload succeeded →", url);
+    return { storageKey: key, url, driver: "r2", size: buf.byteLength };
+  } catch (err) {
+    console.error("[storage] r2 upload failed — re-throwing");
+    throw err;
+  }
 }
 
 async function deleteR2(storageKey: string): Promise<void> {
+  console.log("[storage] driver=r2 deleteR2 called", { storageKey });
   const { deleteFromR2 } = await import("./r2");
   await deleteFromR2(storageKey);
 }
