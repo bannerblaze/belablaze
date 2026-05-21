@@ -5,13 +5,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   X, MapPin, Maximize2, Monitor, Users, Activity,
   RefreshCw, Pencil, MoreHorizontal, Signal, Building2,
-  Calendar, AlertCircle, Ruler, Cpu,
+  Calendar, AlertCircle, Ruler, Cpu, Layers, Trash2,
 } from "lucide-react";
 import { ScreenStatusBadge } from "./screen-status-badge";
+import { AssignCampaignsModal } from "./assign-campaigns-modal";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/badge";
 import { pingScreen } from "@/actions/screens";
+import { removeCampaignFromScreen } from "@/actions/screen-campaigns";
 import { cn, formatNumber, formatRelativeTime, getScreenTypeLabel } from "@/lib/utils";
 import { toast } from "@/lib/toast";
+import { useRouter } from "next/navigation";
 import type { ScreenStatus } from "@/types";
 
 /* ──────────────────────────────────────────────────────────────────────
@@ -24,6 +28,23 @@ import type { ScreenStatus } from "@/types";
  * Actions are gated by `canManage` — non-managers see the data but the
  * mutate buttons disappear (defense-in-depth: server still re-checks).
  * ────────────────────────────────────────────────────────────────────── */
+
+export type AssignedCampaignItem = {
+  id: string;
+  campaignId: string;
+  priority: number;
+  isActive: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
+  campaign: {
+    id: string;
+    name: string;
+    status: string;
+    startDate: string;
+    endDate: string;
+    client: { name: string } | null;
+  };
+};
 
 export interface DetailScreen {
   id: string;
@@ -40,8 +61,10 @@ export interface DetailScreen {
   dailyTraffic: number;
   pricePerSecond: number;
   orientation: string;
+  playerKey?: string;
   lastPingAt?: string | null;
   createdAt?: string | null;
+  screenCampaigns?: AssignedCampaignItem[];
 }
 
 interface Props {
@@ -82,8 +105,13 @@ function MetricRow({
 
 export function ScreenDetailPanel({ screen, open, onClose, canManage, onEdit }: Props) {
   const [isPinging, startPing] = useTransition();
+  const [isRemoving, startRemove] = useTransition();
+  const router = useRouter();
 
   if (!screen) return null;
+
+  const assignedCampaigns = screen.screenCampaigns ?? [];
+  const assignedIds = assignedCampaigns.map((sc) => sc.campaignId);
 
   const handlePing = () => {
     if (!canManage) return;
@@ -93,6 +121,18 @@ export function ScreenDetailPanel({ screen, open, onClose, canManage, onEdit }: 
         toast.success(`Ping enviado a ${screen.code}`);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "No se pudo enviar el ping");
+      }
+    });
+  };
+
+  const handleRemoveCampaign = (campaignId: string, campaignName: string) => {
+    startRemove(async () => {
+      try {
+        await removeCampaignFromScreen(screen.id, campaignId);
+        toast.success(`"${campaignName}" desasignada`);
+        router.refresh();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Error al desasignar");
       }
     });
   };
@@ -271,6 +311,62 @@ export function ScreenDetailPanel({ screen, open, onClose, canManage, onEdit }: 
                     }
                   />
                 </div>
+              </section>
+
+              {/* ───────── campañas asignadas ───────── */}
+              <section className="px-5 pb-5">
+                <div className="flex items-center justify-between mb-2.5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/35">
+                    Campañas asignadas
+                  </p>
+                  {canManage && (
+                    <AssignCampaignsModal
+                      screenId={screen.id}
+                      screenName={screen.name}
+                      assignedIds={assignedIds}
+                    />
+                  )}
+                </div>
+
+                {assignedCampaigns.length === 0 ? (
+                  <div className="flex items-center gap-2.5 p-3 rounded-xl border border-dashed border-white/[0.08] bg-white/[0.01]">
+                    <Layers className="w-3.5 h-3.5 text-white/20 flex-shrink-0" />
+                    <p className="text-[11px] text-white/30">Sin campañas asignadas</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {assignedCampaigns.map((sc) => (
+                      <div
+                        key={sc.id}
+                        className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.05] group"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[12px] font-medium text-white truncate">
+                            {sc.campaign.name}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <StatusBadge status={sc.campaign.status} size="sm" />
+                            {sc.campaign.client && (
+                              <span className="text-[10px] text-white/35 truncate">
+                                · {sc.campaign.client.name}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {canManage && (
+                          <button
+                            onClick={() => handleRemoveCampaign(sc.campaignId, sc.campaign.name)}
+                            disabled={isRemoving}
+                            className="p-1 rounded-md text-white/20 hover:text-red-400 hover:bg-red-400/10 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+                            title="Desasignar campaña"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </section>
 
               {/* ───────── meta ───────── */}

@@ -395,6 +395,7 @@ model Screen {
 
   organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   campaignScreens CampaignScreen[]
+  screenCampaigns ScreenCampaign[]
   adSchedules     AdSchedule[]
 
   @@index([city])
@@ -425,12 +426,13 @@ model Campaign {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
-  organization Organization?      @relation(fields: [organizationId], references: [id])
-  client       Client             @relation(fields: [clientId], references: [id])
-  user         User               @relation(fields: [userId], references: [id])
-  ads          Ad[]
-  screens      CampaignScreen[]
-  schedules    CampaignSchedule[]
+  organization    Organization?      @relation(fields: [organizationId], references: [id])
+  client          Client             @relation(fields: [clientId], references: [id])
+  user            User               @relation(fields: [userId], references: [id])
+  ads             Ad[]
+  screens         CampaignScreen[]
+  screenCampaigns ScreenCampaign[]
+  schedules       CampaignSchedule[]
 
   @@index([clientId])
   @@index([status])
@@ -448,6 +450,33 @@ model CampaignScreen {
   screen     Screen   @relation(fields: [screenId], references: [id])
 
   @@unique([campaignId, screenId])
+}
+
+/* ScreenCampaign — primary assignment model (richer than CampaignScreen).
+ * Allows per-assignment priority, date windows, and active toggle. */
+model ScreenCampaign {
+  id         String    @id @default(cuid())
+
+  screenId   String
+  campaignId String
+
+  startsAt   DateTime?
+  endsAt     DateTime?
+
+  priority   Int       @default(0)
+  isActive   Boolean   @default(true)
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  screen     Screen    @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  campaign   Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([screenId, campaignId])
+  @@index([screenId])
+  @@index([campaignId])
+  @@index([isActive])
+  @@map("screen_campaigns")
 }
 
 model Ad {

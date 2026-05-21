@@ -25,6 +25,7 @@ export type AuditAction =
   | "campaign.create" | "campaign.update" | "campaign.delete" | "campaign.approve" | "campaign.pause"
   | "ad.create" | "ad.update" | "ad.delete" | "ad.approve" | "ad.reject" | "ad.publish"
   | "screen.create" | "screen.update" | "screen.delete"
+  | "screen.campaigns.assign" | "screen.campaigns.remove"
   | "client.create" | "client.update" | "client.delete"
   | "media.upload" | "media.delete"
   | "schedule.create" | "schedule.update" | "schedule.delete"

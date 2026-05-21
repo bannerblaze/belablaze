@@ -30,6 +30,8 @@ import type { ScreenStatus } from "@/types";
  * pure and re-renders deterministically from the prop.
  * ────────────────────────────────────────────────────────────────────── */
 
+import type { AssignedCampaignItem } from "@/components/screens/screen-detail-panel";
+
 interface Screen {
   id: string;
   name: string;
@@ -45,10 +47,12 @@ interface Screen {
   dailyTraffic: number;
   pricePerSecond: number;
   orientation: string;
+  playerKey?: string;
   latitude?: number | null;
   longitude?: number | null;
   lastPingAt?: string | null;
   createdAt?: string | null;
+  screenCampaigns?: AssignedCampaignItem[];
 }
 
 interface Props {

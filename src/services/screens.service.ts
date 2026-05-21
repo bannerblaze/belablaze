@@ -1,7 +1,7 @@
 import { getOrgContext } from "@/lib/org-context";
+import { db } from "@/lib/db";
 import type { FilterOptions } from "@/types";
 import {
-  getScreensByOrganization,
   getScreenById as repoGetById,
   getScreenMetrics as repoGetMetrics,
 } from "@/server/repositories/screens.repository";
@@ -9,21 +9,19 @@ import {
 /* ──────────────────────────────────────────────────────────────────────
  * Screen read queries — org-scoped.
  *
- * Every function resolves the caller's org context first and gates on
- * it. A missing or unauthenticated session returns safe empty values
- * rather than throwing, so server components can render without an
- * error boundary for the read path.
- *
- * All DB calls are wrapped in try/catch so a transient DB error or a
- * schema migration in progress never crashes a calling page.
+ * getScreens() is the primary read path for the /screens dashboard.
+ * It includes campaign assignments so the detail panel can show them
+ * without a secondary fetch.
  * ────────────────────────────────────────────────────────────────────── */
 
-function serializeScreen<T extends {
-  lastPingAt: Date | null;
-  lastSeenAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-}>(s: T) {
+type Dates<T> = Omit<T, "lastPingAt" | "lastSeenAt" | "createdAt" | "updatedAt"> & {
+  lastPingAt: string | null;
+  lastSeenAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+function serializeDates<T extends { lastPingAt: Date | null; lastSeenAt: Date | null; createdAt: Date; updatedAt: Date }>(s: T): Dates<T> {
   return {
     ...s,
     lastPingAt: s.lastPingAt?.toISOString()  ?? null,
@@ -38,15 +36,66 @@ export async function getScreens(filters: FilterOptions = {}) {
     const ctx = await getOrgContext();
     if (!ctx) return [];
 
-    const screens = await getScreensByOrganization(ctx.organizationId, {
-      search: filters.search,
-      status: filters.status,
-      city:   filters.city,
-      limit:  filters.limit,
-      page:   filters.page,
+    const where: Record<string, unknown> = { organizationId: ctx.organizationId };
+
+    if (filters.search) {
+      where.OR = [
+        { name:    { contains: filters.search, mode: "insensitive" } },
+        { city:    { contains: filters.search, mode: "insensitive" } },
+        { address: { contains: filters.search, mode: "insensitive" } },
+        { code:    { contains: filters.search, mode: "insensitive" } },
+        { slug:    { contains: filters.search, mode: "insensitive" } },
+      ];
+    }
+
+    if (filters.status && filters.status !== "all") {
+      where.status = filters.status;
+    }
+
+    if (filters.city) {
+      where.city = { contains: filters.city, mode: "insensitive" };
+    }
+
+    const screens = await db.screen.findMany({
+      where,
+      include: {
+        screenCampaigns: {
+          include: {
+            campaign: {
+              select: {
+                id: true, name: true, status: true,
+                startDate: true, endDate: true,
+                client: { select: { name: true } },
+              },
+            },
+          },
+          orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
+        },
+      },
+      orderBy: [{ status: "asc" }, { city: "asc" }, { name: "asc" }],
+      take: filters.limit ?? 100,
+      skip: filters.page ? (filters.page - 1) * (filters.limit ?? 100) : 0,
     });
 
-    return screens.map(serializeScreen);
+    return screens.map((s) => ({
+      ...serializeDates(s),
+      screenCampaigns: s.screenCampaigns.map((sc) => ({
+        id:         sc.id,
+        campaignId: sc.campaignId,
+        priority:   sc.priority,
+        isActive:   sc.isActive,
+        startsAt:   sc.startsAt?.toISOString() ?? null,
+        endsAt:     sc.endsAt?.toISOString()   ?? null,
+        campaign: {
+          id:        sc.campaign.id,
+          name:      sc.campaign.name,
+          status:    sc.campaign.status,
+          startDate: sc.campaign.startDate.toISOString(),
+          endDate:   sc.campaign.endDate.toISOString(),
+          client:    sc.campaign.client,
+        },
+      })),
+    }));
   } catch {
     return [];
   }
@@ -60,7 +109,7 @@ export async function getScreenById(id: string) {
     const screen = await repoGetById(id, ctx.organizationId);
     if (!screen) return null;
 
-    return serializeScreen(screen);
+    return serializeDates(screen);
   } catch {
     return null;
   }
