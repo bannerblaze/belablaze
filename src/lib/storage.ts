@@ -102,40 +102,49 @@ async function deleteVercelBlob(storageKey: string): Promise<void> {
   await mod.del(storageKey).catch(() => {});
 }
 
-/* ─── S3 / R2 driver stub ───────────────────────────────────────────── */
+/* ─── Cloudflare R2 driver (S3-compatible) ──────────────────────────── */
+
+async function uploadR2(input: UploadInput): Promise<UploadResult> {
+  const { uploadToR2 } = await import("./r2");
+  const key = buildKey(input.organizationId, input.fileName);
+  const buf = input.buffer instanceof Buffer ? input.buffer : Buffer.from(input.buffer);
+  const url = await uploadToR2(key, buf, input.contentType);
+  return { storageKey: key, url, driver: "r2", size: buf.byteLength };
+}
+
+async function deleteR2(storageKey: string): Promise<void> {
+  const { deleteFromR2 } = await import("./r2");
+  await deleteFromR2(storageKey);
+}
+
+/* ─── AWS S3 driver stub (add @aws-sdk/client-s3 + credentials when needed) */
 
 async function uploadS3(): Promise<UploadResult> {
-  throw new Error("S3 driver not yet wired — set STORAGE_DRIVER=local or vercel_blob for now.");
+  throw new Error("S3 driver not yet configured — use STORAGE_DRIVER=r2 for Cloudflare R2.");
 }
 async function deleteS3(): Promise<void> {
-  throw new Error("S3 driver not yet wired");
+  throw new Error("S3 driver not yet configured.");
 }
 
 /* ─── Public API ────────────────────────────────────────────────────── */
 
 export async function uploadFile(input: UploadInput): Promise<UploadResult> {
   switch (DRIVER) {
-    case "vercel_blob":
-      return uploadVercelBlob(input);
-    case "s3":
-    case "r2":
-      return uploadS3();
+    case "vercel_blob": return uploadVercelBlob(input);
+    case "r2":          return uploadR2(input);
+    case "s3":          return uploadS3();
     case "local":
-    default:
-      return uploadLocal(input);
+    default:            return uploadLocal(input);
   }
 }
 
 export async function deleteFile(storageKey: string): Promise<void> {
   switch (DRIVER) {
-    case "vercel_blob":
-      return deleteVercelBlob(storageKey);
-    case "s3":
-    case "r2":
-      return deleteS3();
+    case "vercel_blob": return deleteVercelBlob(storageKey);
+    case "r2":          return deleteR2(storageKey);
+    case "s3":          return deleteS3();
     case "local":
-    default:
-      return deleteLocal(storageKey);
+    default:            return deleteLocal(storageKey);
   }
 }
 
