@@ -29,6 +29,8 @@ const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/api/webhooks(.*)",
+  "/player/(.*)",       // DOOH player — authenticated via playerKey, not Clerk
+  "/api/player/(.*)",   // Player API — ping + playlist
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
