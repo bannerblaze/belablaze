@@ -64,34 +64,38 @@ export async function getScreenCampaigns(
 
 /**
  * Replaces all assignments for a screen with the given campaign IDs.
- * Validates that every campaignId belongs to the org before writing.
+ * Pass organizationId to validate campaign ownership (regular users).
+ * Pass null to skip org validation (platform staff cross-org assignment).
  * Returns the count of assignments after the operation.
  */
 export async function replaceScreenCampaigns(
   screenId: string,
   campaignIds: string[],
-  organizationId: string,
+  organizationId: string | null,
 ): Promise<number> {
-  // Guard: all campaigns must belong to org
-  const validCampaigns = campaignIds.length > 0
-    ? await db.campaign.findMany({
-        where: { id: { in: campaignIds }, organizationId },
-        select: { id: true },
-      })
-    : [];
-
-  const validIds = validCampaigns.map((c) => c.id);
+  // Guard: validate org ownership unless platform staff (null = skip)
+  let validIds: string[];
+  if (organizationId !== null && campaignIds.length > 0) {
+    const validCampaigns = await db.campaign.findMany({
+      where: { id: { in: campaignIds }, organizationId },
+      select: { id: true },
+    });
+    validIds = validCampaigns.map((c) => c.id);
+  } else {
+    validIds = campaignIds;
+  }
 
   await db.$transaction(async (tx) => {
     await tx.screenCampaign.deleteMany({ where: { screenId } });
     if (validIds.length > 0) {
       await tx.screenCampaign.createMany({
-        data: validIds.map((campaignId) => ({
+        data: validIds.map((campaignId, i) => ({
           screenId,
           campaignId,
           isActive: true,
-          priority: 0,
+          priority: validIds.length - i,
         })),
+        skipDuplicates: true,
       });
     }
   });

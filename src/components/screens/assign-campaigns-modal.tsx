@@ -36,6 +36,8 @@ type Campaign = {
   startDate: string;
   endDate: string;
   client: { name: string } | null;
+  orgName: string | null;
+  createdBy: string | null;
 };
 
 interface Props {
@@ -243,11 +245,20 @@ export function AssignCampaignsModal({ screenId, screenName, assignedIds, onSucc
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              {campaign.client && (
-                                <span className="text-[11px] text-white/40 truncate">{campaign.client.name}</span>
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              {campaign.orgName && (
+                                <span className="text-[11px] font-medium text-[#B8EB23]/50 truncate max-w-[120px]">{campaign.orgName}</span>
                               )}
-                              <span className="text-white/20 text-[11px]">·</span>
+                              {campaign.client && (
+                                <>
+                                  {campaign.orgName && <span className="text-white/15 text-[11px]">·</span>}
+                                  <span className="text-[11px] text-white/40 truncate">{campaign.client.name}</span>
+                                </>
+                              )}
+                              {campaign.createdBy && !campaign.client && (
+                                <span className="text-[11px] text-white/35 truncate">{campaign.createdBy}</span>
+                              )}
+                              <span className="text-white/15 text-[11px]">·</span>
                               <span className="text-[11px] text-white/30 flex-shrink-0">
                                 hasta {new Date(campaign.endDate).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}
                               </span>

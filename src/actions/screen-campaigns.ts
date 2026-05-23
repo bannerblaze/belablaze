@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { requireOrgContext } from "@/lib/org-context";
+import { getCurrentUser } from "@/lib/auth";
+import { isPlatformStaff } from "@/lib/platform";
 import { db } from "@/lib/db";
 import { logAudit } from "@/actions/audit";
 import {
@@ -37,9 +39,16 @@ export async function assignCampaignsToScreen(
   campaignIds: string[],
 ) {
   const ctx = await requireOrgContext();
+  const user = await getCurrentUser();
+  const staff = isPlatformStaff(user);
   const screen = await assertScreenOwnership(screenId, ctx.organizationId);
 
-  const count = await replaceScreenCampaigns(screenId, campaignIds, ctx.organizationId);
+  // Platform staff can cross-assign campaigns from any organization.
+  const count = await replaceScreenCampaigns(
+    screenId,
+    campaignIds,
+    staff ? null : ctx.organizationId,
+  );
 
   await logAudit({
     action:     "screen.campaigns.assign",
@@ -77,13 +86,16 @@ export async function removeCampaignFromScreen(
 
 /**
  * Returns campaigns available for assignment to a screen.
- * Used by the AssignCampaignsModal to populate the picker list.
+ * Platform staff see ALL campaigns across every organization.
+ * Regular users see only their own org's campaigns.
  */
 export async function getOrgCampaignsForAssignment() {
   const ctx = await requireOrgContext();
+  const user = await getCurrentUser();
+  const staff = isPlatformStaff(user);
 
   const campaigns = await db.campaign.findMany({
-    where: { organizationId: ctx.organizationId },
+    where: staff ? {} : { organizationId: ctx.organizationId },
     select: {
       id: true,
       name: true,
@@ -91,6 +103,8 @@ export async function getOrgCampaignsForAssignment() {
       startDate: true,
       endDate: true,
       client: { select: { name: true } },
+      organization: { select: { name: true } },
+      user: { select: { name: true, email: true } },
     },
     orderBy: [{ status: "asc" }, { name: "asc" }],
   });
@@ -102,5 +116,7 @@ export async function getOrgCampaignsForAssignment() {
     startDate: c.startDate.toISOString(),
     endDate:   c.endDate.toISOString(),
     client:    c.client,
+    orgName:   c.organization?.name ?? null,
+    createdBy: c.user?.name ?? c.user?.email ?? null,
   }));
 }
