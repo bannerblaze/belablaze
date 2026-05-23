@@ -5,6 +5,19 @@ import { revalidatePath } from "next/cache";
 import { requireOrgContext } from "@/lib/org-context";
 import { logAudit } from "@/actions/audit";
 
+export async function listClients() {
+  const ctx = await requireOrgContext();
+  return db.client.findMany({
+    where: { organizationId: ctx.organizationId, isActive: true },
+    select: {
+      id: true, name: true, email: true, phone: true,
+      industry: true, city: true, createdAt: true,
+      _count: { select: { campaigns: true } },
+    },
+    orderBy: { name: "asc" },
+  });
+}
+
 /* Tenant-scoped customer-brand mutations. Slugs are unique per org so
  * we must namespace the uniqueness check; on collision we append a
  * short suffix instead of throwing the raw Prisma constraint error. */

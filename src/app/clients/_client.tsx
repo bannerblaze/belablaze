@@ -1,280 +1,199 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
-  X, Building2, UserCheck, ShieldCheck, ArrowUpDown,
+  Building2, Plus, Trash2, Mail, Phone, Briefcase,
+  MapPin, BarChart2, Search, X, Users,
 } from "lucide-react";
-import { UsersOverview } from "@/components/admin/users-overview";
-import { OrgUsersTable } from "@/components/admin/org-users-table";
-import { CreatorUsersTable } from "@/components/admin/creator-users-table";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import type {
-  AdminOverview, AdminOrgUser, AdminCreatorUser, UserStatusKey,
-} from "@/services/admin/users.service";
+import { toast } from "@/lib/toast";
+import { deleteClient } from "@/actions/clients";
 
-/* ──────────────────────────────────────────────────────────────────────
- * /clients — BannerBlaze internal admin panel.
- *
- * Single client orchestrator. Server hands us the full data; we run
- * search + status filter + sort + tab switching in the browser.
- *
- * Tabs: Empresas (ORGANIZATION accounts) | Creadores (PERSON accounts)
- * Filters: search (name/email), status pills, sort (recent / name /
- *          activity)
- *
- * No mutations here — read-only admin view. Future iterations may add
- * impersonation, status changes, drill-down to /clients/[id]. The
- * service layer is already platform-staff-gated so adding mutating
- * actions only requires adding the action file + button.
- * ────────────────────────────────────────────────────────────────────── */
-
-type Tab = "ORGANIZATION" | "PERSON";
-type SortKey = "recent" | "name" | "activity";
+type Client = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  industry: string | null;
+  city: string | null;
+  createdAt: string;
+  _count: { campaigns: number };
+};
 
 interface Props {
-  overview: AdminOverview;
-  orgUsers: AdminOrgUser[];
-  creatorUsers: AdminCreatorUser[];
+  clients: Client[];
 }
 
-const STATUS_PILLS: Array<{ value: UserStatusKey | "ALL"; label: string; dot?: string }> = [
-  { value: "ALL",       label: "Todos" },
-  { value: "ACTIVE",    label: "Activos",      dot: "bg-[#B8EB23]" },
-  { value: "NEW",       label: "Nuevos",       dot: "bg-[#B8EB23]" },
-  { value: "INACTIVE",  label: "Inactivos",    dot: "bg-white/40" },
-  { value: "SUSPENDED", label: "Suspendidos",  dot: "bg-red-400" },
-];
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("es-CO", {
+    day: "2-digit", month: "short", year: "numeric",
+  });
+}
 
-export function ClientsClient({ overview, orgUsers, creatorUsers }: Props) {
-  const [tab, setTab] = useState<Tab>("ORGANIZATION");
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<UserStatusKey | "ALL">("ALL");
-  const [sort, setSort] = useState<SortKey>("recent");
+export function ClientsClient({ clients }: Props) {
+  const router = useRouter();
+  const [query, setQuery] = useState("");
+  const [isPending, startTransition] = useTransition();
 
-  const filteredOrgs = useMemo(() => {
-    let list = [...orgUsers];
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter(
-        (o) =>
-          o.orgName.toLowerCase().includes(q) ||
-          o.ownerEmail.toLowerCase().includes(q) ||
-          o.ownerName.toLowerCase().includes(q) ||
-          o.slug.toLowerCase().includes(q),
-      );
-    }
-    if (statusFilter !== "ALL") list = list.filter((o) => o.status === statusFilter);
-    list.sort((a, b) => {
-      switch (sort) {
-        case "name":     return a.orgName.localeCompare(b.orgName);
-        case "activity": return (b.lastLoginAt ?? "").localeCompare(a.lastLoginAt ?? "");
-        case "recent":
-        default:         return b.createdAt.localeCompare(a.createdAt);
+  const filtered = clients.filter((c) => {
+    if (!query) return true;
+    const q = query.toLowerCase();
+    return (
+      c.name.toLowerCase().includes(q) ||
+      c.email?.toLowerCase().includes(q) ||
+      c.industry?.toLowerCase().includes(q) ||
+      c.city?.toLowerCase().includes(q)
+    );
+  });
+
+  const onDelete = (id: string, name: string) => {
+    if (!confirm(`¿Eliminar el cliente "${name}"? Esta acción no se puede deshacer.`)) return;
+    startTransition(async () => {
+      try {
+        await deleteClient(id);
+        toast.success("Cliente eliminado");
+        router.refresh();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Error al eliminar cliente");
       }
     });
-    return list;
-  }, [orgUsers, search, statusFilter, sort]);
-
-  const filteredCreators = useMemo(() => {
-    let list = [...creatorUsers];
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter(
-        (c) =>
-          c.displayName.toLowerCase().includes(q) ||
-          c.email.toLowerCase().includes(q) ||
-          (c.category?.toLowerCase().includes(q) ?? false),
-      );
-    }
-    if (statusFilter !== "ALL") list = list.filter((c) => c.status === statusFilter);
-    list.sort((a, b) => {
-      switch (sort) {
-        case "name":     return a.displayName.localeCompare(b.displayName);
-        case "activity": return (b.lastLoginAt ?? "").localeCompare(a.lastLoginAt ?? "");
-        case "recent":
-        default:         return b.createdAt.localeCompare(a.createdAt);
-      }
-    });
-    return list;
-  }, [creatorUsers, search, statusFilter, sort]);
-
-  const activeFilters = (statusFilter !== "ALL" ? 1 : 0) + (search ? 1 : 0);
-  const visibleCount = tab === "ORGANIZATION" ? filteredOrgs.length : filteredCreators.length;
-  const totalCount = tab === "ORGANIZATION" ? orgUsers.length : creatorUsers.length;
+  };
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-5 lg:py-6 space-y-6 max-w-[1500px]">
-      {/* ───────── header ───────── */}
+    <div className="px-4 sm:px-6 lg:px-8 py-5 lg:py-6 space-y-5 max-w-[1200px]">
+      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -4 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="flex items-start justify-between gap-3"
+        className="flex items-start justify-between gap-3 flex-wrap"
       >
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-lg lg:text-xl font-bold text-white tracking-tight">
-              Panel de cuentas
-            </h1>
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[#B8EB23]/10 border border-[#B8EB23]/20 text-[9px] font-bold uppercase tracking-wider text-[#B8EB23]">
-              <ShieldCheck className="w-2.5 h-2.5" />
-              Interno
-            </span>
-          </div>
-          <p className="text-xs text-white/45 max-w-xl">
-            Administración de los usuarios registrados en BelaBlaze — empresas y creadores. Solo visible para personal de BannerBlaze.
+          <h1 className="text-lg font-bold text-white tracking-tight">Clientes</h1>
+          <p className="text-xs text-white/40 mt-0.5">
+            {clients.length} cliente{clients.length !== 1 ? "s" : ""} registrado{clients.length !== 1 ? "s" : ""}
           </p>
         </div>
+        <Button
+          onClick={() => router.push("/clients/new")}
+          icon={<Plus className="w-3.5 h-3.5" />}
+        >
+          Nuevo cliente
+        </Button>
       </motion.div>
 
-      {/* ───────── overview ───────── */}
-      <UsersOverview overview={overview} />
-
-      {/* ───────── tabs + filter bar ───────── */}
-      <section className="space-y-4">
-        {/* Segmented tabs */}
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="inline-flex items-center p-1 rounded-xl bg-[#0F0F0F] border border-white/[0.06]">
-            <SegmentedButton
-              active={tab === "ORGANIZATION"}
-              onClick={() => setTab("ORGANIZATION")}
-              icon={<Building2 className="w-3.5 h-3.5" />}
-              label="Empresas"
-              count={orgUsers.length}
-              accent="brand"
-            />
-            <SegmentedButton
-              active={tab === "PERSON"}
-              onClick={() => setTab("PERSON")}
-              icon={<UserCheck className="w-3.5 h-3.5" />}
-              label="Creadores"
-              count={creatorUsers.length}
-              accent="violet"
-            />
-          </div>
-
-          <p className="text-[11px] text-white/40">
-            <span className="text-white font-semibold tabular-nums">{visibleCount}</span>
-            {" "}
-            de {totalCount}
-            {activeFilters > 0 && (
-              <> · <span className="text-[#B8EB23]/80">{activeFilters} filtro{activeFilters !== 1 ? "s" : ""}</span></>
-            )}
-          </p>
+      {/* Search */}
+      {clients.length > 0 && (
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30 pointer-events-none" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar clientes..."
+            className="w-full h-10 pl-9 pr-9 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/[0.12] transition-all"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
-
-        {/* Filter row */}
-        <div className="rounded-xl bg-[#0F0F0F] border border-white/[0.06] p-3 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
-            <div className="relative flex-1 max-w-md">
-              <input
-                type="text"
-                placeholder={
-                  tab === "ORGANIZATION"
-                    ? "Buscar empresa, slug, email o dueño…"
-                    : "Buscar creador, email o categoría…"
-                }
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full px-3.5 pr-9 h-10 rounded-lg bg-[#080808] border border-white/[0.08] text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#B8EB23]/40 focus:bg-[#0A0A0A] transition-all"
-              />
-              {search && (
-                <button
-                  onClick={() => setSearch("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white p-1"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-
-            <div className="relative sm:ml-auto">
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value as SortKey)}
-                className="h-9 pl-8 pr-7 rounded-lg bg-[#080808] border border-white/[0.08] text-[11px] font-semibold text-white/70 focus:outline-none focus:border-[#B8EB23]/40 appearance-none cursor-pointer"
-              >
-                <option value="recent" className="bg-[#0F0F0F]">Más recientes</option>
-                <option value="activity" className="bg-[#0F0F0F]">Actividad reciente</option>
-                <option value="name" className="bg-[#0F0F0F]">Nombre A-Z</option>
-              </select>
-              <ArrowUpDown className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-white/40 pointer-events-none" />
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1.5">
-            {STATUS_PILLS.map((p) => (
-              <button
-                key={p.value}
-                onClick={() => setStatusFilter(p.value)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-all",
-                  statusFilter === p.value
-                    ? "bg-white/[0.06] border-white/[0.12] text-white"
-                    : "bg-transparent border-white/[0.06] text-white/45 hover:text-white hover:border-white/[0.12]",
-                )}
-              >
-                {p.dot && <span className={cn("w-1.5 h-1.5 rounded-full", p.dot)} />}
-                {p.label}
-              </button>
-            ))}
-
-            {activeFilters > 0 && (
-              <button
-                onClick={() => { setSearch(""); setStatusFilter("ALL"); }}
-                className="ml-auto text-[11px] text-white/40 hover:text-white inline-flex items-center gap-1"
-              >
-                <X className="w-3 h-3" /> Limpiar
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Tables */}
-        {tab === "ORGANIZATION"
-          ? <OrgUsersTable rows={filteredOrgs} />
-          : <CreatorUsersTable rows={filteredCreators} />}
-      </section>
-    </div>
-  );
-}
-
-function SegmentedButton({
-  active, onClick, icon, label, count, accent,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-  count: number;
-  accent: "brand" | "violet";
-}) {
-  const ACCENT = {
-    brand:  { active: "bg-[#B8EB23]/15 text-[#B8EB23] ring-[#B8EB23]/25" },
-    violet: { active: "bg-violet-400/15 text-violet-300 ring-violet-400/25" },
-  } as const;
-
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ring-1",
-        active
-          ? `${ACCENT[accent].active}`
-          : "bg-transparent ring-transparent text-white/45 hover:text-white hover:bg-white/[0.04]",
       )}
-    >
-      {icon}
-      {label}
-      <span
-        className={cn(
-          "px-1.5 py-0.5 rounded-md text-[10px] tabular-nums",
-          active ? "bg-black/30" : "bg-white/[0.06] text-white/60",
-        )}
-      >
-        {count}
-      </span>
-    </button>
+
+      {/* Empty state */}
+      {clients.length === 0 ? (
+        <Card>
+          <CardContent className="py-16 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-[#B8EB23]/10 flex items-center justify-center mx-auto mb-4">
+              <Users className="w-6 h-6 text-[#B8EB23]/60" />
+            </div>
+            <p className="text-sm font-semibold text-white mb-1">Sin clientes aún</p>
+            <p className="text-xs text-white/40 mb-5">Crea tu primer cliente para poder asignarlo a campañas.</p>
+            <Button onClick={() => router.push("/clients/new")} icon={<Plus className="w-3.5 h-3.5" />}>
+              Crear primer cliente
+            </Button>
+          </CardContent>
+        </Card>
+      ) : filtered.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-sm text-white/40">Sin resultados para &ldquo;{query}&rdquo;</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {filtered.map((client, i) => (
+            <motion.div
+              key={client.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, delay: i * 0.03 }}
+              className="group relative rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.04] transition-all overflow-hidden p-4 space-y-3"
+            >
+              {/* Name + icon */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-[#B8EB23]/10 flex items-center justify-center flex-shrink-0">
+                    <Building2 className="w-4 h-4 text-[#B8EB23]" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{client.name}</p>
+                    {client.industry && (
+                      <p className="text-[11px] text-white/40 truncate">{client.industry}</p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => onDelete(client.id, client.name)}
+                  disabled={isPending}
+                  className="p-1.5 rounded-lg text-white/20 hover:text-red-400 hover:bg-red-400/10 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                  title="Eliminar cliente"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Details */}
+              <div className="space-y-1.5">
+                {client.email && (
+                  <div className="flex items-center gap-2 text-[11px] text-white/50">
+                    <Mail className="w-3 h-3 flex-shrink-0 text-white/30" />
+                    <span className="truncate">{client.email}</span>
+                  </div>
+                )}
+                {client.phone && (
+                  <div className="flex items-center gap-2 text-[11px] text-white/50">
+                    <Phone className="w-3 h-3 flex-shrink-0 text-white/30" />
+                    <span>{client.phone}</span>
+                  </div>
+                )}
+                {client.city && (
+                  <div className="flex items-center gap-2 text-[11px] text-white/50">
+                    <MapPin className="w-3 h-3 flex-shrink-0 text-white/30" />
+                    <span>{client.city}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between pt-2 border-t border-white/[0.04]">
+                <div className="flex items-center gap-1.5 text-[11px] text-white/35">
+                  <BarChart2 className="w-3 h-3" />
+                  <span>{client._count.campaigns} campaña{client._count.campaigns !== 1 ? "s" : ""}</span>
+                </div>
+                <span className="text-[10px] text-white/25">{fmtDate(client.createdAt)}</span>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
