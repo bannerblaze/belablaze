@@ -8,14 +8,104 @@ import { logAudit } from "@/actions/audit";
 export async function listClients() {
   const ctx = await requireOrgContext();
   return db.client.findMany({
-    where: { organizationId: ctx.organizationId, isActive: true },
+    where: { organizationId: ctx.organizationId },
     select: {
-      id: true, name: true, email: true, phone: true,
-      industry: true, city: true, createdAt: true,
+      id: true, name: true, logo: true, email: true, phone: true,
+      industry: true, city: true, isActive: true, createdAt: true,
+      users: { select: { role: true }, take: 10 },
       _count: { select: { campaigns: true } },
     },
     orderBy: { name: "asc" },
   });
+}
+
+export interface ClientDetail {
+  id: string;
+  name: string;
+  logo: string | null;
+  email: string;
+  phone: string | null;
+  industry: string | null;
+  city: string | null;
+  country: string;
+  website: string | null;
+  address: string | null;
+  taxId: string | null;
+  isActive: boolean;
+  creditLimit: number;
+  balance: number;
+  createdAt: string;
+  updatedAt: string;
+  users: { id: string; name: string; email: string; role: string; status: string; lastLoginAt: string | null }[];
+  campaigns: {
+    id: string; name: string; status: string; budget: number; spent: number;
+    startDate: string; endDate: string; impressions: number; createdAt: string;
+  }[];
+  auditLogs: {
+    id: string; action: string; metadata: Record<string, unknown> | null;
+    createdAt: string; user: { name: string; email: string } | null;
+  }[];
+  _count: { campaigns: number; users: number };
+}
+
+export async function getClientDetail(clientId: string): Promise<ClientDetail | null> {
+  const ctx = await requireOrgContext();
+
+  const client = await db.client.findFirst({
+    where: { id: clientId, organizationId: ctx.organizationId },
+    select: {
+      id: true, name: true, logo: true,
+      email: true, phone: true, industry: true,
+      city: true, country: true, website: true, address: true, taxId: true,
+      isActive: true, creditLimit: true, balance: true,
+      createdAt: true, updatedAt: true,
+      users: {
+        select: { id: true, name: true, email: true, role: true, status: true, lastLoginAt: true },
+      },
+      campaigns: {
+        select: {
+          id: true, name: true, status: true, budget: true, spent: true,
+          startDate: true, endDate: true, impressions: true, createdAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      },
+      _count: { select: { campaigns: true, users: true } },
+    },
+  });
+
+  if (!client) return null;
+
+  const auditLogs = await db.auditLog.findMany({
+    where: { entityType: "Client", entityId: clientId, organizationId: ctx.organizationId },
+    select: {
+      id: true, action: true, metadata: true, createdAt: true,
+      user: { select: { name: true, email: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 15,
+  });
+
+  return {
+    ...client,
+    createdAt: client.createdAt.toISOString(),
+    updatedAt: client.updatedAt.toISOString(),
+    users: client.users.map((u) => ({
+      ...u,
+      lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
+    })),
+    campaigns: client.campaigns.map((c) => ({
+      ...c,
+      startDate: c.startDate.toISOString(),
+      endDate: c.endDate.toISOString(),
+      createdAt: c.createdAt.toISOString(),
+    })),
+    auditLogs: auditLogs.map((l) => ({
+      ...l,
+      metadata: l.metadata as Record<string, unknown> | null,
+      createdAt: l.createdAt.toISOString(),
+    })),
+  };
 }
 
 /* Tenant-scoped customer-brand mutations. Slugs are unique per org so
