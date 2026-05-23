@@ -96,6 +96,22 @@ export async function updateAdStatus(adId: string, status: "ACTIVE" | "PAUSED" |
   return { success: true };
 }
 
+/** Links an uploaded MediaAsset to an ad — called right after file upload. */
+export async function linkAdMedia(adId: string, mediaAssetId: string, fileUrl: string) {
+  const ctx = await requireOrgContext();
+
+  const ad = await loadOrgAd(ctx.organizationId, adId);
+  if (!ad) throw new Error("Anuncio no encontrado");
+
+  await db.ad.update({
+    where: { id: adId },
+    data: { mediaAssetId, fileUrl },
+  });
+
+  revalidatePath("/ads");
+  return { success: true };
+}
+
 export async function deleteAd(adId: string) {
   const ctx = await requireOrgContext();
 

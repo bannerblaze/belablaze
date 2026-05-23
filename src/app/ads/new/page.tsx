@@ -12,8 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
-import { createAd, submitAdForReview } from "@/actions/ads";
+import { toast } from "@/lib/toast";
+import { createAd, submitAdForReview, linkAdMedia } from "@/actions/ads";
 
 type AdFormat = "IMAGE" | "VIDEO" | "HTML5" | "INTERACTIVE";
 
@@ -137,6 +137,7 @@ function NewAdPageContent() {
 
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingLabel, setLoadingLabel] = useState("Crear anuncio");
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [screens, setScreens] = useState<Screen[]>([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -198,6 +199,8 @@ function NewAdPageContent() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
+      // Step 1: create the ad record
+      setLoadingLabel("Creando anuncio...");
       const fd = new FormData();
       fd.append("title", form.title);
       fd.append("description", form.description);
@@ -208,15 +211,36 @@ function NewAdPageContent() {
       fd.append("ctaUrl", form.ctaUrl);
       fd.append("qrEnabled", form.qrEnabled.toString());
       const result = await createAd(fd);
+
       if (result?.success && result.id) {
+        // Step 2: upload media if file was provided
+        if (form.file) {
+          setLoadingLabel("Subiendo archivo...");
+          const uploadFd = new FormData();
+          uploadFd.append("file", form.file);
+          const uploadRes = await fetch("/api/media/upload", {
+            method: "POST",
+            body: uploadFd,
+          });
+          const uploadData = await uploadRes.json() as { ok: boolean; asset?: { id: string; url: string }; error?: string };
+          if (!uploadData.ok || !uploadData.asset) {
+            throw new Error(uploadData.error ?? "Error subiendo el archivo");
+          }
+          await linkAdMedia(result.id, uploadData.asset.id, uploadData.asset.url);
+        }
+
+        // Step 3: submit for review
+        setLoadingLabel("Enviando a revisión...");
         await submitAdForReview(result.id);
       }
+
       toast.success("Anuncio creado y enviado a revisión.");
       router.push("/ads");
-    } catch {
-      toast.error("Error al crear el anuncio. Intenta de nuevo.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al crear el anuncio. Intenta de nuevo.");
     } finally {
       setLoading(false);
+      setLoadingLabel("Crear anuncio");
     }
   };
 
@@ -557,7 +581,7 @@ function NewAdPageContent() {
           </Button>
         ) : (
           <Button variant="brand" size="sm" loading={loading} onClick={handleSubmit}>
-            Crear anuncio
+            {loading ? loadingLabel : "Crear anuncio"}
           </Button>
         )}
       </div>

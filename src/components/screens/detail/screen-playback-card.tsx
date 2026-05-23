@@ -1,4 +1,4 @@
-import { Play, Pause, Film, Layers, Clock, ChevronRight } from "lucide-react";
+import { Play, Pause, Film, Clock, ChevronRight, Image as ImageIcon, Video } from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -42,14 +42,28 @@ export function ScreenPlaybackCard({ data }: Props) {
   const isOnline = data.status === "ONLINE";
   const np = data.nowPlaying;
 
+  const PLAYABLE = new Set(["ACTIVE", "PUBLISHED", "APPROVED", "DRAFT"]);
+  const PLAYABLE_CAMPAIGN = new Set(["ACTIVE", "APPROVED", "DRAFT"]);
+
+  /* Ad currently playing — find matching ad with its mediaUrl */
+  const nowPlayingAd = np
+    ? (() => {
+        for (const sc of data.campaigns) {
+          const ad = sc.campaign.ads.find((a) => a.id === np.adId);
+          if (ad) return ad;
+        }
+        return null;
+      })()
+    : null;
+
   /* Next up — first ad from the highest-priority campaign that isn't currently playing */
   const nextAd = (() => {
     for (const sc of data.campaigns) {
-      if (!sc.isActive || sc.campaign.status !== "ACTIVE") continue;
+      if (!sc.isActive || !PLAYABLE_CAMPAIGN.has(sc.campaign.status)) continue;
       const ad = sc.campaign.ads.find(
-        (a) => ["ACTIVE", "PUBLISHED"].includes(a.status) && (!np || a.id !== np.adId),
+        (a) => PLAYABLE.has(a.status) && (!np || a.id !== np.adId) && !!a.mediaUrl,
       );
-      if (ad) return { title: ad.title, campaignName: sc.campaign.name, duration: ad.duration };
+      if (ad) return { title: ad.title, campaignName: sc.campaign.name, duration: ad.duration, mediaUrl: ad.mediaUrl };
     }
     return null;
   })();
@@ -75,38 +89,80 @@ export function ScreenPlaybackCard({ data }: Props) {
         ) : (
           <>
             {/* Now playing */}
-            <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#B8EB23]/[0.08] via-white/[0.02] to-transparent border border-[#B8EB23]/15 p-4">
+            <div className="relative overflow-hidden rounded-xl border border-[#B8EB23]/15 bg-[#080808]">
               {/* Scan line animation */}
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#B8EB23]/40 to-transparent animate-[scan_3s_linear_infinite]" />
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#B8EB23]/40 to-transparent animate-[scan_3s_linear_infinite] z-10" />
 
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#B8EB23]/10 flex items-center justify-center flex-shrink-0">
-                  <Film className="w-4 h-4 text-[#B8EB23]" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#B8EB23]/60">
-                      {np.source === "schedule" ? "Programado" : "Campaña"} · En curso
-                    </span>
+              {/* Media preview */}
+              {nowPlayingAd?.mediaUrl ? (
+                <div className="relative w-full aspect-video overflow-hidden">
+                  {nowPlayingAd.format === "VIDEO" ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                      <video
+                        src={nowPlayingAd.mediaUrl}
+                        className="w-full h-full object-cover opacity-70"
+                        muted
+                        playsInline
+                        preload="metadata"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-full bg-black/60 flex items-center justify-center">
+                          <Video className="w-4 h-4 text-white/70" />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={nowPlayingAd.mediaUrl}
+                      alt={np.title}
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                  {/* Overlay with info */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-3">
+                    <div className="flex items-end justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#B8EB23]/70 mb-0.5">
+                          {np.source === "schedule" ? "Programado" : "Campaña"} · En curso
+                        </p>
+                        <p className="text-sm font-bold text-white truncate">{np.title}</p>
+                        <p className="text-[11px] text-white/50 truncate">{np.campaignName}</p>
+                      </div>
+                      <div className="flex-shrink-0 text-right">
+                        <p className="text-xs font-mono text-white/60">{np.duration}s</p>
+                        <StatusBadge status="ACTIVE" size="sm" />
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-sm font-bold text-white truncate">{np.title}</p>
-                  <p className="text-[11px] text-white/45 mt-0.5 truncate">{np.campaignName}</p>
                 </div>
-                <div className="flex-shrink-0 text-right">
-                  <p className="text-xs font-mono text-white/50">{np.duration}s</p>
-                  <StatusBadge status="ACTIVE" size="sm" />
+              ) : (
+                <div className="p-4 bg-gradient-to-br from-[#B8EB23]/[0.08] via-white/[0.02] to-transparent">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#B8EB23]/10 flex items-center justify-center flex-shrink-0">
+                      <Film className="w-4 h-4 text-[#B8EB23]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#B8EB23]/60">
+                        {np.source === "schedule" ? "Programado" : "Campaña"} · En curso
+                      </span>
+                      <p className="text-sm font-bold text-white truncate">{np.title}</p>
+                      <p className="text-[11px] text-white/45 mt-0.5 truncate">{np.campaignName}</p>
+                    </div>
+                    <div className="flex-shrink-0 text-right">
+                      <p className="text-xs font-mono text-white/50">{np.duration}s</p>
+                      <StatusBadge status="ACTIVE" size="sm" />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Duration bar (decorative, cycles every `duration` seconds) */}
-              <div className="mt-3 h-1 rounded-full bg-white/[0.06] overflow-hidden">
+              {/* Progress bar */}
+              <div className="h-1 bg-white/[0.06]">
                 <div
-                  className="h-full bg-[#B8EB23] rounded-full"
-                  style={{
-                    width: "60%",
-                    transition: "width linear",
-                    background: "linear-gradient(to right, #B8EB23, #D4F564)",
-                  }}
+                  className="h-full rounded-full"
+                  style={{ width: "60%", background: "linear-gradient(to right, #B8EB23, #D4F564)" }}
                 />
               </div>
             </div>
@@ -127,12 +183,19 @@ export function ScreenPlaybackCard({ data }: Props) {
 
         {/* Next up */}
         {nextAd && (
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-            <div className="flex-shrink-0">
-              <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-white/30">
-                Próximo
-              </span>
-            </div>
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] overflow-hidden">
+            {nextAd.mediaUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={nextAd.mediaUrl}
+                alt={nextAd.title}
+                className="w-12 h-8 object-cover rounded-md flex-shrink-0"
+              />
+            ) : (
+              <div className="w-12 h-8 rounded-md bg-white/[0.06] flex items-center justify-center flex-shrink-0">
+                <ImageIcon className="w-3 h-3 text-white/20" />
+              </div>
+            )}
             <ChevronRight className="w-3 h-3 text-white/20 flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-[12px] font-medium text-white/70 truncate">{nextAd.title}</p>

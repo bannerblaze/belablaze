@@ -12,7 +12,27 @@ import { db } from "@/lib/db";
  *   1. AdSchedule — time-windowed ads (specific ad → specific screen)
  *   2. ScreenCampaign — campaign-level assignments (all active ads in
  *      a campaign play on an assigned screen)
+ *
+ * Playable statuses (intentionally broad — content is ready when it
+ * has media and has not been rejected/paused/cancelled):
+ *   Campaigns: ACTIVE | APPROVED | DRAFT
+ *   Ads:       ACTIVE | PUBLISHED | APPROVED | DRAFT
  * ────────────────────────────────────────────────────────────────────── */
+
+const R2_BASE = (process.env.R2_PUBLIC_URL ?? "").replace(/\/$/, "");
+
+/** Ensures the URL is absolute. Falls back to storageKey + R2_BASE. */
+function resolveUrl(
+  url: string | null | undefined,
+  storageKey: string | null | undefined,
+): string | null {
+  if (url?.startsWith("http://") || url?.startsWith("https://")) return url;
+  if (storageKey && R2_BASE) return `${R2_BASE}/${storageKey}`;
+  return url ?? null;
+}
+
+const PLAYABLE_CAMPAIGN_STATUSES = ["ACTIVE", "APPROVED", "DRAFT"] as const;
+const PLAYABLE_AD_STATUSES        = ["ACTIVE", "PUBLISHED", "APPROVED", "DRAFT"] as const;
 
 export type PlayerScreen = {
   id: string;
@@ -55,8 +75,6 @@ export async function getPlayerScreen(playerKey: string): Promise<PlayerScreen |
 
 /**
  * Source 1: ads via AdSchedule (time-windowed, specific ad → screen).
- * daysOfWeek uses JS convention: 0 = Sunday … 6 = Saturday.
- * Overnight spans (startTime > endTime) are not supported.
  */
 async function getAdScheduleItems(screenId: string, now: Date): Promise<PlaylistItem[]> {
   const dayOfWeek = now.getDay();
@@ -72,9 +90,9 @@ async function getAdScheduleItems(screenId: string, now: Date): Promise<Playlist
       startTime:  { lte: timeStr },
       endTime:    { gte: timeStr },
       ad: {
-        status: { in: ["ACTIVE", "PUBLISHED"] },
+        status: { in: [...PLAYABLE_AD_STATUSES] },
         campaign: {
-          status:    "ACTIVE",
+          status:    { in: [...PLAYABLE_CAMPAIGN_STATUSES] },
           startDate: { lte: now },
           endDate:   { gte: now },
         },
@@ -84,7 +102,7 @@ async function getAdScheduleItems(screenId: string, now: Date): Promise<Playlist
       ad: {
         include: {
           mediaAsset: {
-            select: { url: true, type: true, mimeType: true, duration: true },
+            select: { url: true, storageKey: true, type: true, mimeType: true, duration: true },
           },
         },
       },
@@ -94,16 +112,16 @@ async function getAdScheduleItems(screenId: string, now: Date): Promise<Playlist
 
   const items: PlaylistItem[] = [];
   for (const s of schedules) {
-    const url = s.ad.mediaAsset?.url ?? s.ad.fileUrl ?? null;
+    const url = resolveUrl(s.ad.mediaAsset?.url, s.ad.mediaAsset?.storageKey) ?? s.ad.fileUrl ?? null;
     if (!url) continue;
     items.push({
-      adId:      s.ad.id,
+      adId:       s.ad.id,
       scheduleId: s.id,
-      title:     s.ad.title,
+      title:      s.ad.title,
       url,
-      format:    isVideoAd(s.ad) ? "VIDEO" : "IMAGE",
-      mimeType:  s.ad.mediaAsset?.mimeType ?? null,
-      duration:  s.ad.duration,
+      format:     isVideoAd(s.ad) ? "VIDEO" : "IMAGE",
+      mimeType:   s.ad.mediaAsset?.mimeType ?? null,
+      duration:   s.ad.duration,
     });
   }
   return items;
@@ -111,9 +129,6 @@ async function getAdScheduleItems(screenId: string, now: Date): Promise<Playlist
 
 /**
  * Source 2: ads via ScreenCampaign (campaign-level assignment).
- * All active ads in an assigned campaign play on the screen.
- * Sorted by ScreenCampaign.priority DESC so higher-priority campaigns
- * appear first in the playlist.
  */
 async function getScreenCampaignItems(screenId: string, now: Date): Promise<PlaylistItem[]> {
   const assignments = await db.screenCampaign.findMany({
@@ -123,7 +138,7 @@ async function getScreenCampaignItems(screenId: string, now: Date): Promise<Play
       OR: [{ startsAt: null }, { startsAt: { lte: now } }],
       AND: [{ OR: [{ endsAt: null }, { endsAt: { gte: now } }] }],
       campaign: {
-        status:    "ACTIVE",
+        status:    { in: [...PLAYABLE_CAMPAIGN_STATUSES] },
         startDate: { lte: now },
         endDate:   { gte: now },
       },
@@ -132,10 +147,10 @@ async function getScreenCampaignItems(screenId: string, now: Date): Promise<Play
       campaign: {
         include: {
           ads: {
-            where: { status: { in: ["ACTIVE", "PUBLISHED"] } },
+            where: { status: { in: [...PLAYABLE_AD_STATUSES] } },
             include: {
               mediaAsset: {
-                select: { url: true, type: true, mimeType: true, duration: true },
+                select: { url: true, storageKey: true, type: true, mimeType: true, duration: true },
               },
             },
             orderBy: { createdAt: "asc" },
@@ -149,7 +164,7 @@ async function getScreenCampaignItems(screenId: string, now: Date): Promise<Play
   const items: PlaylistItem[] = [];
   for (const assignment of assignments) {
     for (const ad of assignment.campaign.ads) {
-      const url = ad.mediaAsset?.url ?? ad.fileUrl ?? null;
+      const url = resolveUrl(ad.mediaAsset?.url, ad.mediaAsset?.storageKey) ?? ad.fileUrl ?? null;
       if (!url) continue;
       items.push({
         adId:       ad.id,

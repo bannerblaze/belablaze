@@ -21,7 +21,7 @@ export async function getScreenWithFullData(screenId: string, organizationId: st
               ads: {
                 include: {
                   mediaAsset: {
-                    select: { url: true, type: true, mimeType: true },
+                    select: { url: true, storageKey: true, type: true, mimeType: true },
                   },
                 },
                 orderBy: { createdAt: "asc" },

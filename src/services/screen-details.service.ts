@@ -7,6 +7,20 @@ import {
   getScreenImpressionsTotal,
 } from "@/server/repositories/screen-details.repository";
 
+const R2_BASE = (process.env.R2_PUBLIC_URL ?? "").replace(/\/$/, "");
+
+function resolveMediaUrl(
+  url: string | null | undefined,
+  storageKey: string | null | undefined,
+): string | null {
+  if (url?.startsWith("http://") || url?.startsWith("https://")) return url;
+  if (storageKey && R2_BASE) return `${R2_BASE}/${storageKey}`;
+  return url ?? null;
+}
+
+const PLAYABLE_CAMPAIGN_STATUSES = new Set(["ACTIVE", "APPROVED", "DRAFT"]);
+const PLAYABLE_AD_STATUSES        = new Set(["ACTIVE", "PUBLISHED", "APPROVED", "DRAFT"]);
+
 /* ──────────────────────────────────────────────────────────────────────
  * Public types — safe to pass across the server/client boundary.
  * All Date fields serialized to ISO strings.
@@ -19,6 +33,7 @@ export type AdItem = {
   format: string;
   duration: number;
   mediaUrl: string | null;
+  storageKey: string | null;
 };
 
 export type AssignedCampaign = {
@@ -128,8 +143,8 @@ function computeNowPlaying(
       s.daysOfWeek.includes(dayOfWeek) &&
       s.startTime <= timeStr &&
       s.endTime >= timeStr &&
-      ["ACTIVE", "PUBLISHED"].includes(s.ad.status) &&
-      s.ad.campaign.status === "ACTIVE",
+      PLAYABLE_AD_STATUSES.has(s.ad.status) &&
+      PLAYABLE_CAMPAIGN_STATUSES.has(s.ad.campaign.status),
   );
 
   if (activeSchedule) {
@@ -145,13 +160,11 @@ function computeNowPlaying(
   /* Fall back to highest-priority ScreenCampaign assignment */
   for (const sc of campaigns) {
     if (!sc.isActive) continue;
-    if (sc.campaign.status !== "ACTIVE") continue;
+    if (!PLAYABLE_CAMPAIGN_STATUSES.has(sc.campaign.status)) continue;
     if (sc.startsAt && new Date(sc.startsAt) > now) continue;
     if (sc.endsAt && new Date(sc.endsAt) < now) continue;
 
-    const ad = sc.campaign.ads.find((a) =>
-      ["ACTIVE", "PUBLISHED"].includes(a.status),
-    );
+    const ad = sc.campaign.ads.find((a) => PLAYABLE_AD_STATUSES.has(a.status));
     if (ad) {
       return {
         adId: ad.id,
@@ -174,7 +187,7 @@ function computeMetrics(
   const activeCampaigns = campaigns.filter(
     (sc) =>
       sc.isActive &&
-      sc.campaign.status === "ACTIVE" &&
+      PLAYABLE_CAMPAIGN_STATUSES.has(sc.campaign.status) &&
       (!sc.startsAt || new Date(sc.startsAt) <= now) &&
       (!sc.endsAt || new Date(sc.endsAt) >= now),
   ).length;
@@ -183,9 +196,7 @@ function computeMetrics(
   let activeAds = 0;
   for (const sc of campaigns) {
     totalAds += sc.campaign.ads.length;
-    activeAds += sc.campaign.ads.filter((a) =>
-      ["ACTIVE", "PUBLISHED"].includes(a.status),
-    ).length;
+    activeAds += sc.campaign.ads.filter((a) => PLAYABLE_AD_STATUSES.has(a.status)).length;
   }
 
   return { activeCampaigns, totalAds, activeAds, impressionsTotal };
@@ -221,12 +232,13 @@ export async function getScreenDetails(screenId: string): Promise<ScreenDetailDa
       endDate:   sc.campaign.endDate.toISOString(),
       client:    sc.campaign.client,
       ads: sc.campaign.ads.map((ad) => ({
-        id:       ad.id,
-        title:    ad.title,
-        status:   ad.status,
-        format:   ad.format,
-        duration: ad.duration,
-        mediaUrl: ad.mediaAsset?.url ?? ad.fileUrl ?? null,
+        id:         ad.id,
+        title:      ad.title,
+        status:     ad.status,
+        format:     ad.format,
+        duration:   ad.duration,
+        mediaUrl:   resolveMediaUrl(ad.mediaAsset?.url, ad.mediaAsset?.storageKey) ?? ad.fileUrl ?? null,
+        storageKey: ad.mediaAsset?.storageKey ?? null,
       })),
     },
   }));
