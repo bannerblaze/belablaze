@@ -2,6 +2,14 @@ import "server-only";
 import { db } from "@/lib/db";
 import { isPlatformStaffSession } from "@/lib/access";
 
+const R2_BASE = (process.env.R2_PUBLIC_URL ?? "").replace(/\/$/, "");
+
+function resolveUrl(url: string | null | undefined, storageKey: string | null | undefined): string | null {
+  if (url?.startsWith("http://") || url?.startsWith("https://")) return url;
+  if (storageKey && R2_BASE) return `${R2_BASE}/${storageKey}`;
+  return url ?? null;
+}
+
 /* ──────────────────────────────────────────────────────────────────────
  * Admin approvals service — INTERNAL-only.
  *
@@ -84,6 +92,9 @@ const AD_SELECT = {
   publishedAt: true,
   createdAt: true,
   updatedAt: true,
+  mediaAsset: {
+    select: { url: true, storageKey: true, mimeType: true, type: true },
+  },
   campaign: {
     select: {
       id: true,
@@ -107,6 +118,7 @@ function serializeAd(a: {
   rejectionNote: string | null; startDate: Date | null; endDate: Date | null;
   submittedAt: Date | null; reviewedAt: Date | null; reviewedBy: string | null;
   publishedAt: Date | null; createdAt: Date; updatedAt: Date;
+  mediaAsset: { url: string; storageKey: string; mimeType: string; type: string } | null;
   campaign: {
     id: string; name: string;
     organization: {
@@ -115,15 +127,27 @@ function serializeAd(a: {
     } | null;
   } | null;
 }): ModerationAd {
+  // Resolve preview URL: dedicated thumbnailUrl → mediaAsset.url (R2-resolved) → fileUrl
+  const previewUrl =
+    resolveUrl(a.thumbnailUrl, null) ??
+    resolveUrl(a.mediaAsset?.url, a.mediaAsset?.storageKey) ??
+    resolveUrl(a.fileUrl, null);
+
+  // Infer format from mediaAsset mime if the ad.format is generic
+  const format =
+    a.mediaAsset?.mimeType?.startsWith("video/") ? "VIDEO" :
+    a.mediaAsset?.mimeType?.startsWith("image/") ? "IMAGE" :
+    a.format;
+
   return {
     id: a.id,
     title: a.title,
     description: a.description,
     status: a.status,
-    format: a.format,
+    format,
     duration: a.duration,
-    fileUrl: a.fileUrl,
-    thumbnailUrl: a.thumbnailUrl,
+    fileUrl: resolveUrl(a.fileUrl, null) ?? resolveUrl(a.mediaAsset?.url, a.mediaAsset?.storageKey),
+    thumbnailUrl: previewUrl,
     ctaText: a.ctaText,
     ctaUrl: a.ctaUrl,
     qrEnabled: a.qrEnabled,

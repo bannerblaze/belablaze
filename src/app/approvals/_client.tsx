@@ -208,25 +208,42 @@ function AdRow({
             transition={{ duration: 0.2 }}
           >
             <div className="border-t border-white/[0.05] p-4 space-y-4">
-              {/* Media preview placeholder */}
-              <div className="rounded-xl bg-[#080808] border border-white/[0.06] h-28 flex items-center justify-center overflow-hidden relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent" />
+              {/* Media preview */}
+              <div className="rounded-xl bg-[#080808] border border-white/[0.06] overflow-hidden relative" style={{ minHeight: "7rem" }}>
                 {ad.thumbnailUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={ad.thumbnailUrl}
-                    alt={ad.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="relative z-10 text-center">
-                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-1.5", iconBg)}>
-                      {FORMAT_ICONS[ad.format]}
-                    </div>
-                    <p className="text-[11px] text-white/30">Preview no disponible</p>
+                  ad.format === "VIDEO" ? (
+                    <video
+                      src={ad.thumbnailUrl}
+                      className="w-full max-h-64 object-contain bg-black"
+                      controls
+                      preload="metadata"
+                      playsInline
+                      muted
+                    />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={ad.thumbnailUrl}
+                      alt={ad.title}
+                      className="w-full max-h-64 object-contain bg-black"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = "none";
+                        (e.currentTarget.nextElementSibling as HTMLElement | null)?.style.setProperty("display", "flex");
+                      }}
+                    />
+                  )
+                ) : null}
+                {/* Fallback — shown when no URL or image load fails */}
+                <div
+                  className="flex flex-col items-center justify-center h-28 text-center"
+                  style={{ display: ad.thumbnailUrl ? "none" : "flex" }}
+                >
+                  <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-1.5", iconBg)}>
+                    {FORMAT_ICONS[ad.format]}
                   </div>
-                )}
-                <div className="absolute top-2 left-2 flex items-center gap-1.5">
+                  <p className="text-[11px] text-white/30">Preview no disponible</p>
+                </div>
+                <div className="absolute top-2 left-2 flex items-center gap-1.5 pointer-events-none">
                   <span className="text-[10px] font-mono bg-black/70 text-white/50 px-1.5 py-0.5 rounded-md">
                     {ad.duration}s
                   </span>
