@@ -91,11 +91,9 @@ async function getAdScheduleItems(screenId: string, now: Date): Promise<Playlist
       endTime:    { gte: timeStr },
       ad: {
         status: { in: [...PLAYABLE_AD_STATUSES] },
-        campaign: {
-          status:    { in: [...PLAYABLE_CAMPAIGN_STATUSES] },
-          startDate: { lte: now },
-          endDate:   { gte: now },
-        },
+        // Campaign date window is NOT enforced here — AdSchedule itself is
+        // the time-window mechanism for scheduled ads.
+        campaign: { status: { in: [...PLAYABLE_CAMPAIGN_STATUSES] } },
       },
     },
     include: {
@@ -113,7 +111,7 @@ async function getAdScheduleItems(screenId: string, now: Date): Promise<Playlist
   const items: PlaylistItem[] = [];
   for (const s of schedules) {
     const url = resolveUrl(s.ad.mediaAsset?.url, s.ad.mediaAsset?.storageKey) ?? s.ad.fileUrl ?? null;
-    if (!url) continue;
+    if (!url) { console.warn(`[PLAYER] AdSchedule ${s.id} skipped — ad "${s.ad.title}" has no media URL`); continue; }
     items.push({
       adId:       s.ad.id,
       scheduleId: s.id,
@@ -124,6 +122,7 @@ async function getAdScheduleItems(screenId: string, now: Date): Promise<Playlist
       duration:   s.ad.duration,
     });
   }
+  console.log(`[PLAYER] ADS_FOUND (AdSchedule): ${items.length}`);
   return items;
 }
 
@@ -135,13 +134,11 @@ async function getScreenCampaignItems(screenId: string, now: Date): Promise<Play
     where: {
       screenId,
       isActive: true,
+      // ScreenCampaign.startsAt/endsAt is the playback date window.
+      // Campaign.startDate/endDate is for billing/tracking — not playback gating.
       OR: [{ startsAt: null }, { startsAt: { lte: now } }],
       AND: [{ OR: [{ endsAt: null }, { endsAt: { gte: now } }] }],
-      campaign: {
-        status:    { in: [...PLAYABLE_CAMPAIGN_STATUSES] },
-        startDate: { lte: now },
-        endDate:   { gte: now },
-      },
+      campaign: { status: { in: [...PLAYABLE_CAMPAIGN_STATUSES] } },
     },
     include: {
       campaign: {
@@ -161,11 +158,13 @@ async function getScreenCampaignItems(screenId: string, now: Date): Promise<Play
     orderBy: { priority: "desc" },
   });
 
+  console.log(`[PLAYER] ScreenCampaign assignments found: ${assignments.length}`);
   const items: PlaylistItem[] = [];
   for (const assignment of assignments) {
+    console.log(`[PLAYER]   Campaign "${assignment.campaign.name}" status=${assignment.campaign.status} ads=${assignment.campaign.ads.length}`);
     for (const ad of assignment.campaign.ads) {
       const url = resolveUrl(ad.mediaAsset?.url, ad.mediaAsset?.storageKey) ?? ad.fileUrl ?? null;
-      if (!url) continue;
+      if (!url) { console.warn(`[PLAYER]     Ad "${ad.title}" skipped — no media URL`); continue; }
       items.push({
         adId:       ad.id,
         scheduleId: assignment.id,
@@ -177,6 +176,7 @@ async function getScreenCampaignItems(screenId: string, now: Date): Promise<Play
       });
     }
   }
+  console.log(`[PLAYER] ADS_FOUND (ScreenCampaign): ${items.length}`);
   return items;
 }
 
@@ -200,6 +200,11 @@ export async function getActivePlaylist(screenId: string): Promise<PlaylistItem[
     getScreenCampaignItems(screenId, now),
   ]);
 
+  console.log(`[PLAYER] screenId=${screenId} scheduleItems=${scheduleItems.length} campaignItems=${campaignItems.length}`);
+  if (campaignItems.length === 0 && scheduleItems.length === 0) {
+    console.warn("[PLAYER] EMPTY PLAYLIST — no ads found. Possible causes: no active ScreenCampaign, no playable-status campaigns, or ads have no media URL.");
+  }
+
   // Merge and deduplicate by adId — AdSchedule takes precedence
   const seen = new Set<string>();
   const playlist: PlaylistItem[] = [];
@@ -211,6 +216,7 @@ export async function getActivePlaylist(screenId: string): Promise<PlaylistItem[
     }
   }
 
+  console.log("PLAYER_PLAYLIST", playlist.map((p) => ({ adId: p.adId, title: p.title, format: p.format, url: p.url, duration: p.duration })));
   return playlist;
 }
 
