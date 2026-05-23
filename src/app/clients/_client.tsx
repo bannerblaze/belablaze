@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import { deleteClient, getClientDetail } from "@/actions/clients";
 import type { ClientDetail } from "@/actions/clients";
+import type { AdminOrgUser, AdminCreatorUser } from "@/services/admin/users.service";
 
 type ClientRow = {
   id: string;
@@ -34,6 +35,8 @@ type ClientRow = {
 
 interface Props {
   clients: ClientRow[];
+  platformOrgs: AdminOrgUser[] | null;
+  platformCreators: AdminCreatorUser[] | null;
 }
 
 function fmtDate(iso: string) {
@@ -444,7 +447,7 @@ function ActivityTab({ logs }: { logs: ClientDetail["auditLogs"] }) {
 
 /* ─── Main List ───────────────────────────────────────────────────────── */
 
-export function ClientsClient({ clients }: Props) {
+export function ClientsClient({ clients, platformOrgs, platformCreators }: Props) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -652,6 +655,283 @@ export function ClientsClient({ clients }: Props) {
           />
         )}
       </AnimatePresence>
+
+      {/* Platform accounts — visible only to BannerBlaze staff */}
+      {(platformOrgs !== null || platformCreators !== null) && (
+        <PlatformAccountsSection
+          orgs={platformOrgs ?? []}
+          creators={platformCreators ?? []}
+        />
+      )}
     </>
+  );
+}
+
+/* ─── Platform Accounts Section ──────────────────────────────────────── */
+
+const STATUS_VARIANTS: Record<string, "success" | "warning" | "danger" | "brand" | "outline"> = {
+  ACTIVE: "success",
+  NEW: "brand",
+  INACTIVE: "outline",
+  SUSPENDED: "danger",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  ACTIVE: "Activa",
+  NEW: "Nueva",
+  INACTIVE: "Inactiva",
+  SUSPENDED: "Suspendida",
+};
+
+function PlatformAccountsSection({
+  orgs,
+  creators,
+}: {
+  orgs: AdminOrgUser[];
+  creators: AdminCreatorUser[];
+}) {
+  const [query, setQuery] = useState("");
+  const [tab, setTab] = useState<"orgs" | "creators">("orgs");
+
+  const filteredOrgs = orgs.filter((o) => {
+    if (!query) return true;
+    const q = query.toLowerCase();
+    return (
+      o.orgName.toLowerCase().includes(q) ||
+      o.ownerEmail.toLowerCase().includes(q) ||
+      o.ownerName.toLowerCase().includes(q) ||
+      o.industry?.toLowerCase().includes(q)
+    );
+  });
+
+  const filteredCreators = creators.filter((c) => {
+    if (!query) return true;
+    const q = query.toLowerCase();
+    return (
+      c.displayName.toLowerCase().includes(q) ||
+      c.email.toLowerCase().includes(q) ||
+      c.category?.toLowerCase().includes(q) ||
+      c.city?.toLowerCase().includes(q)
+    );
+  });
+
+  const active = tab === "orgs" ? filteredOrgs.length : filteredCreators.length;
+
+  return (
+    <div className="px-4 sm:px-6 lg:px-8 pb-8 max-w-[1200px]">
+      {/* Section divider */}
+      <div className="flex items-center gap-3 mb-5">
+        <div className="flex-1 h-px bg-white/[0.06]" />
+        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#B8EB23]/[0.06] border border-[#B8EB23]/15">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#B8EB23]" />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[#B8EB23]/70">
+            Solo administrador
+          </span>
+        </div>
+        <div className="flex-1 h-px bg-white/[0.06]" />
+      </div>
+
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
+        <div>
+          <h2 className="text-base font-bold text-white tracking-tight">Cuentas en BelaBlaze</h2>
+          <p className="text-xs text-white/40 mt-0.5">
+            {orgs.length} organización{orgs.length !== 1 ? "es" : ""} ·{" "}
+            {creators.length} creador{creators.length !== 1 ? "es" : ""}
+          </p>
+        </div>
+
+        {/* Search */}
+        <div className="relative w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30 pointer-events-none" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar cuenta..."
+            className="w-full h-9 pl-9 pr-9 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/[0.12] transition-all"
+          />
+          {query && (
+            <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 mb-3">
+        {([
+          { key: "orgs", label: `Organizaciones (${orgs.length})` },
+          { key: "creators", label: `Creadores (${creators.length})` },
+        ] as const).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={cn(
+              "px-3 py-1.5 text-xs font-medium rounded-lg transition-all",
+              tab === key
+                ? "bg-[#B8EB23]/10 text-[#B8EB23] border border-[#B8EB23]/20"
+                : "text-white/40 hover:text-white/70 hover:bg-white/[0.04]",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* List */}
+      {active === 0 ? (
+        <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] py-10 text-center">
+          <p className="text-sm text-white/30">
+            {query ? `Sin resultados para "${query}"` : "Sin cuentas registradas"}
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-2xl bg-white/[0.02] border border-white/[0.06] overflow-hidden">
+          {/* Table header */}
+          <div className="hidden md:grid grid-cols-[2fr_1.5fr_90px_90px_80px_80px] gap-3 px-4 py-2.5 border-b border-white/[0.05] bg-white/[0.01]">
+            {["Cuenta", "Contacto", "Estado", "Tipo", "Campañas", "Último acceso"].map((h) => (
+              <span key={h} className="text-[10px] font-bold uppercase tracking-widest text-white/25">{h}</span>
+            ))}
+          </div>
+
+          <div className="divide-y divide-white/[0.04]">
+            {tab === "orgs"
+              ? filteredOrgs.map((o, i) => (
+                  <OrgRow key={o.orgId} org={o} index={i} />
+                ))
+              : filteredCreators.map((c, i) => (
+                  <CreatorRow key={c.userId} creator={c} index={i} />
+                ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OrgRow({ org, index }: { org: AdminOrgUser; index: number }) {
+  const lastLogin = org.lastLoginAt
+    ? new Date(org.lastLoginAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short" })
+    : "—";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: index * 0.02 }}
+      className="group grid grid-cols-1 md:grid-cols-[2fr_1.5fr_90px_90px_80px_80px] gap-3 items-center px-4 py-3.5 hover:bg-white/[0.02] transition-all"
+    >
+      {/* Name */}
+      <div className="flex items-center gap-3 min-w-0">
+        <Initials name={org.orgName} />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-white/85 truncate">{org.orgName}</p>
+          {org.industry && <p className="text-[11px] text-white/35 truncate">{org.industry}</p>}
+        </div>
+      </div>
+
+      {/* Contact */}
+      <div className="hidden md:block min-w-0">
+        <p className="text-[12px] text-white/55 truncate">{org.ownerEmail}</p>
+        <p className="text-[11px] text-white/30 truncate">{org.ownerName}</p>
+      </div>
+
+      {/* Status */}
+      <div className="hidden md:flex">
+        <Badge variant={STATUS_VARIANTS[org.status] ?? "outline"} size="sm">
+          {STATUS_LABELS[org.status] ?? org.status}
+        </Badge>
+      </div>
+
+      {/* Type */}
+      <div className="hidden md:flex">
+        <Badge variant="info" size="sm">Empresa</Badge>
+      </div>
+
+      {/* Campaigns */}
+      <div className="hidden md:flex items-center gap-1.5 text-[12px] text-white/40">
+        <BarChart2 className="w-3 h-3" />
+        {org.campaignCount}
+      </div>
+
+      {/* Last login */}
+      <div className="hidden md:block text-[11px] text-white/30 font-mono">{lastLogin}</div>
+
+      {/* Mobile summary */}
+      <div className="flex items-center justify-between gap-2 md:hidden">
+        <div className="flex items-center gap-2">
+          <Badge variant={STATUS_VARIANTS[org.status] ?? "outline"} size="sm">
+            {STATUS_LABELS[org.status] ?? org.status}
+          </Badge>
+          <span className="text-[11px] text-white/35">{org.ownerEmail}</span>
+        </div>
+        <span className="text-[11px] text-white/25">{org.campaignCount} camp.</span>
+      </div>
+    </motion.div>
+  );
+}
+
+function CreatorRow({ creator, index }: { creator: AdminCreatorUser; index: number }) {
+  const lastLogin = creator.lastLoginAt
+    ? new Date(creator.lastLoginAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short" })
+    : "—";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: index * 0.02 }}
+      className="group grid grid-cols-1 md:grid-cols-[2fr_1.5fr_90px_90px_80px_80px] gap-3 items-center px-4 py-3.5 hover:bg-white/[0.02] transition-all"
+    >
+      {/* Name */}
+      <div className="flex items-center gap-3 min-w-0">
+        <Initials name={creator.displayName} />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-white/85 truncate">{creator.displayName}</p>
+          {creator.category && <p className="text-[11px] text-white/35 truncate">{creator.category}</p>}
+          {creator.city && <p className="text-[11px] text-white/25 truncate">{creator.city}</p>}
+        </div>
+      </div>
+
+      {/* Contact */}
+      <div className="hidden md:block min-w-0">
+        <p className="text-[12px] text-white/55 truncate">{creator.email}</p>
+        <p className="text-[11px] text-white/30 truncate">{creator.country}</p>
+      </div>
+
+      {/* Status */}
+      <div className="hidden md:flex">
+        <Badge variant={STATUS_VARIANTS[creator.status] ?? "outline"} size="sm">
+          {STATUS_LABELS[creator.status] ?? creator.status}
+        </Badge>
+      </div>
+
+      {/* Type */}
+      <div className="hidden md:flex">
+        <Badge variant="brand" size="sm">Creador</Badge>
+      </div>
+
+      {/* Campaigns */}
+      <div className="hidden md:flex items-center gap-1.5 text-[12px] text-white/40">
+        <BarChart2 className="w-3 h-3" />
+        {creator.campaignCount}
+      </div>
+
+      {/* Last login */}
+      <div className="hidden md:block text-[11px] text-white/30 font-mono">{lastLogin}</div>
+
+      {/* Mobile summary */}
+      <div className="flex items-center justify-between gap-2 md:hidden">
+        <div className="flex items-center gap-2">
+          <Badge variant={STATUS_VARIANTS[creator.status] ?? "outline"} size="sm">
+            {STATUS_LABELS[creator.status] ?? creator.status}
+          </Badge>
+          <span className="text-[11px] text-white/35">{creator.email}</span>
+        </div>
+        <span className="text-[11px] text-white/25">{creator.campaignCount} camp.</span>
+      </div>
+    </motion.div>
   );
 }
