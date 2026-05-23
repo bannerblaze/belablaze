@@ -14,6 +14,15 @@ const nextConfig: NextConfig = {
     "@aws-sdk/s3-request-presigner",
     "@smithy/node-http-handler",
   ],
+
+  images: {
+    remotePatterns: [
+      // Cloudflare R2 default public-bucket domains
+      { protocol: "https", hostname: "**.r2.dev" },
+      // Cloudflare R2 custom-domain CDN (e.g. cdn.bannerblaze.com)
+      { protocol: "https", hostname: "**.bannerblaze.com" },
+    ],
+  },
 };
 
 export default nextConfig;
