@@ -31,6 +31,8 @@ enum UserStatus {
 enum CampaignStatus {
   DRAFT
   PENDING_APPROVAL
+  APPROVED
+  REJECTED
   ACTIVE
   PAUSED
   COMPLETED

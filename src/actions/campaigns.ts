@@ -2,13 +2,11 @@
 
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { requireOrgContext } from "@/lib/org-context";
+import { getRole } from "@/lib/auth";
 import { logAudit } from "@/actions/audit";
 
-/* Tenant-scoped campaign mutations. Each action resolves the active
- * org via requireOrgContext() (caller is by definition the owner)
- * and writes through with an audit-log entry. */
+const ADMIN_ROLES = new Set(["ADMIN", "EXECUTIVE"] as const);
 
 async function loadOrgCampaign(orgId: string, campaignId: string) {
   return db.campaign.findFirst({
@@ -19,6 +17,7 @@ async function loadOrgCampaign(orgId: string, campaignId: string) {
 
 export async function createCampaign(formData: FormData) {
   const ctx = await requireOrgContext();
+  const role = await getRole();
 
   const name = formData.get("name") as string;
   const description = formData.get("description") as string;
@@ -32,12 +31,14 @@ export async function createCampaign(formData: FormData) {
     throw new Error("Datos incompletos");
   }
 
-  // Client must belong to the same org — defend against cross-tenant ID guessing.
   const clientOk = await db.client.findFirst({
     where: { id: clientId, organizationId: ctx.organizationId },
     select: { id: true },
   });
   if (!clientOk) throw new Error("Cliente no pertenece a esta organización");
+
+  const isAdmin = role !== null && ADMIN_ROLES.has(role as "ADMIN" | "EXECUTIVE");
+  const status = isAdmin ? "DRAFT" : "PENDING_APPROVAL";
 
   const campaign = await db.campaign.create({
     data: {
@@ -50,15 +51,81 @@ export async function createCampaign(formData: FormData) {
       startDate,
       endDate,
       targetCities,
-      status: "DRAFT",
+      status,
     },
   });
 
-  await logAudit({ action: "campaign.create", entityType: "Campaign", entityId: campaign.id, metadata: { name } });
+  await logAudit({
+    action: "campaign.create",
+    entityType: "Campaign",
+    entityId: campaign.id,
+    metadata: { name, status },
+  });
 
   revalidatePath("/campaigns");
   revalidatePath("/dashboard");
-  redirect(`/campaigns/${campaign.id}`);
+
+  return { id: campaign.id, status };
+}
+
+export async function approveCampaign(campaignId: string) {
+  const ctx = await requireOrgContext();
+  const role = await getRole();
+
+  if (!role || !ADMIN_ROLES.has(role as "ADMIN" | "EXECUTIVE")) {
+    throw new Error("Solo administradores pueden aprobar campañas");
+  }
+
+  const campaign = await loadOrgCampaign(ctx.organizationId, campaignId);
+  if (!campaign) throw new Error("Campaña no encontrada");
+  if (campaign.status !== "PENDING_APPROVAL") throw new Error("La campaña no está pendiente de aprobación");
+
+  await db.campaign.update({
+    where: { id: campaignId },
+    data: { status: "APPROVED" },
+  });
+
+  await logAudit({
+    action: "campaign.approve",
+    entityType: "Campaign",
+    entityId: campaignId,
+    metadata: { from: "PENDING_APPROVAL", to: "APPROVED" },
+  });
+
+  revalidatePath("/approvals");
+  revalidatePath("/campaigns");
+
+  return { success: true };
+}
+
+export async function rejectCampaign(campaignId: string, reason?: string) {
+  const ctx = await requireOrgContext();
+  const role = await getRole();
+
+  if (!role || !ADMIN_ROLES.has(role as "ADMIN" | "EXECUTIVE")) {
+    throw new Error("Solo administradores pueden rechazar campañas");
+  }
+
+  const campaign = await loadOrgCampaign(ctx.organizationId, campaignId);
+  if (!campaign) throw new Error("Campaña no encontrada");
+  if (campaign.status !== "PENDING_APPROVAL") throw new Error("La campaña no está pendiente de aprobación");
+
+  await db.campaign.update({
+    where: { id: campaignId },
+    data: { status: "REJECTED" },
+  });
+
+  await logAudit({
+    action: "campaign.reject",
+    entityType: "Campaign",
+    entityId: campaignId,
+    metadata: { from: "PENDING_APPROVAL", to: "REJECTED", reason: reason ?? "" },
+  });
+
+  revalidatePath("/approvals");
+  revalidatePath("/campaigns");
+
+  return { success: true };
 }
 
 export async function updateCampaignStatus(campaignId: string, status: string) {
@@ -130,5 +197,6 @@ export async function deleteCampaign(campaignId: string) {
 
   revalidatePath("/campaigns");
   revalidatePath("/dashboard");
-  redirect("/campaigns");
+
+  return { success: true, redirect: "/campaigns" };
 }

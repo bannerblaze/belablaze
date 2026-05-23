@@ -1,11 +1,16 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { ApprovalsClient } from "./_client";
+import { CampaignApprovalsClient, type PendingCampaign } from "./_campaign-approvals";
 import {
   getModerationOverview,
   getPendingAds,
   getReviewedAds,
 } from "@/services/admin/approvals.service";
+import { getCurrentUser } from "@/lib/auth";
+import { isPlatformStaff } from "@/lib/platform";
+import { getOrgContext } from "@/lib/org-context";
+import { db } from "@/lib/db";
 
 function ApprovalsSkeleton() {
   return (
@@ -26,25 +31,71 @@ function ApprovalsSkeleton() {
   );
 }
 
+async function fetchPendingCampaigns(): Promise<PendingCampaign[]> {
+  const ctx = await getOrgContext();
+  if (!ctx) return [];
+
+  const rows = await db.campaign.findMany({
+    where: { organizationId: ctx.organizationId, status: "PENDING_APPROVAL" },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      budget: true,
+      startDate: true,
+      endDate: true,
+      createdAt: true,
+      client: { select: { name: true } },
+      user: { select: { name: true, email: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    description: r.description,
+    budget: r.budget,
+    startDate: r.startDate.toISOString(),
+    endDate: r.endDate.toISOString(),
+    createdAt: r.createdAt.toISOString(),
+    client: r.client ? { name: r.client.name } : null,
+    creator: r.user ? { name: r.user.name, email: r.user.email } : null,
+  }));
+}
+
 async function ApprovalsData() {
   await connection();
 
-  const [overview, pending, approved, rejected, published] = await Promise.all([
-    getModerationOverview(),
-    getPendingAds(),
-    getReviewedAds("APPROVED"),
-    getReviewedAds("REJECTED"),
-    getReviewedAds("PUBLISHED"),
-  ]);
+  const user = await getCurrentUser();
+  const isStaff = isPlatformStaff(user);
+  const isOrgAdmin = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
+
+  const [overview, pending, approved, rejected, published, pendingCampaigns] =
+    await Promise.all([
+      isStaff ? getModerationOverview() : Promise.resolve(null),
+      isStaff ? getPendingAds() : Promise.resolve([]),
+      isStaff ? getReviewedAds("APPROVED") : Promise.resolve([]),
+      isStaff ? getReviewedAds("REJECTED") : Promise.resolve([]),
+      isStaff ? getReviewedAds("PUBLISHED") : Promise.resolve([]),
+      isOrgAdmin ? fetchPendingCampaigns() : Promise.resolve([]),
+    ]);
 
   return (
-    <ApprovalsClient
-      overview={overview}
-      initialPending={pending}
-      initialApproved={approved}
-      initialRejected={rejected}
-      initialPublished={published}
-    />
+    <div className="px-4 sm:px-6 lg:px-8 py-5 lg:py-8 space-y-10 max-w-[1200px]">
+      {isOrgAdmin && (
+        <CampaignApprovalsClient initialCampaigns={pendingCampaigns} />
+      )}
+      {isStaff && (
+        <ApprovalsClient
+          overview={overview}
+          initialPending={pending}
+          initialApproved={approved}
+          initialRejected={rejected}
+          initialPublished={published}
+        />
+      )}
+    </div>
   );
 }
 

@@ -22,7 +22,7 @@ export type AuditAction =
   | "user.login" | "user.logout"
   | "org.create" | "org.update" | "org.delete" | "org.switch"
   | "member.invite" | "member.accept" | "member.update_role" | "member.remove" | "member.leave"
-  | "campaign.create" | "campaign.update" | "campaign.delete" | "campaign.approve" | "campaign.pause"
+  | "campaign.create" | "campaign.update" | "campaign.delete" | "campaign.approve" | "campaign.reject" | "campaign.pause"
   | "ad.create" | "ad.update" | "ad.delete" | "ad.approve" | "ad.reject" | "ad.publish"
   | "screen.create" | "screen.update" | "screen.delete"
   | "screen.campaigns.assign" | "screen.campaigns.remove"
