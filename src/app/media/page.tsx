@@ -1,7 +1,10 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireOrgContext } from "@/lib/org-context";
 import { listMedia, getMediaStats } from "@/actions/media";
 import { MediaClient } from "./_client";
+
+export const dynamic = "force-dynamic";
 
 const R2_BASE = (process.env.R2_PUBLIC_URL ?? "").replace(/\/$/, "");
 
@@ -11,6 +14,7 @@ function resolveUrl(url: string, storageKey: string): string {
 }
 
 export default async function MediaPage() {
+  noStore();
   const ctx = await requireOrgContext().catch(() => null);
   if (!ctx) redirect("/onboarding");
 
