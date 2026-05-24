@@ -150,3 +150,65 @@ export async function listSchedules() {
     orderBy: { startDate: "asc" },
   });
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+ * AdSchedule CRUD — time-based slot scheduling for a specific ad on
+ * a specific screen (AdSchedule model, not CampaignSchedule).
+ * ────────────────────────────────────────────────────────────────────── */
+
+export async function createAdSchedule(input: {
+  adId: string;
+  screenId: string;
+  startTime: string;
+  endTime: string;
+  daysOfWeek: number[];
+  frequency?: number;
+}): Promise<Result> {
+  await requireOrgContext();
+
+  if (input.startTime >= input.endTime) {
+    return { ok: false, error: "La hora de inicio debe ser anterior a la hora de fin" };
+  }
+  if (!input.daysOfWeek.length) {
+    return { ok: false, error: "Selecciona al menos un día" };
+  }
+
+  await db.adSchedule.create({
+    data: {
+      adId:       input.adId,
+      screenId:   input.screenId,
+      startTime:  input.startTime,
+      endTime:    input.endTime,
+      daysOfWeek: input.daysOfWeek,
+      frequency:  input.frequency ?? 1,
+      isActive:   true,
+    },
+  });
+
+  revalidatePath(`/screens/${input.screenId}`);
+  return { ok: true };
+}
+
+export async function toggleAdSchedule(id: string, screenId: string): Promise<Result> {
+  await requireOrgContext();
+
+  const schedule = await db.adSchedule.findUnique({ where: { id } });
+  if (!schedule) return { ok: false, error: "Schedule no encontrado" };
+
+  await db.adSchedule.update({
+    where: { id },
+    data: { isActive: !schedule.isActive },
+  });
+
+  revalidatePath(`/screens/${screenId}`);
+  return { ok: true };
+}
+
+export async function deleteAdSchedule(id: string, screenId: string): Promise<Result> {
+  await requireOrgContext();
+
+  await db.adSchedule.delete({ where: { id } });
+
+  revalidatePath(`/screens/${screenId}`);
+  return { ok: true };
+}
