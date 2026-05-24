@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import { Shield, KeyRound, Smartphone } from "lucide-react";
+import { Shield } from "lucide-react";
 import { requireOrgContext } from "@/lib/org-context";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { SettingsShell } from "@/components/settings/settings-shell";
+import { SecurityClient } from "./_client";
 
 export default async function SecurityPage() {
   const ctx = await requireOrgContext().catch(() => null);
@@ -19,24 +19,7 @@ export default async function SecurityPage() {
           <p className="text-xs text-white/40 mt-1">Control de acceso y sesiones de tu cuenta</p>
         </div>
 
-        <Card>
-          <CardHeader title="Autenticación de dos factores" subtitle="Refuerza tu cuenta con códigos temporales" icon={<KeyRound className="w-4 h-4" />} />
-          <CardContent className="pt-3">
-            <p className="text-xs text-white/45 leading-relaxed">
-              La 2FA se gestiona desde Clerk.{" "}
-              <a href="https://accounts.clerk.com/" target="_blank" rel="noreferrer" className="text-[#B8EB23] hover:underline">
-                Abrir panel de Clerk →
-              </a>
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader title="Sesiones activas" subtitle="Dispositivos donde tu cuenta está iniciada" icon={<Smartphone className="w-4 h-4" />} />
-          <CardContent className="pt-3">
-            <p className="text-xs text-white/45 leading-relaxed">Pronto podrás revocar sesiones desde aquí.</p>
-          </CardContent>
-        </Card>
+        <SecurityClient />
       </div>
     </SettingsShell>
   );
