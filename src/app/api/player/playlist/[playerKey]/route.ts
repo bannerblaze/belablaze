@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPlayerScreen, getActivePlaylist } from "@/services/player.service";
 
+export const dynamic   = "force-dynamic";
+export const revalidate = 0;
+
 /* ──────────────────────────────────────────────────────────────────────
  * GET /api/player/playlist/[playerKey]
  *

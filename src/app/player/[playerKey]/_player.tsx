@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Zap } from "lucide-react";
 import type { PlayerScreen, PlaylistItem } from "@/services/player.service";
 
@@ -92,22 +92,36 @@ export function DoohPlayer({ playerKey, screen, initialPlaylist }: Props) {
   }, [playerKey]);
 
   /* ── Playlist refresh every 30 s ── */
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/player/playlist/${playerKey}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) return;
+      const data = await res.json() as { playlist: PlaylistItem[] };
+      if (!Array.isArray(data.playlist)) return;
+
+      // Actualizar solo si cambió el contenido
+      const newIds = data.playlist.map((p) => p.adId).join(",");
+      const currentIds = playlist.map((p) => p.adId).join(",");
+      if (newIds === currentIds) return; // sin cambios, no re-renderizar
+
+      setPlaylist(data.playlist);
+      // No resetear índice si el ad actual sigue en la nueva playlist
+      setIndex((prev) => {
+        const stillExists = data.playlist[prev] !== undefined;
+        return stillExists ? prev : 0;
+      });
+    } catch {
+      // silenciar errores de red
+    }
+  }, [playerKey, playlist]);
+
   useEffect(() => {
-    const refresh = async () => {
-      try {
-        const res = await fetch(`/api/player/playlist/${playerKey}`, { cache: "no-store" });
-        if (!res.ok) return;
-        const data = await res.json() as { playlist: PlaylistItem[] };
-        if (Array.isArray(data.playlist) && data.playlist.length > 0) {
-          setPlaylist(data.playlist);
-          // Reset index only if it would be out of bounds
-          setIndex((prev) => (prev >= data.playlist.length ? 0 : prev));
-        }
-      } catch { /* keep current playlist on error */ }
-    };
+    refresh(); // poll inmediato al montar
     const id = setInterval(refresh, PLAYLIST_POLL_MS);
     return () => clearInterval(id);
-  }, [playerKey]);
+  }, [refresh]);
 
   /* ── Hide cursor ── */
   useEffect(() => {
