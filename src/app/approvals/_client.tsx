@@ -408,47 +408,59 @@ export function ApprovalsClient({
 
   const handleApprove = (id: string) => {
     startTransition(async () => {
-      const ad = pending.find((a) => a.id === id);
-      if (!ad) return;
-      const result = await approveAd(id);
-      if (result?.success) {
-        setPending((p) => p.filter((a) => a.id !== id));
-        setApproved((a) => [{ ...ad, status: "APPROVED", reviewedAt: new Date().toISOString() }, ...a]);
-        toast.success("Anuncio aprobado. Listo para publicar.");
-      } else {
-        toast.error("Error al aprobar el anuncio.");
+      try {
+        const ad = pending.find((a) => a.id === id);
+        if (!ad) return;
+        const result = await approveAd(id);
+        if (result?.success) {
+          setPending((p) => p.filter((a) => a.id !== id));
+          setApproved((a) => [{ ...ad, status: "APPROVED", reviewedAt: new Date().toISOString() }, ...a]);
+          toast.success("Anuncio aprobado. Listo para publicar.");
+        } else {
+          toast.error("Error al aprobar el anuncio.");
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Error al aprobar el anuncio.");
       }
     });
   };
 
   const handleReject = (id: string, note: string) => {
     startTransition(async () => {
-      const ad = pending.find((a) => a.id === id);
-      if (!ad) return;
-      const result = await rejectAd(id, note);
-      if (result?.success) {
-        setPending((p) => p.filter((a) => a.id !== id));
-        setRejected((r) => [{
-          ...ad, status: "REJECTED", rejectionNote: note, reviewedAt: new Date().toISOString(),
-        }, ...r]);
-        toast.error("Anuncio rechazado. El motivo será visible para el cliente.");
-      } else {
-        toast.error("Error al rechazar el anuncio.");
+      try {
+        const ad = pending.find((a) => a.id === id);
+        if (!ad) return;
+        const result = await rejectAd(id, note);
+        if (result?.success) {
+          setPending((p) => p.filter((a) => a.id !== id));
+          setRejected((r) => [{
+            ...ad, status: "REJECTED", rejectionNote: note, reviewedAt: new Date().toISOString(),
+          }, ...r]);
+          toast.error("Anuncio rechazado. El motivo será visible para el cliente.");
+        } else {
+          toast.error("Error al rechazar el anuncio.");
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Error al rechazar el anuncio.");
       }
     });
   };
 
   const handlePublish = (id: string) => {
     startTransition(async () => {
-      const ad = approved.find((a) => a.id === id);
-      if (!ad) return;
-      const result = await publishAd(id);
-      if (result?.success) {
-        setApproved((a) => a.filter((x) => x.id !== id));
-        setPublished((p) => [{ ...ad, status: "PUBLISHED", publishedAt: new Date().toISOString() }, ...p]);
-        toast.success("Anuncio publicado exitosamente.");
-      } else {
-        toast.error("Error al publicar el anuncio.");
+      try {
+        const ad = approved.find((a) => a.id === id);
+        if (!ad) return;
+        const result = await publishAd(id);
+        if (result?.success) {
+          setApproved((a) => a.filter((x) => x.id !== id));
+          setPublished((p) => [{ ...ad, status: "PUBLISHED", publishedAt: new Date().toISOString() }, ...p]);
+          toast.success("Anuncio publicado exitosamente.");
+        } else {
+          toast.error("Error al publicar el anuncio.");
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Error al publicar el anuncio.");
       }
     });
   };
