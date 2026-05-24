@@ -90,7 +90,7 @@ function SidebarContent({ onClose, accountType, platformRole }: SidebarContentPr
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-4 pt-5 pb-4 border-b border-white/[0.05] flex-shrink-0">
+      <div className="flex items-center gap-3 px-5 py-0 h-16 border-b border-white/[0.05] flex-shrink-0">
         <div className="flex items-center justify-center w-8 h-8 rounded-[10px] bg-[#B8EB23] flex-shrink-0 shadow-[0_0_0_1px_rgba(255,255,255,0.2)_inset,0_0_18px_-2px_rgba(184,235,35,0.4)]">
           <Zap className="w-4 h-4 text-black" strokeWidth={2.5} />
         </div>
@@ -126,15 +126,15 @@ function SidebarContent({ onClose, accountType, platformRole }: SidebarContentPr
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2.5 space-y-4">
-        {Object.entries(sections).map(([sectionName, items]) => (
-          <div key={sectionName}>
+      <nav className="flex-1 overflow-y-auto py-4 px-3">
+        {Object.entries(sections).map(([sectionName, items], sectionIndex) => (
+          <div key={sectionName} className={cn(sectionIndex > 0 && "mt-6")}>
             {!collapsed && (
-              <h4 className="px-2.5 mb-1 text-[9px] font-bold uppercase tracking-[0.12em] text-white/30">
+              <h4 className="px-1 mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-white/30">
                 {sectionName}
               </h4>
             )}
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               {items.map((item) => {
                 const active = isActive(item.href);
                 const Icon = ICON_MAP[item.href] ?? Layers;
@@ -144,7 +144,7 @@ function SidebarContent({ onClose, accountType, platformRole }: SidebarContentPr
                     href={item.href}
                     onClick={onClose}
                     className={cn(
-                      "relative flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg transition-colors duration-150 group cursor-pointer",
+                      "relative flex items-center gap-3 px-3 py-2 rounded-lg transition-colors duration-150 group cursor-pointer",
                       active
                         ? "text-[#B8EB23]"
                         : "text-white/55 hover:text-white hover:bg-white/[0.04]",
@@ -153,9 +153,12 @@ function SidebarContent({ onClose, accountType, platformRole }: SidebarContentPr
                     {active && (
                       <motion.div
                         layoutId="sidebar-active"
-                        className="absolute inset-0 rounded-lg bg-[#B8EB23]/[0.08] ring-1 ring-[#B8EB23]/[0.15]"
+                        className="absolute inset-0 rounded-lg bg-[#B8EB23]/[0.12] ring-1 ring-[#B8EB23]/[0.2]"
                         transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
                       />
+                    )}
+                    {active && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 h-[55%] w-[3px] bg-[#B8EB23]/80 rounded-r-full pointer-events-none" />
                     )}
                     <div className="relative flex-shrink-0">
                       <Icon
@@ -209,8 +212,8 @@ function SidebarContent({ onClose, accountType, platformRole }: SidebarContentPr
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-white/[0.05] p-2.5 space-y-0.5">
-        <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-white/[0.04] transition-all group">
+      <div className="border-t border-white/[0.08] p-4 space-y-1">
+        <div className="flex items-center gap-2.5 px-3 py-3 rounded-lg hover:bg-white/[0.04] transition-all group">
           <UserIcon size="sm" />
           <AnimatePresence initial={false}>
             {!collapsed && (
