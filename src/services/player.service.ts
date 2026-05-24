@@ -28,7 +28,8 @@ function resolveUrl(
 ): string | null {
   if (url?.startsWith("http://") || url?.startsWith("https://")) return url;
   if (storageKey && R2_BASE) return `${R2_BASE}/${storageKey}`;
-  return url ?? null;
+  if (url) return url;
+  return null;
 }
 
 const PLAYABLE_CAMPAIGN_STATUSES = ["ACTIVE", "APPROVED", "DRAFT"] as const;

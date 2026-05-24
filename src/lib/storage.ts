@@ -74,9 +74,6 @@ function resolveDriver(): StorageDriver {
   return driver;
 }
 
-// Resolved once at module load — logged on first import.
-const DRIVER: StorageDriver = resolveDriver();
-
 /* ─── Key generation ────────────────────────────────────────────────── */
 
 function safeFileName(name: string): string {
@@ -166,8 +163,9 @@ async function deleteS3(): Promise<void> {
 /* ─── Public API ────────────────────────────────────────────────────── */
 
 export async function uploadFile(input: UploadInput): Promise<UploadResult> {
-  console.log("[storage] uploadFile — driver:", DRIVER);
-  switch (DRIVER) {
+  const driver = resolveDriver();
+  console.log("[storage] uploadFile — driver:", driver);
+  switch (driver) {
     case "vercel_blob": return uploadVercelBlob(input);
     case "r2":          return uploadR2(input);
     case "s3":          return uploadS3();
@@ -175,8 +173,9 @@ export async function uploadFile(input: UploadInput): Promise<UploadResult> {
 }
 
 export async function deleteFile(storageKey: string): Promise<void> {
-  console.log("[storage] deleteFile — driver:", DRIVER, "key:", storageKey);
-  switch (DRIVER) {
+  const driver = resolveDriver();
+  console.log("[storage] deleteFile — driver:", driver, "key:", storageKey);
+  switch (driver) {
     case "vercel_blob": return deleteVercelBlob(storageKey);
     case "r2":          return deleteR2(storageKey);
     case "s3":          return deleteS3();
@@ -184,7 +183,7 @@ export async function deleteFile(storageKey: string): Promise<void> {
 }
 
 export function currentDriver(): StorageDriver {
-  return DRIVER;
+  return resolveDriver();
 }
 
 export function validateMime(mime: string): boolean {
