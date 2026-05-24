@@ -6,7 +6,9 @@ datasource db {
   provider = "postgresql"
 }
 
-/* ───────────────────────── Enums ───────────────────────── */
+/**
+ * ───────────────────────── Enums ─────────────────────────
+ */
 
 enum UserRole {
   ADMIN
@@ -137,38 +139,40 @@ enum ScheduleStatus {
   CONFLICT
 }
 
-/* ─────────────────────── Multi-tenant core ─────────────────────── */
+/**
+ * ─────────────────────── Multi-tenant core ───────────────────────
+ */
 
 model Organization {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  logoUrl     String?
-  website     String?
-  industry    String?
-  size        String?
-  ownerId     String
-  plan        PlanTier @default(STARTER)
-  brandColor  String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  name       String
+  slug       String   @unique
+  logoUrl    String?
+  website    String?
+  industry   String?
+  size       String?
+  ownerId    String
+  plan       PlanTier @default(STARTER)
+  brandColor String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  owner            User                 @relation("OrgOwner", fields: [ownerId], references: [id])
-  members          OrganizationMember[]
-  invitations      Invitation[]
-  workspaces       Workspace[]
-  campaigns        Campaign[]
-  ads              Ad[]
-  screens          Screen[]
-  clients          Client[]
-  mediaAssets      MediaAsset[]
-  schedules        CampaignSchedule[]
-  auditLogs        AuditLog[]
-  subscription     Subscription?
-  usageRecords     UsageRecord[]
-  apiKeys          ApiKey[]
-  webhooks         Webhook[]
+  owner        User                 @relation("OrgOwner", fields: [ownerId], references: [id])
+  members      OrganizationMember[]
+  invitations  Invitation[]
+  workspaces   Workspace[]
+  campaigns    Campaign[]
+  ads          Ad[]
+  screens      Screen[]
+  clients      Client[]
+  mediaAssets  MediaAsset[]
+  schedules    CampaignSchedule[]
+  auditLogs    AuditLog[]
+  subscription Subscription?
+  usageRecords UsageRecord[]
+  apiKeys      ApiKey[]
+  webhooks     Webhook[]
 
   @@index([slug])
   @@index([ownerId])
@@ -176,13 +180,13 @@ model Organization {
 }
 
 model OrganizationMember {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   organizationId String
   userId         String
-  role           OrgRole  @default(VIEWER)
-  permissions    String[] @default([])
+  role           OrgRole   @default(VIEWER)
+  permissions    String[]  @default([])
   invitedBy      String?
-  joinedAt       DateTime @default(now())
+  joinedAt       DateTime  @default(now())
   lastActiveAt   DateTime?
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -241,7 +245,9 @@ model WorkspaceMember {
   @@index([userId])
 }
 
-/* ─────────────────────── User & profiles ─────────────────────── */
+/**
+ * ─────────────────────── User & profiles ───────────────────────
+ */
 
 model User {
   id                  String       @id @default(cuid())
@@ -261,17 +267,17 @@ model User {
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 
-  company             Client?                @relation(fields: [companyId], references: [id])
-  campaigns           Campaign[]
-  approvals           AdApproval[]
-  logs                Log[]
-  organizationProfile OrganizationProfile?
-  creatorProfile      CreatorProfile?
-  ownedOrganizations  Organization[]        @relation("OrgOwner")
-  memberships         OrganizationMember[]
+  company              Client?              @relation(fields: [companyId], references: [id])
+  campaigns            Campaign[]
+  approvals            AdApproval[]
+  logs                 Log[]
+  organizationProfile  OrganizationProfile?
+  creatorProfile       CreatorProfile?
+  ownedOrganizations   Organization[]       @relation("OrgOwner")
+  memberships          OrganizationMember[]
   workspaceMemberships WorkspaceMember[]
-  uploadedMedia       MediaAsset[]          @relation("MediaUploader")
-  auditLogs           AuditLog[]
+  uploadedMedia        MediaAsset[]         @relation("MediaUploader")
+  auditLogs            AuditLog[]
 
   @@index([email])
   @@index([role])
@@ -296,7 +302,7 @@ model OrganizationProfile {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([companyName])
 }
@@ -316,7 +322,7 @@ model CreatorProfile {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([displayName])
 }
@@ -336,7 +342,9 @@ model SecurityLog {
   @@index([createdAt])
 }
 
-/* ─────────────────────── Business entities (org-scoped) ─────────────────────── */
+/**
+ * ─────────────────────── Business entities (org-scoped) ───────────────────────
+ */
 
 model Client {
   id             String   @id @default(cuid())
@@ -448,31 +456,33 @@ model CampaignScreen {
   screenId   String
   createdAt  DateTime @default(now())
 
-  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  screen     Screen   @relation(fields: [screenId], references: [id])
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  screen   Screen   @relation(fields: [screenId], references: [id])
 
   @@unique([campaignId, screenId])
 }
 
-/* ScreenCampaign — primary assignment model (richer than CampaignScreen).
- * Allows per-assignment priority, date windows, and active toggle. */
+/**
+ * ScreenCampaign — primary assignment model (richer than CampaignScreen).
+ * Allows per-assignment priority, date windows, and active toggle.
+ */
 model ScreenCampaign {
-  id         String    @id @default(cuid())
+  id String @id @default(cuid())
 
   screenId   String
   campaignId String
 
-  startsAt   DateTime?
-  endsAt     DateTime?
+  startsAt DateTime?
+  endsAt   DateTime?
 
-  priority   Int       @default(0)
-  isActive   Boolean   @default(true)
+  priority Int     @default(0)
+  isActive Boolean @default(true)
 
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  screen     Screen    @relation(fields: [screenId], references: [id], onDelete: Cascade)
-  campaign   Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  screen   Screen   @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
   @@unique([screenId, campaignId])
   @@index([screenId])
@@ -482,35 +492,35 @@ model ScreenCampaign {
 }
 
 model Ad {
-  id             String     @id @default(cuid())
+  id             String    @id @default(cuid())
   organizationId String?
   title          String
   description    String?
-  status         AdStatus   @default(DRAFT)
-  format         AdFormat   @default(IMAGE)
+  status         AdStatus  @default(DRAFT)
+  format         AdFormat  @default(IMAGE)
   campaignId     String
   mediaAssetId   String?
   fileUrl        String?
   thumbnailUrl   String?
-  duration       Int        @default(15)
+  duration       Int       @default(15)
   ctaUrl         String?
   ctaText        String?
   qrUrl          String?
-  qrEnabled      Boolean    @default(false)
+  qrEnabled      Boolean   @default(false)
   rejectionNote  String?
   submittedAt    DateTime?
   reviewedBy     String?
   reviewedAt     DateTime?
   publishedAt    DateTime?
-  impressions    Int        @default(0)
-  clicks         Int        @default(0)
-  qrScans        Int        @default(0)
-  engagements    Int        @default(0)
-  ctr            Float      @default(0)
+  impressions    Int       @default(0)
+  clicks         Int       @default(0)
+  qrScans        Int       @default(0)
+  engagements    Int       @default(0)
+  ctr            Float     @default(0)
   startDate      DateTime?
   endDate        DateTime?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   organization Organization? @relation(fields: [organizationId], references: [id])
   campaign     Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
@@ -532,8 +542,8 @@ model AdApproval {
   note      String?
   createdAt DateTime @default(now())
 
-  ad        Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id])
+  ad   Ad   @relation(fields: [adId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 
   @@index([adId])
 }
@@ -570,7 +580,7 @@ model Metric {
   hour        Int?
   createdAt   DateTime @default(now())
 
-  ad          Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
+  ad Ad @relation(fields: [adId], references: [id], onDelete: Cascade)
 
   @@index([adId])
   @@index([date])
@@ -589,14 +599,16 @@ model Log {
   userAgent String?
   createdAt DateTime  @default(now())
 
-  user      User?     @relation(fields: [userId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([entity])
   @@index([createdAt])
 }
 
-/* ─────────────────────── Media & Scheduling ─────────────────────── */
+/**
+ * ─────────────────────── Media & Scheduling ───────────────────────
+ */
 
 model MediaAsset {
   id             String    @id @default(cuid())
@@ -653,7 +665,9 @@ model CampaignSchedule {
   @@index([startDate, endDate])
 }
 
-/* ─────────────────────── Audit & Activity ─────────────────────── */
+/**
+ * ─────────────────────── Audit & Activity ───────────────────────
+ */
 
 model AuditLog {
   id             String   @id @default(cuid())
@@ -676,25 +690,27 @@ model AuditLog {
   @@index([action, createdAt])
 }
 
-/* ─────────────────────── Billing & Usage ─────────────────────── */
+/**
+ * ─────────────────────── Billing & Usage ───────────────────────
+ */
 
 model Subscription {
-  id                   String              @id @default(cuid())
-  organizationId       String              @unique
-  plan                 PlanTier            @default(STARTER)
-  status               SubscriptionStatus  @default(TRIALING)
+  id                   String             @id @default(cuid())
+  organizationId       String             @unique
+  plan                 PlanTier           @default(STARTER)
+  status               SubscriptionStatus @default(TRIALING)
   trialEndsAt          DateTime?
-  currentPeriodStart   DateTime            @default(now())
+  currentPeriodStart   DateTime           @default(now())
   currentPeriodEnd     DateTime
-  cancelAtPeriodEnd    Boolean             @default(false)
+  cancelAtPeriodEnd    Boolean            @default(false)
   // Stripe-ready typed references (populated when billing integration ships).
   stripeCustomerId     String?
   stripeSubscriptionId String?
   stripePriceId        String?
   // Legacy generic reference, kept for back-compat with seed/test rows.
   externalRef          String?
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -718,18 +734,20 @@ model UsageRecord {
   @@index([metric, periodStart])
 }
 
-/* ─────────────────────── Developer (API keys, webhooks) ─────────────────────── */
+/**
+ * ─────────────────────── Developer (API keys, webhooks) ───────────────────────
+ */
 
 model ApiKey {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   organizationId String
   name           String
   keyPrefix      String
-  keyHash        String   @unique
-  scopes         String[] @default([])
+  keyHash        String    @unique
+  scopes         String[]  @default([])
   lastUsedAt     DateTime?
   revokedAt      DateTime?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
   createdBy      String
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -739,15 +757,15 @@ model ApiKey {
 }
 
 model Webhook {
-  id             String   @id @default(cuid())
-  organizationId String
-  url            String
-  events         String[] @default([])
-  secret         String
-  isActive       Boolean  @default(true)
+  id              String    @id @default(cuid())
+  organizationId  String
+  url             String
+  events          String[]  @default([])
+  secret          String
+  isActive        Boolean   @default(true)
   lastTriggeredAt DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 

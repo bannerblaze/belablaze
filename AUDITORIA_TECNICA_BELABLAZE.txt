@@ -1,0 +1,1089 @@
+================================================================================
+AUDITORÍA TÉCNICA COMPLETA — BELABLAZE DOOH PLATFORM
+================================================================================
+Fecha: 24 mayo 2026
+Auditor: Claude (arquitecto senior SaaS/DOOH)
+Estado del branch: main (limpio)
+Modelo inspeccionado: claude-sonnet-4-6
+================================================================================
+
+
+RESUMEN EJECUTIVO
+================================================================================
+
+BelaBlaze tiene una arquitectura bien pensada y relativamente madura para el
+nivel de desarrollo en que está. El esqueleto es sólido: separación de capas
+(actions → services → repositories → db), multi-tenancy por org-context,
+auditoría en cada mutación, auth con Clerk v7. El player DOOH funciona de verdad.
+
+Pero hay tres mentiras que el dashboard le dice al usuario que no debería:
+las métricas de analytics son en parte fake, las impresiones están infladas 16x,
+y "tiempo real" es polling disfrazado de SSE. Además faltan entre 6 y 8 features
+completos para que un cliente de producción pueda usar el producto.
+
+Estimación honesta de avance: 58–63% hacia un SaaS DOOH vendible.
+
+
+================================================================================
+1. ARQUITECTURA GENERAL
+================================================================================
+
+--- Estructura del proyecto ---
+
+src/
+├── actions/          ← 12 server actions (mutations seguras, org-scoped)
+├── app/              ← Next.js App Router (~27 rutas)
+│   ├── (auth)/       ← sign-in, sign-up (custom UI sobre Clerk)
+│   ├── api/          ← 15 API routes REST + webhooks
+│   ├── player/[playerKey]/   ← DOOH player (ruta pública, no requiere auth)
+│   ├── onboarding/   ← wizard multi-paso por tipo de cuenta
+│   └── [features]/   ← dashboard, campaigns, ads, screens, analytics...
+├── components/       ← 200+ componentes React
+├── lib/              ← auth, access, rbac, storage, org-context, etc.
+├── services/         ← business logic (8 servicios)
+├── server/repositories/ ← data access layer
+├── store/            ← Zustand (search history, metrics)
+└── types/            ← tipos compartidos
+
+--- Flujo de datos real ---
+
+Browser → Server Component (page.tsx)
+            ↓ lee via Service → Repository → Prisma → Neon
+          Client Component (_client.tsx)
+            ↓ mutations via Server Action
+          actions/*.ts → requireOrgContext() → Prisma → AuditLog
+
+--- Stack tecnológico completo ---
+
+Frontend:
+  - React 19.2.4
+  - Next.js 16.2.6
+  - Tailwind CSS 4
+  - Radix UI (componentes primitivos)
+  - Framer Motion 12.38.0 (animaciones)
+  - Recharts 3.8.1 (gráficas)
+  - Lucide React 1.14.0 (iconos)
+  - Sonner 2.0.7 (toasts)
+  - Zustand 5.0.13 (estado global)
+
+Backend:
+  - Next.js Server Actions
+  - Next.js API Routes (REST)
+  - Prisma ORM 7.8.0 con @prisma/adapter-pg
+
+Auth:
+  - Clerk 7.3.3 (Signal-based API, custom sign-in/sign-up UI)
+
+Base de datos:
+  - PostgreSQL vía Neon (serverless)
+  - @prisma/adapter-pg para la conexión
+
+Storage:
+  - Cloudflare R2 (AWS S3 SDK compatible)
+  - @aws-sdk/client-s3 + @aws-sdk/lib-storage
+
+Validación:
+  - Zod 4.4.3
+  - react-hook-form 7.75.0
+
+Tiempo real (instalado pero NO implementado):
+  - socket.io + socket.io-client 4.8.3 → cero imports en src/
+
+--- Qué está bien diseñado ---
+
+✅ Separación de capas — cada capa tiene responsabilidad clara
+✅ Org-context validation — requireOrgContext() en TODA mutación;
+   imposible cross-tenant leak por descuido
+✅ Audit logging non-blocking — cada mutación loguea sin bloquear el flujo
+✅ Player como ruta pública independiente — arquitectura correcta para TVs
+   sin sesión
+✅ Storage abstraction — storage.ts puede cambiar entre R2/Vercel Blob
+   sin tocar el resto del código
+
+--- Qué está improvisado o escalará mal ---
+
+❌ getOrgContext() hace DB query en cada request — sin caché.
+   Con 100+ usuarios concurrentes esto se convierte en N queries/segundo al DB.
+
+❌ Analytics revenue calculado como impressions * 0.0015 hardcodeado
+   (analytics.service.ts línea 122). No es billing real.
+
+❌ HOUR_DATA en analytics UI generado con Math.sin() y valores hardcodeados
+   (analytics/_client.tsx líneas 26-30). Es 100% fake.
+
+❌ Fallback de ciudades — cuando no hay impresiones reales, usa traffic * 30
+   como estimado (analytics.service.ts línea 190). Confunde al usuario.
+
+❌ OrgRole enum en schema — existe pero no se usa en ningún código activo.
+   Legacy muerto.
+
+
+================================================================================
+2. VARIABLES DE ENTORNO Y SERVICIOS EXTERNOS
+================================================================================
+
+--- Estado actual de las variables ---
+
+Variable                         | Estado          | Impacto si falta
+---------------------------------|-----------------|----------------------------------
+DATABASE_URL                     | ✅ Configurada  | App no arranca
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY| ✅ Presente     | Auth rota
+CLERK_SECRET_KEY                 | ✅ Presente     | Auth rota
+CLERK_WEBHOOK_SECRET             | 🔴 VACÍO        | Webhooks no verifican firma
+R2_ENDPOINT                      | 🔴 AUSENTE      | Uploads fallan en runtime
+R2_BUCKET_NAME                   | 🔴 AUSENTE      | Uploads fallan
+R2_ACCESS_KEY_ID                 | 🔴 AUSENTE      | Uploads fallan
+R2_SECRET_ACCESS_KEY             | 🔴 AUSENTE      | Uploads fallan
+R2_PUBLIC_URL                    | 🔴 AUSENTE      | URLs de media rotas en player
+ADMIN_WHITELIST_EMAILS           | ✅ Definido     | Onboarding admin bloqueado
+ADMIN_ACCESS_CODE                | ✅ Definido     | Onboarding admin bloqueado
+RESEND_API_KEY                   | ⚠️ Ausente     | Alertas de seguridad silenciosas
+STORAGE_DRIVER                   | ⚠️ No definido  | Auto-detect (puede fallar)
+
+--- Servicios externos ---
+
+Servicio            | Estado                      | Notas
+--------------------|-----------------------------|-----------------------------------------
+Neon (PostgreSQL)   | ✅ Conectado y operativo    | Credenciales en .env.local
+Clerk               | ⚠️ Test mode               | Webhook secret vacío; usar prod antes
+Cloudflare R2       | 🔴 No configurado           | 0 variables de entorno presentes
+Socket.io           | 🔴 Instalado, no implementado | Paquete presente, cero imports en src/
+Stripe              | 🔴 No implementado          | Schema preparado, código no existe
+Resend              | 🔴 No instalado             | resend no en package.json
+Vercel              | ✅ Presumiblemente activo   | @vercel/blob en code, paquete no instalado
+
+--- Configuración de admin ---
+
+ADMIN_WHITELIST_EMAILS = admin@bannerblaze.com, ceo@bannerblaze.com
+ADMIN_ACCESS_CODE = BBZ_INTERNAL_X92_SECURE
+
+⚠️ ADVERTENCIA: El access code por defecto debe rotarse antes de producción.
+
+
+================================================================================
+3. BASE DE DATOS — SCHEMA COMPLETO
+================================================================================
+
+Archivo: prisma/schema.prisma (~757 líneas)
+Proveedor: PostgreSQL (Neon serverless)
+ORM: Prisma 7.8.0
+
+--- Enums definidos ---
+
+UserRole:      ADMIN | EXECUTIVE | COMPANY | CREATOR | CLIENT
+AccountType:   ORGANIZATION | PERSON | INTERNAL
+UserStatus:    ACTIVE | INACTIVE | SUSPENDED
+CampaignStatus:DRAFT | PENDING_APPROVAL | APPROVED | REJECTED | ACTIVE | PAUSED | COMPLETED | CANCELLED
+AdStatus:      DRAFT | PENDING_REVIEW | APPROVED | REJECTED | PUBLISHED | ACTIVE | PAUSED | EXPIRED
+ScreenStatus:  ONLINE | OFFLINE | MAINTENANCE | RESERVED
+ScreenType:    LED_INDOOR | LED_OUTDOOR | LCD | PROJECTION | INTERACTIVE
+AdFormat:      IMAGE | VIDEO | HTML5 | INTERACTIVE
+LogAction:     CREATE | UPDATE | DELETE | APPROVE | REJECT | PUBLISH | PAUSE | LOGIN | LOGOUT
+OrgRole:       OWNER | ADMIN | EXECUTIVE | MANAGER | EDITOR | ANALYST | VIEWER [LEGACY, NO USADO]
+InvitationStatus: PENDING | ACCEPTED | REVOKED
+
+--- Modelos y su estado ---
+
+Modelo             | Estado      | Notas críticas
+-------------------|-------------|----------------------------------------------
+User               | ✅ Bien     | clerkId, role, accountType, onboardingCompleted
+Organization       | ✅ Bien     | Single-owner model correcto para MVP
+OrganizationProfile| ✅ Bien     | Creado durante onboarding tipo COMPANY
+CreatorProfile     | ✅ Bien     | Creado durante onboarding tipo CREATOR
+Campaign           | ✅ Bien     | Estados completos, budget, spent, impressions
+Ad                 | ✅ Bien     | format, duration, impressions, mediaAsset FK
+Screen             | ✅ Bien     | playerKey único, isActive, lastPingAt, dailyTraffic
+ScreenCampaign     | ✅ Principal| priority, startsAt/endsAt — mecanismo real de asignación
+AdSchedule         | ✅ Bien     | Time-windowed, daysOfWeek[], startTime/endTime
+MediaAsset         | ✅ Bien     | storageKey, url, size, mimeType, thumbnail
+Metric             | ✅ Bien     | impressions, clicks, engagements, qrScans por día
+AuditLog           | ✅ Bien     | Completo, usado en todas las mutaciones importantes
+Subscription       | ⚠️ Stub    | Campos Stripe listos (stripeCustomerId, etc.) sin impl.
+ApiKey             | ⚠️ UI lect.| No hay forma de crear desde UI
+Webhook            | ⚠️ UI lect.| No hay forma de crear desde UI
+Client             | ✅ Básico  | organizationId nullable — inconsistencia menor
+CampaignSchedule   | ✅ Presente | timezone, activeDays, startHour/endHour, priority
+UsageRecord        | ⚠️ Sin uso | Schema preparado, nadie lo llena
+SecurityLog        | ✅ En uso  | Para rate limiting de admin onboarding
+AdApproval         | ✅ Presente| adId, userId, approved Boolean, note
+OrganizationMember | 🔴 LEGACY  | Existe en schema, no se consulta en ninguna query activa
+Workspace          | 🔴 LEGACY  | Igual, sin queries activas
+WorkspaceMember    | 🔴 LEGACY  | Igual
+Invitation         | 🔴 LEGACY  | Sin queries activas
+CampaignScreen     | ⚠️ Redundante| ScreenCampaign es el modelo activo; este es legacy
+
+--- Riesgos futuros de la DB ---
+
+1. Ad.impressions se incrementa desde el ping (cada 15s), no per-view.
+   Dato corrupto desde el día 1 en producción.
+
+2. revenue en getChartData() es impressions * 0.0015 — no viene de billing real.
+
+3. Cuando no hay Metric rows, los gráficos quedan en cero aunque haya
+   impresiones en Ad.impressions — dos contadores paralelos sin sincronizar.
+
+4. Client.organizationId es nullable — si es null, ese cliente es "huérfano"
+   y no aparece en queries org-scoped.
+
+5. Queries de analytics (Metric → Ad → Campaign → org) son joins de 3 niveles
+   sin índices verificados. Full table scans cuando la DB crezca.
+
+--- Cómo fluye la data ---
+
+[Usuario crea campaña]
+  → campaigns.ts::createCampaign()
+  → requireOrgContext() valida organización activa
+  → db.campaign.create({ organizationId, ...formData })
+  → logAuditEvent("CREATE", "CAMPAIGN", campaignId)
+  → revalidatePath("/campaigns")
+
+[Ad en producción]
+  → TV abre /player/[playerKey]
+  → page.tsx: getPlayerScreen(playerKey) + getActivePlaylist(screenId)
+  → player.service.ts mezcla AdSchedule + ScreenCampaign items
+  → DoohPlayer renderiza imagen/video
+  → Cada 15s: POST /api/player/ping → actualiza Screen.lastPingAt + ONLINE
+  → Cada 30s: GET /api/player/playlist/[playerKey] → refresca contenido
+
+
+================================================================================
+4. SISTEMA DE CAMPAÑAS
+================================================================================
+
+--- Lifecycle completo de campaña ---
+
+DRAFT → PENDING_APPROVAL → APPROVED → ACTIVE → PAUSED
+                                              → COMPLETED
+                                              → CANCELLED
+                        ↘ REJECTED
+
+--- Lifecycle de Ad ---
+
+DRAFT → PENDING_REVIEW → APPROVED → PUBLISHED → ACTIVE → PAUSED
+                       ↘ REJECTED                      → EXPIRED
+
+--- Qué funciona de verdad ---
+
+✅ Creación de campaña con Zod validation
+✅ Status transitions vía server actions con audit log en cada cambio
+✅ Roles correctamente verificados (requireAdminOrExecutive() para aprobar)
+✅ Ads con PENDING_REVIEW → APPROVED → PUBLISHED vía /approvals
+✅ Panel de aprobaciones con tabs (Pendientes / Aprobados / Publicados /
+   Rechazados) — COMPLETO y funcional
+✅ Rechazo de ad requiere motivo escrito, guardado en DB
+✅ Asignación de campañas a pantallas vía ScreenCampaign
+✅ Búsqueda fuzzy (lib/fuzzy.ts)
+✅ Audit log en CADA mutación de campaña/ad
+
+--- Qué solo se ve bonito en UI ---
+
+⚠️ Calendario de campañas (/campaigns/calendar) — existe la ruta pero
+   la implementación puede ser básica o stub
+
+⚠️ Campaign.budget y spent — existen en DB pero no hay lógica que actualice
+   spent automáticamente. Los valores son estáticos o manuales.
+
+🔴 Revenue en dashboard — totalRevenue es SUM(campaign.spent) de campañas
+   ACTIVE/COMPLETED. Si spent nunca se actualiza, siempre es 0.
+
+⚠️ Campaign.startDate/endDate — existen en UI pero NO afectan la reproducción
+   en el player (decisión de diseño documentada en el código, pero confunde
+   a los usuarios que los usan para programar campañas).
+
+
+================================================================================
+5. SISTEMA DOOH — PLAYER Y PANTALLAS
+================================================================================
+
+--- Estado del player ---
+
+Archivos:
+  src/app/player/[playerKey]/page.tsx     ← Server Component, carga inicial
+  src/app/player/[playerKey]/_player.tsx  ← Client Component, toda la lógica
+  src/services/player.service.ts          ← Lógica de playlist
+
+Constantes:
+  HEARTBEAT_MS     = 15_000  (ping cada 15 segundos)
+  PLAYLIST_POLL_MS = 30_000  (refresco de playlist cada 30 segundos)
+
+--- Funcionalidades REALES del player ---
+
+✅ Fullscreen fijo (fixed inset-0 bg-black)
+✅ Cursor oculto automáticamente vía document.body.style.cursor = "none"
+✅ Videos con autoPlay muted playsInline + onEnded para avanzar al siguiente
+✅ Imágenes con timer configurable por duración (item.duration en segundos)
+✅ Standby screen con reloj en tiempo real cuando no hay contenido programado
+✅ Heartbeat cada 15s a /api/player/ping
+✅ Playlist polling cada 30s — cambios se actualizan sin recargar la página
+✅ Error resiliente: onError={advance} — si un asset falla, avanza al siguiente
+✅ Debug overlay en desarrollo (NODE_ENV === "development")
+✅ suppressHydrationWarning en el reloj — maneja SSR correctamente
+✅ playerKey como credencial de dispositivo — sin Clerk session requerida
+✅ Accesible desde cualquier URL pública con el playerKey correcto
+✅ Deduplicación de ads por adId — AdSchedule tiene prioridad sobre ScreenCampaign
+
+--- Listo para TVs reales: SÍ, con estas condiciones ---
+
+  1. R2 configurado (para que las URLs de media resuelvan correctamente)
+  2. Al menos una campaña ACTIVE o APPROVED con ads que tengan media asignada
+  3. Una pantalla con isActive: true en la DB
+
+--- Problemas del player ---
+
+🔴 CRÍTICO: Impressions infladas
+   Cada ping (cada 15s) incrementa Ad.impressions si hay un ad activo.
+   Un ad de 10 segundos en pantalla durante 4 minutos = 16 impresiones.
+   Lo correcto sería contar 1 (una reproducción).
+
+   Código del bug (src/app/api/player/ping/route.ts, líneas 57-61):
+   if (currentAdId && typeof currentAdId === "string") {
+     db.ad.updateMany({
+       where: { id: currentAdId },
+       data:  { impressions: { increment: 1 } },
+     }).catch(() => {});
+   }
+
+⚠️ Sin WebSocket — playlist refresh es polling each 30s.
+   Si un admin cambia la playlist, la TV lo ve en máximo 30s.
+   Aceptable en producción pero no "tiempo real".
+
+⚠️ Sin control remoto — no hay forma de pausar/reiniciar el player
+   remotamente desde el dashboard.
+
+⚠️ Sin logs de reproducción — no se registra qué ad se reprodujo,
+   cuántas veces completo, ni si fue saltado por error.
+
+--- Playlist logic en detalle ---
+
+Dos fuentes de contenido (src/services/player.service.ts):
+
+1. AdSchedule (getAdScheduleItems):
+   - Ad específico → pantalla específica
+   - Ventana horaria: daysOfWeek[], startTime "HH:MM", endTime "HH:MM"
+   - Verifica: ad.status en PLAYABLE_AD_STATUSES, campaign.status en PLAYABLE_CAMPAIGN_STATUSES
+   - NOTA: Campaign.startDate/endDate NO se verifica aquí (decisión de diseño)
+
+2. ScreenCampaign (getScreenCampaignItems):
+   - Campaña completa → pantalla, todos los ads activos de la campaña
+   - Ventana de fechas: ScreenCampaign.startsAt/endsAt
+   - Ordena por prioridad (priority: "desc")
+
+Merge final:
+   AdSchedule items primero → ScreenCampaign items después
+   Deduplicación por adId usando Set → AdSchedule tiene precedencia
+
+PLAYABLE_CAMPAIGN_STATUSES = ["ACTIVE", "APPROVED", "DRAFT"]
+PLAYABLE_AD_STATUSES       = ["ACTIVE", "PUBLISHED", "APPROVED", "DRAFT"]
+
+⚠️ NOTA: DRAFT campaigns y ads son reproducibles. Esto es intencional
+   para facilitar pruebas, pero puede sorprender en producción.
+
+--- Heartbeat (/api/player/ping) ---
+
+Autenticación: playerKey (sin Clerk)
+Body: { playerKey, currentAdId?, uptime?, resolution: {width, height} }
+
+Side effects:
+  • Screen.lastSeenAt = now
+  • Screen.lastPingAt = now
+  • Screen.status = "ONLINE"
+  • Ad.impressions += 1 (si currentAdId presente) ← BUG
+
+Respuesta: { ok: true, serverTime, uptimeAck, resolution }
+
+--- Gestión de pantallas (/screens) ---
+
+✅ Lista con filtros: status, ciudad, búsqueda
+✅ Creación con playerKey único (cuid generado en DB)
+✅ Screen code: SCR-{timestamp}
+✅ Estados: ONLINE | OFFLINE | MAINTENANCE | RESERVED
+✅ Tipos: LED_INDOOR | LED_OUTDOOR | LCD | PROJECTION | INTERACTIVE
+✅ dailyTraffic para estimados de audiencia
+✅ Mapa de Colombia (colombia-geo.ts con datos geográficos estáticos)
+✅ Panel de detalle con health score basado en lastPingAt
+
+
+================================================================================
+6. MEDIA LIBRARY
+================================================================================
+
+--- Estado general ---
+
+✅ Upload a R2 vía /api/media/upload con validación MIME y tamaño
+✅ MediaAsset registrado en DB con storageKey, url, size, mimeType
+✅ Resolución de URL en player: resolveUrl(url, storageKey)
+   — usa absolute URL si existe, construye desde R2_BASE + storageKey si no
+✅ Separación por tipo (IMAGE / VIDEO)
+✅ isArchived flag para soft delete
+
+--- Cómo funciona el upload ---
+
+1. Cliente selecciona archivo
+2. POST /api/media/upload con multipart/form-data
+3. Valida MIME type contra lista permitida
+4. Valida tamaño contra MAX_UPLOAD_BYTES
+5. Upload a R2 usando @aws-sdk/lib-storage (multipart para archivos grandes)
+6. Crea MediaAsset en DB con storageKey, url pública, size, mimeType
+7. Retorna el MediaAsset creado
+
+--- Problemas identificados ---
+
+🔴 R2 no configurado — uploads fallan al arrancar si no hay env vars.
+   El error no es amigable al usuario (throws en runtime, no en startup).
+
+⚠️ Sin thumbnails de video — thumbnail column existe en schema, nadie
+   la genera. Videos muestran blank en la media library grid.
+
+⚠️ Sin límites de storage por org — UsageRecord existe en schema pero
+   billing.ts no compara storageMB contra ningún límite.
+   Cualquier org puede subir contenido ilimitado.
+
+⚠️ @vercel/blob en código pero no instalado — si STORAGE_DRIVER=vercel,
+   el servidor crashea con module not found.
+
+⚠️ Sin presigned URLs — assets se sirven con URL pública directa de R2.
+   No hay expiración ni control de acceso post-upload.
+
+⚠️ Sin previews de video en la media library — solo imágenes tienen
+   preview visual real.
+
+
+================================================================================
+7. ROLES Y AUTH
+================================================================================
+
+--- Tres capas de acceso ---
+
+1. Clerk publicMetadata.role  (fuente de verdad para sesión, set by admin)
+2. Prisma User.role           (DB, synced via webhook o auto-provision)
+3. platform.ts PlatformRole   (SUPER_ADMIN / SUPPORT / USER)
+
+--- Resolución de rol (src/lib/auth.ts) ---
+
+Orden de precedencia:
+  1. Clerk publicMetadata.role (admin-set)
+  2. Clerk unsafeMetadata.role (user-writable, solo dev)
+  3. Prisma User.role (DB source of truth)
+  4. DEV fallback: "ADMIN" (nunca bloquea en development)
+  5. PROD fallback: "CLIENT" (least privilege)
+
+--- PlatformRole (src/lib/platform.ts) ---
+
+SUPER_ADMIN:
+  → Email en admin whitelist (admin@bannerblaze.com, ceo@bannerblaze.com,
+    o ADMIN_WHITELIST_EMAILS env)
+  → Bypasses ALL checks — puede acceder a datos de cualquier org
+  → Modo "BannerBlaze staff ve todo"
+
+SUPPORT:
+  → accountType = INTERNAL (BannerBlaze staff sin godmode)
+
+USER:
+  → Todos los demás
+
+⚠️ PROBLEMA: El check SUPER_ADMIN se hace cada request, sin caché.
+   Requiere DB query + Clerk call por cada request de un admin.
+
+--- AccountType (src/lib/access.ts) ---
+
+ORGANIZATION: Superficie completa (campaigns, ads, screens, clients, audit,
+              API keys, webhooks)
+PERSON:       Superficie de creator (campaigns, ads, media only;
+              sin clients/screens/audit/webhooks)
+INTERNAL:     Staff de BannerBlaze (igual que ORGANIZATION)
+
+--- Funciones de auth clave ---
+
+getCurrentUser()       — Merge Clerk + Prisma. Auto-provisiona fila Prisma si no existe.
+requireAuth()          — Redirect a /sign-in si no autenticado
+requireAdmin()         — Throws AuthError si role ≠ ADMIN
+requireAdminOrExecutive() — Throws AuthError si role ∉ {ADMIN, EXECUTIVE}
+checkPermissions()     — Soft check: {isAdmin, isExecutive, isClient, canApprove, etc.}
+requireOrgContext()    — Valida org activa, throws si no existe
+requirePlatformAdmin() — Throws si no SUPER_ADMIN
+requirePlatformStaff() — Throws si no SUPER_ADMIN | SUPPORT
+
+--- Problemas de seguridad reales ---
+
+🔴 CRÍTICO: CLERK_WEBHOOK_SECRET vacío
+   El webhook en /api/webhooks/clerk verifica firma Svix.
+   Con secret vacío, la verificación puede ser bypasseada.
+   Cualquiera podría POST a /api/webhooks/clerk y crear/modificar
+   usuarios en la DB sin autenticación real.
+
+🟡 No hay middleware.ts:
+   Sin rate limiting en edge.
+   Sin logging de requests centralizado.
+   Auth checks están en cada handler individualmente.
+   Error handling varía entre handlers (algunos 401, otros throw, otros null).
+
+🟠 /api/metrics solo verifica userId, no org-scope completo:
+   route.ts línea 7: solo `if (!userId) return 401`
+   La query interna usa getOrgContext() que sí está org-scoped, pero
+   el check de entrada es inconsistente con el resto de la app.
+
+⚠️ /settings/api-keys muestra "próxima versión" hardcodeado:
+   Literal string en el componente: "La generación de claves estará
+   disponible en la próxima versión."
+   El usuario ve que la feature existe pero no puede usarla.
+
+⚠️ /settings/webhooks — solo lectura, sin formulario de creación.
+   Las tablas existen, la UI lee de DB, pero no hay forma de agregar.
+
+--- Onboarding de admin (seguridad adicional) ---
+
+El flujo de admin tiene dos gates:
+  1. Email debe estar en ADMIN_WHITELIST_EMAILS
+  2. Debe conocer ADMIN_ACCESS_CODE (BBZ_INTERNAL_X92_SECURE)
+
+Rate limiting: SecurityLog con ventana de 15 minutos, máx 5 intentos.
+Implementación: DB-backed (no Redis). Funciona pero es costoso a escala.
+
+
+================================================================================
+8. UI/UX
+================================================================================
+
+--- Design system ---
+
+Colores principales:
+  Negro: #0A0A0A (fondo base)
+  Verde neón: #B8EB23 (accent primario)
+  Glassmorphism: bg-white/[0.04] a bg-white/[0.08] con border-white/[0.06]
+
+Componentes base: Card, Button, Badge, MetricCard, StatusBadge
+Animaciones: Framer Motion con stagger en listas
+Notificaciones: Sonner toasts
+Iconos: Lucide React (set consistente)
+Command Palette: ⌘K (funcional con búsqueda)
+
+--- Pantallas que se sienten PREMIUM ---
+
+/player/[playerKey]:
+  Limpio, funcional, profesional. Cursor oculto, fullscreen real,
+  standby elegante con reloj. Listo para TV.
+
+/approvals:
+  UI completa con tabs, expand/collapse, reject con motivo obligatorio,
+  overview strip con métricas de moderación. Real y bien ejecutado.
+
+/onboarding/*:
+  Wizard multi-paso cuidado, con animaciones suaves, validación en tiempo
+  real. Flujo diferenciado por tipo de cuenta (company/creator/admin).
+
+--- Pantallas que se sienten MVP ---
+
+/analytics:
+  Los gráficos de "impresiones por hora" son 100% fake (datos generados
+  con Math.sin() hardcodeado). El gráfico de tendencia de 30 días puede
+  estar en cero si no hay Metric rows reales en DB.
+  El "revenue" mostrado es una multiplicación inventada.
+
+/dashboard:
+  El toggle "Live" da sensación de WebSocket cuando es fetch cada 30s.
+  "SSE endpoint" es en realidad un JSON endpoint de polling renombrado.
+
+/settings/billing:
+  Muestra status "ACTIVE" siempre. Sin planes reales, sin Stripe,
+  sin forma de pagar o ver historial de pagos.
+
+/settings/api-keys:
+  Texto "disponible en la próxima versión" hardcodeado y visible al usuario.
+
+/screens (vista mapa):
+  Usa colombia-geo.ts con datos geográficos estáticos. El mapa puede
+  mostrarse sin pantallas reales asignadas geográficamente.
+
+--- Problemas de accesibilidad ---
+
+• Sin aria-label en la mayoría de botones de iconos solo
+• img en player usa item.title como alt — funcional pero puede no ser descriptivo
+• suppressHydrationWarning en reloj del standby — solución correcta pero indica
+  que el clock usa fecha del cliente directamente
+• Sin focus-visible styles consistentes en todos los componentes interactivos
+
+
+================================================================================
+9. PERFORMANCE
+================================================================================
+
+--- Bottlenecks reales identificados ---
+
+🔴 CRÍTICO: Impresiones infladas — analytics corrupto desde day 1
+   Ad.impressions se incrementa con CADA heartbeat (cada 15s).
+   Un anuncio de 30s que se reproduce 10 veces en una hora =
+   240 impresiones contadas, no 10.
+   El dashboard muestra este número. Los clientes verán métricas
+   que no cuadran con la realidad.
+   Corrección necesaria: contar 1 impresión por reproducción completa,
+   no por heartbeat.
+
+🟡 getOrgContext() sin caché en cada request
+   Cada server component, action, y API handler necesita el org context:
+     1. auth() → Clerk (JWT local en v7, pero puede ser network call)
+     2. db.user.findUnique() → Neon (siempre network)
+   Con 50 usuarios activos = ~100 queries/segundo al DB solo para
+   resolver contexto.
+
+🟡 Queries de analytics con joins de 3 niveles sin índices verificados
+   Metric → Ad → Campaign → Organization
+   Sin índices en Ad.campaignId o Campaign.organizationId,
+   esto hace full table scans cuando la DB crece más allá de
+   miles de registros.
+
+🟠 Player polling — escala con número de pantallas
+   Heartbeat cada 15s: UPDATE Screen SET lastSeenAt, lastPingAt, status
+   Con 100 pantallas = 400 queries UPDATE/minuto solo por heartbeats.
+   Playlist fetch cada 30s: 2 queries con JOINs por pantalla.
+   Con 100 pantallas = 200 queries/minuto adicionales.
+
+🟠 Revenue hardcodeado en analytics
+   analytics.service.ts línea 122:
+   revenue: (m._sum.impressions ?? 0) * 0.0015,
+   Este número aparece en los gráficos. No es real.
+   Es un CPM simulado ($0.0015 por impresión).
+
+🟠 HOUR_DATA completamente fake en analytics UI
+   analytics/_client.tsx líneas 26-30:
+   const HOUR_DATA = Array.from({ length: 24 }, (_, h) => {
+     const base = h >= 7 && h <= 22
+       ? (h >= 11 && h <= 14 ? 120000 : h >= 17 && h <= 20 ? 150000 : 60000)
+       : 8000;
+     const jitter = Math.floor(Math.abs(Math.sin(h * 1.7 + 0.5)) * 18000);
+     return { hour: `${h.toString().padStart(2, "0")}:00`, impressions: base + jitter };
+   });
+   Este array genera SIEMPRE los mismos datos (120K impresiones de 11am-2pm).
+   No viene de la DB. Es marketing fictional presentado como analytics real.
+
+🟠 City metrics fallback es estimado falso
+   analytics.service.ts línea 189-190:
+   if (cityData.every((c) => c.impressions === 0)) {
+     return cityData.map((c) => ({ ...c, impressions: c.traffic * 30 }))
+   }
+   Cuando no hay impresiones reales, muestra traffic * 30 como estimado.
+   Este número aparece igual que datos reales en la UI.
+
+🟠 Fire-and-forget en impressions logging
+   db.ad.updateMany(...).catch(() => {});
+   Fallos son silenciosamente ignorados. Sin log de error.
+   Dificulta debugging cuando las métricas no cuadran.
+
+⚠️ Socket.io en package.json pero sin uso
+   Añade ~100KB al bundle sin aportar funcionalidad.
+
+
+================================================================================
+10. QUÉ TAN CERCA ESTÁ BELABLAZE DE SER UN SAAS DOOH REAL
+================================================================================
+
+PORCENTAJE REAL DE AVANCE: 58-63%
+
+--- Lo que SÍ podría venderse hoy mismo ---
+
+✅ El player DOOH en TVs reales — funciona con R2 configurado
+✅ El sistema de aprobaciones de ads — completo y bien diseñado
+✅ La gestión básica de pantallas — funciona (crear, ver, actualizar estado)
+✅ La media library — funciona si R2 está configurado
+✅ El onboarding multi-tipo — funciona para company, creator y admin
+✅ La gestión de campañas y ads — funciona el CRUD completo
+✅ El sistema de audit log — completo en toda la plataforma
+✅ El control de roles y acceso — bien implementado
+
+--- Lo que NO está listo para clientes reales ---
+
+Blocker                         | Por qué importa
+--------------------------------|----------------------------------------------------
+Analytics en parte fake         | Un cliente que paga por DOOH NECESITA métricas
+                                | reales para justificar el gasto ante su directiva
+Impresiones infladas 16x        | Si cobras por CPM, estás sobrecobrando.
+                                | Si el cliente lo descubre, pierdes la cuenta
+R2 sin configurar               | Sin R2, no hay uploads. Sin uploads, no hay ads.
+                                | Sin ads, no hay producto.
+Sin billing real                | No puedes cobrar a clientes ni trackear presupuesto
+Campaign dates no afectan       | Confunde a clientes que usan la UI para programar
+reproducción                    | campañas por fechas
+Sin thumbnails de video         | La media library de videos es una fila de blancos
+Sin control remoto de pantallas | Cuando una TV se traba, no hay forma de
+                                | actuar remotamente desde el dashboard
+Clerk en test mode              | No se puede usar en producción real
+
+
+================================================================================
+11. ROADMAP REALISTA DE FINALIZACIÓN
+================================================================================
+
+================================================================================
+PRIORIDAD CRÍTICA — Antes de cualquier cliente real (Esta semana)
+================================================================================
+
+1. CONFIGURAR R2 COMPLETO
+   - Añadir las 5 variables de entorno (R2_ENDPOINT, R2_BUCKET_NAME,
+     R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_PUBLIC_URL)
+   - Verificar CORS en el bucket para el dominio de producción
+   - Probar upload end-to-end con una imagen y un video
+   - Probar que el player carga media desde R2 correctamente
+   Archivos afectados: src/lib/r2.ts, src/lib/storage.ts
+
+2. ARREGLAR EL CONTEO DE IMPRESIONES
+   - El ping NO debe incrementar Ad.impressions
+   - Crear endpoint: POST /api/player/impression
+     Body: { playerKey, adId, completedAt }
+     Side effect: crear Metric row o incrementar si ya existe para ese día
+   - El player llama a este endpoint cuando termina de reproducir un ad
+     (onEnded para video, cuando el timer de imagen se agota)
+   - Migrar Ad.impressions actuales a 0 antes de producción
+   Archivos afectados: src/app/api/player/ping/route.ts,
+                       src/app/player/[playerKey]/_player.tsx (nuevo call)
+
+3. CONFIGURAR CLERK_WEBHOOK_SECRET
+   - Ir a Clerk Dashboard → Configure → Webhooks
+   - Copiar el signing secret
+   - Añadir a .env.local: CLERK_WEBHOOK_SECRET=whsec_xxx
+   - Añadir a Vercel Environment Variables
+   - Verificar que user.created webhook llega correctamente
+   Archivos afectados: src/app/api/webhooks/clerk/route.ts
+
+4. ELIMINAR O ETIQUETAR DATOS FAKE DE ANALYTICS
+   - HOUR_DATA debe eliminarse del gráfico o marcarse claramente como
+     "Proyección estimada (sin datos reales aún)"
+   - revenue en getChartData() debe ser 0 o "Próximamente" hasta Stripe
+   - El fallback de traffic * 30 debe ser invisible o marcado como estimado
+   Archivos afectados: src/app/analytics/_client.tsx,
+                       src/services/analytics.service.ts
+
+5. CAMBIAR CLERK A PRODUCCIÓN
+   - Crear app de producción en Clerk Dashboard
+   - Actualizar pk_test_... → pk_live_...
+   - Actualizar sk_test_... → sk_live_...
+   - Configurar dominio de producción en Clerk
+
+================================================================================
+PRIORIDAD ALTA — Semanas 1-3
+================================================================================
+
+6. ARREGLAR EL SISTEMA DE MÉTRICAS (Metric rows)
+   - El endpoint /api/player/impression debe crear/actualizar Metric rows:
+     { adId, screenId, date, impressions, clicks, engagements }
+   - Así los charts de analytics tienen datos reales de DB
+   - Agregar índices en Prisma: Ad.campaignId, Campaign.organizationId,
+     Metric.adId+date, Metric.screenId+date
+   Archivos afectados: src/services/analytics.service.ts, prisma/schema.prisma
+
+7. MIDDLEWARE.TS BÁSICO
+   - Crear /src/middleware.ts
+   - Rate limiting en /api/player/ping (máx 1 req/5s por playerKey)
+   - Rate limiting en /api/media/upload (máx 10/min por userId)
+   - Logging básico de requests
+   - Centralizar respuesta 401 para rutas API protegidas
+
+8. CAMPAIGN DATES → DECISIÓN DE DISEÑO DOCUMENTADA Y COMUNICADA
+   - Decidir: ¿Campaign.startDate/endDate controla reproducción o no?
+   - Si SÍ: añadir check en getScreenCampaignItems() (player.service.ts:132)
+   - Si NO: eliminar/ocultar esos campos del formulario de creación de campaña
+             o añadir tooltip explicando que son para tracking interno
+
+9. THUMBNAILS DE VIDEO
+   - En el upload, generar thumbnail del primer frame
+   - Opciones: ffmpeg en Vercel Function, o pedir al cliente que suba thumbnail
+   - Mostrar thumbnail en media library grid
+   Archivos afectados: src/app/api/media/upload/route.ts, src/lib/storage.ts
+
+10. CREAR/REVOCAR API KEYS DESDE UI
+    - El schema ya tiene el modelo ApiKey (keyPrefix, hashedKey, revokedAt)
+    - Crear server action generateApiKey() en src/actions/organizations.ts
+    - Form en /settings/api-keys: nombre de la key → genera → muestra UNA VEZ
+    - Botón de revocar en la lista de keys activas
+    Archivos afectados: src/app/settings/api-keys/page.tsx,
+                        src/actions/organizations.ts
+
+================================================================================
+PRIORIDAD MEDIA — Mes 2
+================================================================================
+
+11. REGISTRO DE REPRODUCCIÓN REAL (PlaybackLog)
+    - Nueva tabla: PlaybackLog { adId, screenId, startedAt, endedAt, completed }
+    - El player reporta start (al mostrar ad) y end (al terminar o saltar)
+    - Esto alimenta analytics sin depender de heartbeats
+    - Permite reportes de "completion rate" por ad
+
+12. CONTROL REMOTO DE PANTALLAS
+    - Endpoint POST /api/screens/[id]/command
+      Body: { command: "refresh" | "restart_content" | "standby" }
+    - El player consulta comandos pendientes en cada heartbeat
+    - Dashboard: botón "Reiniciar contenido" en detalle de pantalla
+
+13. CREAR WEBHOOKS DESDE UI
+    - Server action createWebhook(url, events[]) en src/actions/organizations.ts
+    - Formulario en /settings/webhooks
+    - Cuando ocurra un evento relevante, dispatchar HTTP POST a los hooks
+    - Eventos iniciales: campaign.approved, ad.rejected, media.uploaded
+
+14. BILLING BÁSICO CON STRIPE
+    - Integrar Stripe Checkout para suscripción mensual
+    - stripeCustomerId, stripeSubscriptionId ya en el modelo Subscription
+    - Al menos un plan: "BelaBlaze Pro" con precio fijo
+    - Webhook de Stripe para manejar pagos exitosos/fallidos
+
+15. LÍMITES DE STORAGE
+    - En /api/media/upload, verificar storageMB actual vs límite del plan
+    - Rechazar con 402 si se excede el límite
+
+16. CACHÉ PARA getOrgContext()
+    - Usar unstable_cache de Next.js o pasar ctx como parámetro
+    - Reducir queries a DB por request
+
+================================================================================
+PRIORIDAD BAJA — Mes 3+
+================================================================================
+
+17. WEBSOCKET PARA PLAYLIST UPDATES
+    - Reemplazar polling de 30s en el player con WebSocket o SSE real
+    - Cuando admin cambia una campaña asignada, la TV actualiza en <2s
+    - Socket.io ya está instalado — implementar el servidor
+
+18. HTML5 Y ADS INTERACTIVOS
+    - AdFormat.HTML5 e INTERACTIVE ya en el schema y el player ignora ambos
+    - Requiere sandbox de iframe para HTML5
+    - Implementar en DoohPlayer: <iframe sandbox="..." src={item.url} />
+
+19. LIMPIAR TABLAS LEGACY DEL SCHEMA
+    - OrganizationMember, Workspace, WorkspaceMember, Invitation,
+      CampaignScreen — ninguna tiene queries activas
+    - Crear migración para droppear estas tablas
+    - Actualizar schema.prisma
+
+20. PRESIGNED URLS PARA ASSETS
+    - En lugar de URLs públicas directas de R2, generar presigned URLs
+      con expiración de 1-24 horas
+    - Previene hotlinking y acceso no autorizado a assets
+
+21. MULTIREGIÓN / LATENCIA
+    - Neon actualmente en us-east-1
+    - Para DOOH en Colombia: considerar DB en región más cercana
+    - O usar Neon branching para réplicas de lectura
+
+22. SUITE DE TESTS
+    - No existe ningún test file en el proyecto (ni jest ni vitest)
+    - Mínimo: tests de integración para player.service.ts
+    - Tests unitarios para las transformaciones de datos en analytics.service.ts
+
+
+================================================================================
+12. ENTREGA FINAL — LISTAS OPERATIVAS
+================================================================================
+
+--- Bugs confirmados ---
+
+Bug                                    | Archivo                           | Línea | Severidad
+---------------------------------------|-----------------------------------|-------|----------
+Impressions incrementan en cada        | src/app/api/player/ping/route.ts  | 57-61 | 🔴 CRÍTICO
+heartbeat, no por reproducción         |                                   |       |
+CLERK_WEBHOOK_SECRET vacío             | .env.local                        | 7     | 🔴 CRÍTICO
+R2 sin configurar — uploads fallan     | .env (ausente)                    | N/A   | 🔴 CRÍTICO
+Revenue hardcodeado impressions*0.0015 | src/services/analytics.service.ts | 122   | 🟡 ALTO
+City metrics fallback usa traffic*30   | src/services/analytics.service.ts | 190   | 🟡 ALTO
+campaignsDelta siempre devuelve 0      | src/services/analytics.service.ts | 82    | 🟠 MEDIO
+revenueDelta siempre devuelve 0        | src/services/analytics.service.ts | 84    | 🟠 MEDIO
+HOUR_DATA es completamente fake        | src/app/analytics/_client.tsx     | 26-30 | 🟡 ALTO
+Client.organizationId nullable         | prisma/schema.prisma              | N/A   | 🟠 MEDIO
+Fire-and-forget en impressions log     | src/app/api/player/ping/route.ts  | 61    | 🟠 MEDIO
+ADMIN_ACCESS_CODE por defecto expuesto | .env                              | N/A   | 🟠 MEDIO
+@vercel/blob en code, paquete no inst. | src/lib/storage.ts                | N/A   | 🟠 MEDIO
+Clerk en test mode (pk_test_...)       | .env                              | N/A   | 🟡 ALTO
+
+--- Placeholders y mocks confirmados ---
+
+Feature                       | Archivo                              | Descripción
+------------------------------|--------------------------------------|---------------------------
+Gráfico "Impresiones/hora"    | src/app/analytics/_client.tsx        | Math.sin() hardcodeado
+Revenue en charts             | src/services/analytics.service.ts   | impressions * 0.0015 fijo
+City metrics vacíos           | src/services/analytics.service.ts   | Fallback: traffic * 30
+Billing page completa         | src/app/settings/billing/_client.tsx | Sin Stripe, siempre ACTIVE
+API Keys (no se puede crear)  | src/app/settings/api-keys/page.tsx  | "próxima versión" hardcodeado
+Webhooks (solo lectura)       | src/app/settings/webhooks/page.tsx  | Sin formulario de creación
+"Realtime" del dashboard      | src/lib/realtime.ts + use-realtime  | Es polling 30s, no WebSocket
+Socket.io instalado           | package.json                        | Cero imports en src/
+mock-data.ts                  | src/lib/mock-data.ts                | Archivo legacy, no importado
+
+--- TODOs técnicos urgentes ---
+
+1. [ ] Configurar R2 en .env + verificar en producción
+2. [ ] Configurar CLERK_WEBHOOK_SECRET desde Clerk Dashboard
+3. [ ] Arreglar conteo de impresiones (separate impression event)
+4. [ ] Eliminar HOUR_DATA fake o reemplazar con datos reales
+5. [ ] Agregar middleware.ts con rate limiting básico
+6. [ ] Crear endpoint POST /api/player/impression
+7. [ ] Implementar generateApiKey() server action
+8. [ ] Documentar que Campaign.startDate/endDate no afecta reproducción
+9. [ ] Agregar índices: Ad.campaignId, Campaign.organizationId, Metric.adId+date
+10. [ ] Limpiar tablas legacy del schema: OrganizationMember, Workspace, CampaignScreen
+11. [ ] Rotar ADMIN_ACCESS_CODE a valor seguro personalizado
+12. [ ] Cambiar Clerk a production keys (pk_live_...)
+13. [ ] Instalar resend si se quieren alertas por email
+14. [ ] Eliminar src/lib/mock-data.ts (archivo muerto)
+15. [ ] Eliminar socket.io de package.json si no se va a implementar aún
+
+--- Archivos más importantes del proyecto ---
+
+Archivo                                        | Por qué es crítico
+-----------------------------------------------|--------------------------------------------
+src/services/player.service.ts                 | Lógica de playlist — corazón del DOOH
+src/app/player/[playerKey]/_player.tsx         | El player — lo que corre en las TVs
+src/lib/org-context.ts                         | Multi-tenancy — base de toda la seguridad
+src/lib/auth.ts                                | Resolución de roles — quien puede qué
+src/lib/access.ts                              | PlatformRole — acceso cross-tenant de staff
+src/services/analytics.service.ts             | Métricas del dashboard — contiene fakes
+prisma/schema.prisma                           | Schema — fuente de verdad del modelo
+src/actions/campaigns.ts                       | Lifecycle de campañas
+src/app/api/player/ping/route.ts               | Heartbeat — tiene el bug de impresiones
+src/app/api/player/playlist/[playerKey]/route.ts | Playlist API para las TVs
+src/actions/onboarding.ts                      | Onboarding multi-tipo con validaciones
+src/lib/r2.ts                                  | Storage — necesita R2 configurado
+
+--- Rutas más importantes ---
+
+Ruta                                 | Tipo          | Estado
+-------------------------------------|---------------|---------------------------
+/player/[playerKey]                  | Pública       | ✅ Funcional para producción
+/api/player/playlist/[playerKey]     | API pública   | ✅ Funcional
+/api/player/ping                     | API pública   | ⚠️ Funcional, bug impresiones
+/approvals                           | Admin         | ✅ Completo
+/campaigns                           | CRUD          | ✅ Funcional
+/campaigns/new                       | Form          | ✅ Funcional
+/ads                                 | CRUD          | ✅ Funcional
+/screens                             | CRUD          | ✅ Funcional
+/media                               | Library       | ⚠️ Funcional si R2 configurado
+/analytics                           | Dashboard     | ⚠️ Parcialmente fake
+/dashboard                           | Overview      | ⚠️ Realtime es polling
+/onboarding/*                        | Auth          | ✅ Completo
+/settings/api-keys                   | Settings      | 🔴 Placeholder
+/settings/webhooks                   | Settings      | 🔴 Solo lectura
+/settings/billing                    | Settings      | 🔴 Sin Stripe
+/api/metrics                         | API           | ⚠️ Funcional, datos parciales
+/api/webhooks/clerk                  | Webhook       | 🔴 Secret vacío
+/api/media/upload                    | API           | 🔴 R2 no configurado
+
+
+================================================================================
+SI YO FUERA EL CTO DE BELABLAZE
+================================================================================
+
+--- Haría primero (esta semana) ---
+
+1. CONFIGURAR R2 Y CLERK_WEBHOOK_SECRET.
+   Sin esto el producto no funciona en producción. Son dos variables de
+   entorno que pueden desbloquearlo todo en menos de una hora.
+
+2. ARREGLAR EL CONTEO DE IMPRESIONES.
+   Es el único bug que corrompe datos de forma irreversible. Cada día que
+   pasa sin arreglarlo, los Ad.impressions en DB son números basura.
+   Antes de tener un solo cliente real, esto debe estar correcto.
+   No hay forma de "reparar" retroactivamente las impresiones infladas.
+
+3. QUITAR O ETIQUETAR CLARAMENTE LOS DATOS FAKE DE ANALYTICS.
+   El gráfico de "impresiones por hora" con Math.sin() es una trampa
+   para el propio fundador: parece que el sistema funciona cuando en
+   realidad está mostrando datos inventados. Prefiero ver ceros honestos
+   que 120K inventados.
+
+--- Reescribiría ---
+
+EL MODELO DE IMPRESIONES/ANALYTICS:
+   En vez de incrementar counters en el ping, implementaría un log de
+   reproducción (PlaybackLog) y calcularía métricas desde ahí.
+   Más correcto, más auditable, más valioso para clientes que necesitan
+   justificar su inversión en DOOH ante sus directorios.
+
+EL "SSE ENDPOINT":
+   Renombrarlo a /api/metrics/realtime y ser honesto: es polling.
+   Si en el futuro quiero WebSocket real, lo agrego como feature separado.
+   La nomenclatura "SSE" crea expectativas que el sistema no cumple.
+
+--- Optimizaría ---
+
+getOrgContext():
+   Añadir caché de sesión con unstable_cache de Next.js o pasar el
+   contexto como parámetro en vez de resolverlo N veces por render.
+   Reducción potencial: 60-80% de queries innecesarias al DB.
+
+Heartbeat del player:
+   Mover a edge runtime en Vercel para que no consuma compute functions
+   por cada TV. El ping es ultra-simple (no necesita Prisma).
+
+Queries de analytics:
+   Verificar que los índices de Prisma están realmente en Neon,
+   añadir los que faltan antes de que la DB crezca más allá de
+   decenas de miles de registros por tabla.
+
+--- Dejaría igual ---
+
+La arquitectura de layers (actions → services → repositories):
+   Está bien. Clara, mantenible, escalable. No la tocaría.
+
+El modelo de auth con Clerk v7:
+   La implementación es correcta y la resolución de roles con precedencia
+   es robusta. El Signal-based API de Clerk v7 está bien usado.
+
+El player DOOH:
+   Funciona. Está bien escrito. El manejo de errores (onError={advance})
+   es correcto para producción. El standby screen es elegante.
+   No lo tocaría.
+
+El sistema de aprobaciones:
+   Es completo y bien pensado. El flujo con motivo obligatorio de rechazo
+   es el correcto para un producto de moderación de contenido.
+
+El design system negro + verde + glassmorphism:
+   Tiene personalidad. Es diferenciador. No hay que cambiarlo.
+
+
+================================================================================
+CHECKLIST DE PRODUCCIÓN
+================================================================================
+
+Variables de entorno:
+  [ ] CLERK_WEBHOOK_SECRET configurado desde Clerk Dashboard
+  [ ] R2_ENDPOINT configurado
+  [ ] R2_BUCKET_NAME configurado
+  [ ] R2_ACCESS_KEY_ID configurado
+  [ ] R2_SECRET_ACCESS_KEY configurado
+  [ ] R2_PUBLIC_URL configurado
+  [ ] Clerk cambiado a production keys (pk_live_... / sk_live_...)
+  [ ] ADMIN_ACCESS_CODE rotado a valor personalizado seguro
+  [ ] Variables en Vercel Environment Variables (no solo .env.local)
+
+Base de datos:
+  [ ] Migraciones ejecutadas (prisma migrate deploy)
+  [ ] Índices verificados en Neon (Ad.campaignId, Campaign.organizationId)
+  [ ] Backup automático habilitado en Neon
+
+Infraestructura:
+  [ ] CORS de R2 configurado para el dominio de producción
+  [ ] Webhook de Clerk apuntando al dominio de producción
+  [ ] Dominio de producción configurado en Vercel
+
+Seguridad:
+  [ ] Clerk restricto al dominio de producción (no localhost)
+  [ ] ADMIN_WHITELIST_EMAILS actualizado para el equipo real
+  [ ] .env.local excluido de git (verificar .gitignore)
+
+Datos:
+  [ ] Ad.impressions reseteado a 0 si ya hay datos corruptos
+  [ ] Seed de datos de prueba ejecutado si necesario
+
+Código:
+  [ ] HOUR_DATA fake eliminado o marcado como placeholder visible
+  [ ] Revenue hardcodeado eliminado o marcado como estimado
+  [ ] src/lib/mock-data.ts eliminado
+  [ ] Logs de debug del player (console.log PLAYER_PLAYLIST) eliminados
+    (src/services/player.service.ts líneas 125, 161, 179, 203, 219)
+
+
+================================================================================
+FIN DE LA AUDITORÍA
+================================================================================
+Documento generado por: Claude Sonnet 4.6
+Proyecto: BelaBlaze DOOH Platform
+Repositorio: /Users/samuelmejiar/Documents/BelaBlaze
+Fecha de auditoría: 24 mayo 2026
+================================================================================
