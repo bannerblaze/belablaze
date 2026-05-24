@@ -130,3 +130,64 @@ export async function deleteAd(adId: string) {
 
   return { success: true };
 }
+
+export async function assignMediaToAd(adId: string, mediaAssetId: string) {
+  const ctx = await requireOrgContext();
+
+  const [ad, asset] = await Promise.all([
+    loadOrgAd(ctx.organizationId, adId),
+    db.mediaAsset.findFirst({
+      where: { id: mediaAssetId, organizationId: ctx.organizationId },
+      select: { id: true, url: true, type: true },
+    }),
+  ]);
+
+  if (!ad) throw new Error("Anuncio no encontrado");
+  if (!asset) throw new Error("Asset no encontrado");
+
+  await db.ad.update({
+    where: { id: adId },
+    data: {
+      mediaAssetId,
+      fileUrl: asset.url,
+      format: asset.type === "VIDEO" ? "VIDEO" : "IMAGE",
+    },
+  });
+
+  await logAudit({ action: "ad.update", entityType: "Ad", entityId: adId, metadata: { mediaAssetId } });
+  revalidatePath("/ads");
+  return { success: true, fileUrl: asset.url, type: asset.type };
+}
+
+export async function getOrgMediaAssets() {
+  const ctx = await requireOrgContext();
+  const R2_BASE = (process.env.R2_PUBLIC_URL ?? "").replace(/\/$/, "");
+
+  const assets = await db.mediaAsset.findMany({
+    where: { organizationId: ctx.organizationId, isArchived: false },
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      mimeType: true,
+      url: true,
+      storageKey: true,
+      size: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: "desc" },
+    take: 60,
+  });
+
+  return assets.map((a) => {
+    let resolvedUrl = a.url;
+    if (!resolvedUrl?.startsWith("http") && a.storageKey && R2_BASE) {
+      resolvedUrl = `${R2_BASE}/${a.storageKey}`;
+    }
+    return {
+      ...a,
+      url: resolvedUrl,
+      createdAt: a.createdAt.toISOString(),
+    };
+  });
+}

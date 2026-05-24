@@ -7,7 +7,7 @@ import {
   Filter, Plus, Eye, Pause, Play, Trash2,
   Copy, MoreHorizontal, ChevronDown, ChevronUp,
   ArrowUpDown, QrCode, Video, Image, Code, Zap,
-  SlidersHorizontal, X,
+  SlidersHorizontal, X, Paperclip,
 } from "lucide-react";
 import { StatusBadge, Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,8 +19,19 @@ import {
   getFormatConfig, getStatusConfig, truncate, cn,
 } from "@/lib/utils";
 import type { Ad, AdStatus, AdFormat } from "@/types";
-import { updateAdStatus, deleteAd, submitAdForReview } from "@/actions/ads";
+import { updateAdStatus, deleteAd, submitAdForReview, assignMediaToAd, getOrgMediaAssets } from "@/actions/ads";
 import { toast } from "sonner";
+
+type OrgAsset = {
+  id: string;
+  name: string;
+  type: string;
+  mimeType: string | null;
+  url: string | null;
+  storageKey: string | null;
+  size: number;
+  createdAt: string;
+};
 
 const STATUS_FILTERS: Array<{ value: string; label: string }> = [
   { value: "all", label: "Todos" },
@@ -118,6 +129,42 @@ export function AdsClient({ initialAds, campaigns }: { initialAds: Ad[]; campaig
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [showFilters, setShowFilters] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [mediaPickerAdId, setMediaPickerAdId] = useState<string | null>(null);
+  const [orgAssets, setOrgAssets] = useState<OrgAsset[]>([]);
+  const [assetsLoading, setAssetsLoading] = useState(false);
+
+  const openMediaPicker = async (adId: string) => {
+    setMediaPickerAdId(adId);
+    if (orgAssets.length === 0) {
+      setAssetsLoading(true);
+      try {
+        const assets = await getOrgMediaAssets();
+        setOrgAssets(assets as OrgAsset[]);
+      } finally {
+        setAssetsLoading(false);
+      }
+    }
+  };
+
+  const handleAssignMedia = (asset: OrgAsset) => {
+    if (!mediaPickerAdId) return;
+    startTransition(async () => {
+      try {
+        await assignMediaToAd(mediaPickerAdId, asset.id);
+        setAds((prev) =>
+          prev.map((a) =>
+            a.id === mediaPickerAdId
+              ? { ...a, fileUrl: asset.url ?? undefined, format: asset.type === "VIDEO" ? "VIDEO" : "IMAGE" }
+              : a,
+          ),
+        );
+        toast.success("Media asignada al anuncio");
+        setMediaPickerAdId(null);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Error al asignar media");
+      }
+    });
+  };
 
   const handleAction = (id: string, action: "toggle" | "delete" | "submit") => {
     const ad = ads.find((a) => a.id === id);
@@ -328,17 +375,30 @@ export function AdsClient({ initialAds, campaigns }: { initialAds: Ad[]; campaig
                     {/* Title + thumbnail */}
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-white/30 flex-shrink-0 overflow-hidden">
-                          {ad.thumbnailUrl ? (
-                            <div className="w-full h-full bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center">
-                              {FORMAT_ICONS[ad.format]}
-                            </div>
-                          ) : FORMAT_ICONS[ad.format]}
+                        <div
+                          className={cn(
+                            "w-10 h-10 rounded-lg border flex-shrink-0 overflow-hidden flex items-center justify-center transition-all",
+                            ad.fileUrl
+                              ? "bg-[#B8EB23]/[0.08] border-[#B8EB23]/20 text-[#B8EB23]/60"
+                              : "bg-white/[0.04] border-white/[0.06] border-dashed text-white/25 cursor-pointer hover:border-[#B8EB23]/30 hover:bg-[#B8EB23]/[0.04] hover:text-[#B8EB23]/50 group",
+                          )}
+                          onClick={!ad.fileUrl ? () => openMediaPicker(ad.id) : undefined}
+                          title={ad.fileUrl ? "Media asignada" : "Clic para asignar media"}
+                        >
+                          {ad.fileUrl ? FORMAT_ICONS[ad.format] : <Paperclip className="w-3.5 h-3.5" />}
                         </div>
                         <div>
                           <p className="text-sm font-medium text-white leading-none">{truncate(ad.title, 36)}</p>
                           <p className="text-[11px] text-white/35 mt-1">
                             {ad.duration}s · {ad.qrEnabled && "QR ·"} {formatDate(ad.createdAt, "dd MMM")}
+                            {!ad.fileUrl && (
+                              <button
+                                onClick={() => openMediaPicker(ad.id)}
+                                className="ml-1.5 text-[#B8EB23]/50 hover:text-[#B8EB23] transition-colors underline underline-offset-2"
+                              >
+                                Asignar media
+                              </button>
+                            )}
                           </p>
                         </div>
                       </div>
@@ -424,6 +484,93 @@ export function AdsClient({ initialAds, campaigns }: { initialAds: Ad[]; campaig
           </div>
         </div>
       </Card>
+
+      {/* ── Media Picker Modal ── */}
+      <AnimatePresence>
+        {mediaPickerAdId && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+              onClick={() => setMediaPickerAdId(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ duration: 0.18 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+            >
+              <div className="bg-[#111] border border-white/10 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col pointer-events-auto">
+                {/* Header */}
+                <div className="flex items-center justify-between p-5 border-b border-white/[0.07]">
+                  <div>
+                    <h3 className="text-base font-semibold text-white">Asignar media al anuncio</h3>
+                    <p className="text-xs text-white/40 mt-0.5">Selecciona un archivo de tu biblioteca</p>
+                  </div>
+                  <button
+                    onClick={() => setMediaPickerAdId(null)}
+                    className="p-1.5 rounded-lg hover:bg-white/[0.07] text-white/40 hover:text-white transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Grid */}
+                <div className="flex-1 overflow-y-auto p-5">
+                  {assetsLoading ? (
+                    <div className="flex items-center justify-center py-16">
+                      <div className="w-5 h-5 rounded-full border-2 border-[#B8EB23]/30 border-t-[#B8EB23] animate-spin" />
+                    </div>
+                  ) : orgAssets.length === 0 ? (
+                    <div className="text-center py-16">
+                      <Paperclip className="w-8 h-8 text-white/15 mx-auto mb-3" />
+                      <p className="text-sm text-white/40">No hay media en tu biblioteca</p>
+                      <p className="text-xs text-white/25 mt-1">Sube archivos desde la sección Media</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {orgAssets.map((asset) => (
+                        <button
+                          key={asset.id}
+                          onClick={() => handleAssignMedia(asset)}
+                          disabled={isPending}
+                          className="flex flex-col gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.07] hover:border-[#B8EB23]/40 hover:bg-[#B8EB23]/[0.04] transition-all text-left group disabled:opacity-50"
+                        >
+                          <div className="w-full aspect-video rounded-lg bg-white/[0.05] flex items-center justify-center overflow-hidden">
+                            {asset.type === "VIDEO" ? (
+                              <Video className="w-6 h-6 text-white/30 group-hover:text-[#B8EB23]/60 transition-colors" />
+                            ) : asset.url ? (
+                              <img
+                                src={asset.url}
+                                alt={asset.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const t = e.target as HTMLImageElement;
+                                  t.style.display = "none";
+                                  t.parentElement!.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
+                                }}
+                              />
+                            ) : (
+                              <Image className="w-6 h-6 text-white/30 group-hover:text-[#B8EB23]/60 transition-colors" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-white/80 truncate">{asset.name}</p>
+                            <p className="text-[10px] text-white/35 mt-0.5 uppercase tracking-wide">{asset.type}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

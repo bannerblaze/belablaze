@@ -4,6 +4,7 @@ import { StatusBadge, Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { ScreenDetailData, AssignedCampaign } from "@/services/screen-details.service";
+import { AssignCampaignButton, RemoveCampaignButton } from "./screen-campaign-assign";
 
 /* ──────────────────────────────────────────────────────────────────────
  * ScreenPlaylistCard — campaign and ad assignment list.
@@ -37,7 +38,7 @@ function AdRow({ ad }: { ad: AssignedCampaign["campaign"]["ads"][number] }) {
   );
 }
 
-function CampaignSection({ sc, index }: { sc: AssignedCampaign; index: number }) {
+function CampaignSection({ sc, index, screenId }: { sc: AssignedCampaign; index: number; screenId: string }) {
   const isActive = sc.campaign.status === "ACTIVE" && sc.isActive;
   const activeAds = sc.campaign.ads.filter((a) => ["ACTIVE", "PUBLISHED"].includes(a.status)).length;
 
@@ -77,6 +78,7 @@ function CampaignSection({ sc, index }: { sc: AssignedCampaign; index: number })
             {activeAds}/{sc.campaign.ads.length} ads
           </span>
           <StatusBadge status={sc.campaign.status} size="sm" />
+          <RemoveCampaignButton screenId={screenId} campaignId={sc.campaignId} />
         </div>
 
         <ChevronDown className="w-3.5 h-3.5 text-white/20 flex-shrink-0" />
@@ -108,9 +110,13 @@ export function ScreenPlaylistCard({ data }: Props) {
         subtitle={`${data.campaigns.length} campaña${data.campaigns.length !== 1 ? "s" : ""} asignada${data.campaigns.length !== 1 ? "s" : ""} · orden por prioridad`}
         icon={<Layers className="w-4 h-4" />}
         action={
-          hasCampaigns ? (
-            <Badge variant="brand" size="sm">{data.metrics.activeAds} activos</Badge>
-          ) : null
+          <div className="flex items-center gap-2">
+            {hasCampaigns && <Badge variant="brand" size="sm">{data.metrics.activeAds} activos</Badge>}
+            <AssignCampaignButton
+              screenId={data.id}
+              currentCampaignIds={data.campaigns.map((c) => c.campaignId)}
+            />
+          </div>
         }
       />
       <CardContent className="pt-4 space-y-2.5">
@@ -130,7 +136,7 @@ export function ScreenPlaylistCard({ data }: Props) {
         ) : (
           <>
             {data.campaigns.map((sc, i) => (
-              <CampaignSection key={sc.id} sc={sc} index={i} />
+              <CampaignSection key={sc.id} sc={sc} index={i} screenId={data.id} />
             ))}
             <p className="text-[10px] text-white/20 text-center pt-1">
               Drag & drop para reordenar · próximamente
