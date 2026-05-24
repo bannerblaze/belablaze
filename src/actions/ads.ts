@@ -36,8 +36,13 @@ export async function createAd(formData: FormData) {
   });
   if (!campaign) throw new Error("Campaña no encontrada en esta organización");
 
+  const adId = crypto.randomUUID();
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.bannerblaze.com").replace(/\/$/, "");
+  const qrUrl = qrEnabled ? `${baseUrl}/api/r/${adId}` : null;
+
   const ad = await db.ad.create({
     data: {
+      id: adId,
       title,
       description,
       campaignId,
@@ -46,6 +51,7 @@ export async function createAd(formData: FormData) {
       ctaText,
       ctaUrl,
       qrEnabled,
+      qrUrl,
       status: "DRAFT",
     },
   });

@@ -20,6 +20,7 @@ import {
 } from "@/lib/utils";
 import type { Ad, AdStatus, AdFormat } from "@/types";
 import { updateAdStatus, deleteAd, submitAdForReview, assignMediaToAd, getOrgMediaAssets } from "@/actions/ads";
+import { QRCodeImage } from "@/components/ui/qr-code";
 import { toast } from "sonner";
 
 type OrgAsset = {
@@ -132,6 +133,7 @@ export function AdsClient({ initialAds, campaigns }: { initialAds: Ad[]; campaig
   const [mediaPickerAdId, setMediaPickerAdId] = useState<string | null>(null);
   const [orgAssets, setOrgAssets] = useState<OrgAsset[]>([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
+  const [qrModalAd, setQrModalAd] = useState<Ad | null>(null);
 
   const openMediaPicker = async (adId: string) => {
     setMediaPickerAdId(adId);
@@ -442,10 +444,20 @@ export function AdsClient({ initialAds, campaigns }: { initialAds: Ad[]; campaig
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1.5 text-xs">
                         {ad.qrEnabled ? (
-                          <span className="flex items-center gap-1 text-purple-400">
-                            <QrCode className="w-3 h-3" />
-                            {formatNumber(ad.qrScans, true)}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="flex items-center gap-1 text-purple-400">
+                              <QrCode className="w-3 h-3" />
+                              {formatNumber(ad.qrScans, true)}
+                            </span>
+                            {ad.qrUrl && (
+                              <button
+                                onClick={() => setQrModalAd(ad)}
+                                className="text-[10px] px-1.5 py-0.5 rounded-md bg-purple-400/10 text-purple-400 hover:bg-purple-400/20 transition-colors font-medium"
+                              >
+                                Ver QR
+                              </button>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-white/25">—</span>
                         )}
@@ -484,6 +496,58 @@ export function AdsClient({ initialAds, campaigns }: { initialAds: Ad[]; campaig
           </div>
         </div>
       </Card>
+
+      {/* ── QR Modal ── */}
+      <AnimatePresence>
+        {qrModalAd && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+              onClick={() => setQrModalAd(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ duration: 0.18 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+            >
+              <div className="bg-[#111] border border-white/10 rounded-2xl shadow-2xl w-full max-w-sm pointer-events-auto">
+                <div className="flex items-center justify-between p-5 border-b border-white/[0.07]">
+                  <div>
+                    <h3 className="text-base font-semibold text-white">QR Interactivo</h3>
+                    <p className="text-xs text-white/40 mt-0.5 truncate max-w-[220px]">{qrModalAd.title}</p>
+                  </div>
+                  <button
+                    onClick={() => setQrModalAd(null)}
+                    className="p-1.5 rounded-lg hover:bg-white/[0.07] text-white/40 hover:text-white transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="p-5 flex flex-col items-center gap-4">
+                  <div className="p-3 bg-white rounded-xl shadow-lg">
+                    <QRCodeImage url={qrModalAd.qrUrl!} size={200} />
+                  </div>
+                  <p className="text-xs text-white/50 text-center">Escanea para ir al destino</p>
+                  {qrModalAd.ctaUrl && (
+                    <p className="text-[11px] text-white/30 text-center break-all max-w-full px-2">
+                      {qrModalAd.ctaUrl}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-400/10 border border-purple-400/20">
+                    <QrCode className="w-3 h-3 text-purple-400" />
+                    <span className="text-xs font-semibold text-purple-400">{formatNumber(qrModalAd.qrScans, true)} escaneos</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* ── Media Picker Modal ── */}
       <AnimatePresence>
