@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
   let body: {
     playerKey?: string;
     currentAdId?: string;
+    completed?: boolean;
     uptime?: number;
     resolution?: { width: number; height: number };
   };
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { playerKey, currentAdId, uptime, resolution } = body;
+  const { playerKey, currentAdId, completed, uptime, resolution } = body;
 
   if (!playerKey || typeof playerKey !== "string") {
     return NextResponse.json({ error: "playerKey required" }, { status: 400 });
@@ -53,11 +54,22 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Track impression if there's an active ad — fire-and-forget
-  if (currentAdId && typeof currentAdId === "string") {
+  // Count impression only when the ad completed a full playback cycle
+  if (completed === true && currentAdId && typeof currentAdId === "string") {
+    const now  = new Date();
+    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     db.ad.updateMany({
       where: { id: currentAdId },
       data:  { impressions: { increment: 1 } },
+    }).catch(() => {});
+    db.metric.create({
+      data: {
+        adId:        currentAdId,
+        screenId:    screen.id,
+        impressions: 1,
+        date,
+        hour:        now.getHours(),
+      },
     }).catch(() => {});
   }
 

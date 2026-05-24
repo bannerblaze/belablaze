@@ -59,9 +59,19 @@ export function DoohPlayer({ playerKey, screen, initialPlaylist }: Props) {
   useEffect(() => { indexRef.current    = index;    }, [index]);
 
   /* ── Advance to next item ── */
-  function advance() {
-    const pl = playlistRef.current;
+  function advance(completed = false) {
+    const pl   = playlistRef.current;
     if (pl.length === 0) return;
+    if (completed) {
+      const item = pl[indexRef.current];
+      if (item) {
+        fetch("/api/player/ping", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ playerKey, currentAdId: item.adId, completed: true }),
+        }).catch(() => {});
+      }
+    }
     setIndex((prev) => (prev + 1) % pl.length);
   }
 
@@ -71,7 +81,7 @@ export function DoohPlayer({ playerKey, screen, initialPlaylist }: Props) {
     if (!item || item.format === "VIDEO") return; // videos call advance via onEnded
 
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(advance, item.duration * 1000);
+    timerRef.current = setTimeout(() => advance(true), item.duration * 1000);
 
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -148,8 +158,8 @@ export function DoohPlayer({ playerKey, screen, initialPlaylist }: Props) {
           autoPlay
           muted
           playsInline
-          onEnded={advance}
-          onError={advance}
+          onEnded={() => advance(true)}
+          onError={() => advance(false)}
         />
       ) : (
         <img
@@ -158,7 +168,7 @@ export function DoohPlayer({ playerKey, screen, initialPlaylist }: Props) {
           alt={item.title}
           className="absolute inset-0 w-full h-full object-cover"
           draggable={false}
-          onError={advance}
+          onError={() => advance(false)}
         />
       )}
 
