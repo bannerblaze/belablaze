@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Megaphone, MonitorPlay, BarChart3,
   ClipboardCheck, Settings, ChevronLeft, Zap, Layers,
   Building2, LogOut, X, Image as ImageIcon, CalendarRange,
-  Activity, History,
+  Activity, History, Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
@@ -43,7 +43,7 @@ interface SidebarContentProps {
 
 function SidebarContent({ onClose, accountType, platformRole }: SidebarContentProps) {
   const pathname = usePathname();
-  const { sidebarCollapsed, toggleSidebar } = useAppStore();
+  const { toggleSidebar } = useAppStore();
   const { user } = useUser();
   const { signOut } = useClerk();
   const isMobile = !!onClose;
@@ -78,8 +78,6 @@ function SidebarContent({ onClose, accountType, platformRole }: SidebarContentPr
     return true;
   });
 
-  const collapsed = !isMobile && sidebarCollapsed;
-
   // Group items by section, preserving order
   const sections = visibleItems.reduce<Record<string, typeof visibleItems>>((acc, item) => {
     const key = item.section ?? "Principal";
@@ -90,30 +88,18 @@ function SidebarContent({ onClose, accountType, platformRole }: SidebarContentPr
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className={cn(
-        "flex items-center h-16 border-b border-white/[0.05] flex-shrink-0",
-        collapsed ? "justify-center" : "gap-3 px-5",
-      )}>
+      <div className="flex items-center gap-3 px-5 h-16 border-b border-white/[0.05] flex-shrink-0">
         <div className="flex items-center justify-center w-8 h-8 rounded-[10px] bg-[#B8EB23] flex-shrink-0 shadow-[0_0_0_1px_rgba(255,255,255,0.2)_inset,0_0_18px_-2px_rgba(184,235,35,0.4)]">
           <Zap className="w-4 h-4 text-black" strokeWidth={2.5} />
         </div>
-        {!collapsed && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.15 }}
-            className="overflow-hidden flex-1"
-          >
-            <div className="flex flex-col leading-none">
-              <span className="text-[14px] font-bold tracking-tight text-white">
-                Bela<span className="text-[#B8EB23]">Blaze</span>
-              </span>
-              <span className="text-[9px] text-white/35 tracking-[0.12em] uppercase font-semibold mt-1">
-                by BannerBlaze
-              </span>
-            </div>
-          </motion.div>
-        )}
+        <div className="flex flex-col leading-none flex-1 min-w-0">
+          <span className="text-[14px] font-bold tracking-tight text-white">
+            Bela<span className="text-[#B8EB23]">Blaze</span>
+          </span>
+          <span className="text-[9px] text-white/35 tracking-[0.12em] uppercase font-semibold mt-1">
+            by BannerBlaze
+          </span>
+        </div>
         {isMobile && (
           <button
             onClick={onClose}
@@ -126,22 +112,15 @@ function SidebarContent({ onClose, accountType, platformRole }: SidebarContentPr
       </div>
 
       {/* Nav */}
-      <nav className={cn("flex-1 overflow-y-auto py-3", !collapsed && "px-3")}>
+      <nav className="flex-1 overflow-y-auto py-3 px-3">
         {Object.entries(sections).map(([sectionName, items], sectionIndex) => (
           <div key={sectionName}>
-            {/* Collapsed: subtle separator between groups */}
-            {collapsed && sectionIndex > 0 && (
-              <div className="mx-3 my-2 h-px bg-white/[0.10]" />
-            )}
-            {/* Expanded: section label with top spacing */}
-            {!collapsed && (
-              <h4 className={cn(
-                "px-3 mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/35",
-                sectionIndex > 0 && "mt-6",
-              )}>
-                {sectionName}
-              </h4>
-            )}
+            <h4 className={cn(
+              "px-3 mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/35",
+              sectionIndex > 0 && "mt-6",
+            )}>
+              {sectionName}
+            </h4>
             <div className="space-y-0.5">
               {items.map((item) => {
                 const active = isActive(item.href);
@@ -151,26 +130,18 @@ function SidebarContent({ onClose, accountType, platformRole }: SidebarContentPr
                     key={item.href}
                     href={item.href}
                     onClick={onClose}
-                    title={collapsed ? item.label : undefined}
                     className={cn(
-                      "relative flex items-center cursor-pointer group transition-colors duration-150 overflow-hidden",
-                      collapsed
-                        ? cn("justify-center py-3 w-full", !active && "hover:bg-white/[0.05]")
-                        : cn(
-                            "h-9 px-3 gap-[10px]",
-                            active ? "rounded-r-lg" : "rounded-lg hover:bg-white/[0.05]",
-                          ),
-                      active ? "text-[#B8EB23]" : "text-white/55 hover:text-white",
+                      "relative flex items-center h-9 px-3 gap-[10px] cursor-pointer group transition-colors duration-150 overflow-hidden",
+                      active
+                        ? "rounded-r-lg text-[#B8EB23]"
+                        : "rounded-lg text-white/55 hover:text-white hover:bg-white/[0.05]",
                     )}
                   >
                     {/* Active: background fill + left border */}
                     {active && (
                       <>
                         <span className="absolute inset-0 bg-[#B8EB23]/[0.10]" />
-                        <span className={cn(
-                          "absolute left-0 inset-y-0 bg-[#B8EB23]",
-                          collapsed ? "w-[3px]" : "w-[2px]",
-                        )} />
+                        <span className="absolute left-0 inset-y-0 w-[2px] bg-[#B8EB23]" />
                       </>
                     )}
 
@@ -180,46 +151,27 @@ function SidebarContent({ onClose, accountType, platformRole }: SidebarContentPr
                         className={cn("w-[18px] h-[18px]", active ? "text-[#B8EB23]" : "")}
                         strokeWidth={active ? 2.2 : 1.7}
                       />
-                      {item.badge && !collapsed && !isMobile && (
+                      {item.badge && !isMobile && (
                         <span className="absolute -top-1 -right-1.5 flex items-center justify-center min-w-[14px] h-3.5 px-1 text-[8px] font-bold rounded-full bg-[#B8EB23] text-black leading-none">
                           {item.badge}
                         </span>
                       )}
                     </div>
 
-                    {/* Label — expanded only */}
-                    {!collapsed && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.15 }}
-                        className="relative z-10 flex items-center justify-between flex-1 min-w-0"
-                      >
-                        <span className={cn(
-                          "text-[13px] truncate",
-                          active ? "font-[500]" : "font-[400]",
-                        )}>
-                          {item.label}
-                        </span>
-                        {item.badge && (
-                          <span className="flex-shrink-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[9px] font-bold rounded-md bg-[#B8EB23] text-black leading-none">
-                            {item.badge}
-                          </span>
-                        )}
-                      </motion.div>
-                    )}
-
-                    {/* Custom tooltip — collapsed only */}
-                    {collapsed && (
-                      <div className="absolute left-full ml-2.5 px-2.5 py-1.5 bg-[#1A1A1E] border border-white/[0.08] text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-lg">
+                    {/* Label */}
+                    <div className="relative z-10 flex items-center justify-between flex-1 min-w-0">
+                      <span className={cn(
+                        "text-[13px] truncate",
+                        active ? "font-[500]" : "font-[400]",
+                      )}>
                         {item.label}
-                        {item.badge && (
-                          <span className="ml-2 inline-flex items-center justify-center w-3.5 h-3.5 text-[8px] font-bold rounded-full bg-[#B8EB23] text-black leading-none">
-                            {item.badge}
-                          </span>
-                        )}
-                      </div>
-                    )}
+                      </span>
+                      {item.badge && (
+                        <span className="flex-shrink-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[9px] font-bold rounded-md bg-[#B8EB23] text-black leading-none">
+                          {item.badge}
+                        </span>
+                      )}
+                    </div>
                   </Link>
                 );
               })}
@@ -230,48 +182,29 @@ function SidebarContent({ onClose, accountType, platformRole }: SidebarContentPr
 
       {/* Footer */}
       <div className="border-t border-white/[0.08] py-4 px-3 space-y-1">
-        <div className={cn(
-          "flex items-center rounded-lg hover:bg-white/[0.04] transition-all group",
-          collapsed ? "justify-center py-2" : "gap-2.5 px-3 py-2",
-        )}>
+        <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-white/[0.04] transition-all group">
           <UserIcon size="sm" />
-          {!collapsed && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.15 }}
-              className="flex-1 min-w-0"
-            >
-              <p className="text-[12px] font-semibold text-white truncate leading-none">{displayName}</p>
-              <p className="text-[11px] text-white/[0.45] mt-1 truncate">{roleLabel[role] ?? role}</p>
-            </motion.div>
-          )}
-          {!collapsed && (
-            <button
-              onClick={() => signOut({ redirectUrl: "/sign-in" })}
-              title="Cerrar sesión"
-              aria-label="Cerrar sesión"
-              className="flex-shrink-0 p-1.5 rounded-md text-white/25 hover:text-red-400 hover:bg-red-400/[0.08] transition-all"
-            >
-              <LogOut className="w-3.5 h-3.5" strokeWidth={1.8} />
-            </button>
-          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-[12px] font-semibold text-white truncate leading-none">{displayName}</p>
+            <p className="text-[11px] text-white/[0.45] mt-1 truncate">{roleLabel[role] ?? role}</p>
+          </div>
+          <button
+            onClick={() => signOut({ redirectUrl: "/sign-in" })}
+            title="Cerrar sesión"
+            aria-label="Cerrar sesión"
+            className="flex-shrink-0 p-1.5 rounded-md text-white/25 hover:text-red-400 hover:bg-red-400/[0.08] transition-all"
+          >
+            <LogOut className="w-3.5 h-3.5" strokeWidth={1.8} />
+          </button>
         </div>
 
         {!isMobile && (
           <button
             onClick={toggleSidebar}
-            className={cn(
-              "w-full flex items-center gap-2.5 py-2 rounded-lg text-white/30 hover:text-white hover:bg-white/[0.04] transition-all cursor-pointer",
-              collapsed ? "justify-center" : "px-3",
-            )}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-white/30 hover:text-white hover:bg-white/[0.04] transition-all cursor-pointer"
           >
-            <motion.div animate={{ rotate: collapsed ? 180 : 0 }} transition={{ duration: 0.2 }}>
-              <ChevronLeft className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={1.8} />
-            </motion.div>
-            {!collapsed && (
-              <span className="text-[11px] font-medium">Colapsar menú</span>
-            )}
+            <ChevronLeft className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={1.8} />
+            <span className="text-[11px] font-medium">Ocultar menú</span>
           </button>
         )}
       </div>
@@ -288,14 +221,31 @@ export function Sidebar({
   accountType = null,
   platformRole = "USER",
 }: SidebarProps) {
-  const { sidebarCollapsed, mobileSidebarOpen, setMobileSidebarOpen } = useAppStore();
+  const { sidebarCollapsed, toggleSidebar, mobileSidebarOpen, setMobileSidebarOpen } = useAppStore();
 
   return (
     <>
+      {/* Fixed hamburger — desktop only, appears when sidebar is hidden */}
+      <AnimatePresence>
+        {sidebarCollapsed && (
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={toggleSidebar}
+            aria-label="Mostrar menú"
+            className="fixed top-0 left-0 z-40 hidden lg:flex items-center justify-center w-12 h-[56px] bg-[#070708]/85 backdrop-blur-xl border-b border-r border-white/[0.05] text-white/45 hover:text-white hover:bg-white/[0.06] transition-all"
+          >
+            <Menu className="w-[18px] h-[18px]" strokeWidth={1.8} />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
       {/* Desktop sidebar */}
       <motion.aside
         initial={false}
-        animate={{ width: sidebarCollapsed ? 64 : 220 }}
+        animate={{ width: sidebarCollapsed ? 0 : 220 }}
         transition={{ duration: 0.2, ease: "easeInOut" }}
         className="hidden lg:flex flex-col h-screen bg-[#0A0A0C] border-r border-white/[0.05] flex-shrink-0 overflow-hidden z-30"
       >
