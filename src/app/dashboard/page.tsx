@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { currentUser } from "@clerk/nextjs/server";
 import { DashboardClient } from "./_client";
+import { AdminDashboardClient } from "./admin-dashboard-client";
 import { DashboardSkeleton } from "@/components/ui/skeleton";
 import { OrgUsageCard } from "@/components/dashboard/org-usage-card";
 import {
@@ -8,8 +9,10 @@ import {
   mockCampaigns, mockScreens,
 } from "@/lib/mock-data";
 import { getDashboardMetrics, getChartData, getRecentActivity } from "@/services/analytics.service";
+import { getAdminDashboardMetrics } from "@/services/admin-dashboard.service";
 import { getCampaigns } from "@/services/campaigns.service";
 import { getScreens } from "@/services/screens.service";
+import { getCurrentUser } from "@/lib/auth";
 import type { DashboardMetrics, ChartDataPoint } from "@/types";
 
 /* ──────────────────────────────────────────────────────────────────────
@@ -45,6 +48,19 @@ async function DashboardData() {
     userName = clerkUser?.fullName ?? clerkUser?.firstName ?? "Usuario";
   } catch {
     // Clerk unavailable — use default
+  }
+
+  // Bifurcar vista según tipo de cuenta
+  if (hasDb) {
+    try {
+      const dbUser = await getCurrentUser();
+      if (dbUser?.accountType === "INTERNAL") {
+        const adminMetrics = await getAdminDashboardMetrics();
+        return <AdminDashboardClient data={adminMetrics} />;
+      }
+    } catch {
+      // Si falla la resolución del user, continuar con dashboard normal
+    }
   }
 
   if (!hasDb) {
