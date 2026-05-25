@@ -110,12 +110,12 @@ function SidebarContent({ onClose, accountType, platformRole }: SidebarContentPr
         {sectionEntries.map(([sectionName, items], idx) => (
           <div key={sectionName}>
             <p className={cn(
-              "px-4 text-[10px] font-semibold uppercase tracking-widest text-white/25 mb-1",
-              idx > 0 ? "mt-5" : "mt-1",
+              "px-5 text-[10px] font-semibold uppercase tracking-widest text-white/25 mb-1",
+              idx > 0 ? "mt-7" : "mt-1",
             )}>
               {sectionName}
             </p>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               {items.map((item) => {
                 const active = isActive(item.href);
                 const Icon = ICON_MAP[item.href] ?? Layers;
@@ -125,7 +125,7 @@ function SidebarContent({ onClose, accountType, platformRole }: SidebarContentPr
                     href={item.href}
                     onClick={onClose}
                     className={cn(
-                      "relative flex items-center py-2.5 px-4 gap-3 transition-colors duration-150 overflow-hidden",
+                      "relative flex items-center py-3 px-5 gap-3 transition-colors duration-150 overflow-hidden",
                       active
                         ? "rounded-r-md text-white"
                         : "rounded-md text-white/55 hover:text-white/80 hover:bg-white/[0.04]",
