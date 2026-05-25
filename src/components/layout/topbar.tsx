@@ -28,7 +28,7 @@ const actionConfigs: Record<string, { label: string; href: string }> = {
 
 export function Topbar() {
   const pathname = usePathname();
-  const { isRealtime, setRealtime, unreadCount, setCommandOpen, toggleMobileSidebar } = useAppStore();
+  const { isRealtime, setRealtime, unreadCount, setCommandOpen, toggleMobileSidebar, sidebarCollapsed, toggleSidebar } = useAppStore();
   const [notifOpen, setNotifOpen] = useState(false);
   const notifBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -39,8 +39,9 @@ export function Topbar() {
 
   return (
     <header className="h-14 lg:h-[56px] flex items-center justify-between px-4 lg:px-5 border-b border-white/[0.05] bg-[#070708]/85 backdrop-blur-xl flex-shrink-0 z-20 gap-3">
-      {/* Left: hamburger (mobile) + breadcrumb */}
+      {/* Left: hamburger (mobile + desktop-collapsed) + breadcrumb */}
       <div className="flex items-center gap-2.5 min-w-0">
+        {/* Mobile hamburger */}
         <button
           onClick={toggleMobileSidebar}
           className="lg:hidden flex items-center justify-center w-9 h-9 rounded-lg text-white/55 hover:text-white hover:bg-white/[0.05] transition-all flex-shrink-0"
@@ -48,6 +49,16 @@ export function Topbar() {
         >
           <Menu className="w-5 h-5" strokeWidth={1.8} />
         </button>
+        {/* Desktop hamburger — only when sidebar is collapsed */}
+        {sidebarCollapsed && (
+          <button
+            onClick={toggleSidebar}
+            className="hidden lg:flex items-center justify-center w-9 h-9 rounded-lg text-white/55 hover:text-white hover:bg-white/[0.05] transition-all flex-shrink-0"
+            aria-label="Mostrar menú"
+          >
+            <Menu className="w-[18px] h-[18px]" strokeWidth={1.8} />
+          </button>
+        )}
 
         <div className="min-w-0 flex items-center gap-2">
           <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-white/30 font-medium">

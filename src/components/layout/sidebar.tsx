@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Megaphone, MonitorPlay, BarChart3,
   ClipboardCheck, Settings, ChevronLeft, Zap, Layers,
   Building2, LogOut, X, Image as ImageIcon, CalendarRange,
-  Activity, History, Menu,
+  Activity, History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
@@ -115,7 +115,7 @@ function SidebarContent({ onClose, accountType, platformRole }: SidebarContentPr
             )}>
               {sectionName}
             </p>
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               {items.map((item) => {
                 const active = isActive(item.href);
                 const Icon = ICON_MAP[item.href] ?? Layers;
@@ -125,7 +125,7 @@ function SidebarContent({ onClose, accountType, platformRole }: SidebarContentPr
                     href={item.href}
                     onClick={onClose}
                     className={cn(
-                      "relative flex items-center h-9 px-4 gap-3 transition-colors duration-150 overflow-hidden",
+                      "relative flex items-center py-2.5 px-4 gap-3 transition-colors duration-150 overflow-hidden",
                       active
                         ? "rounded-r-md text-white"
                         : "rounded-md text-white/55 hover:text-white/80 hover:bg-white/[0.04]",
@@ -138,10 +138,10 @@ function SidebarContent({ onClose, accountType, platformRole }: SidebarContentPr
                       </>
                     )}
                     <Icon
-                      className="relative z-10 w-[15px] h-[15px] flex-shrink-0"
+                      className="relative z-10 w-4 h-4 flex-shrink-0"
                       strokeWidth={active ? 2.1 : 1.7}
                     />
-                    <span className="relative z-10 text-[13px] truncate">{item.label}</span>
+                    <span className="relative z-10 text-sm truncate">{item.label}</span>
                   </Link>
                 );
               })}
@@ -201,23 +201,6 @@ export function Sidebar({
 
   return (
     <>
-      {/* Hamburger — desktop, shown when collapsed */}
-      <AnimatePresence>
-        {sidebarCollapsed && (
-          <motion.button
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            onClick={toggleSidebar}
-            aria-label="Mostrar menú"
-            className="fixed top-0 left-0 z-40 hidden lg:flex items-center justify-center w-12 h-[56px] bg-[#070708]/85 backdrop-blur-xl border-b border-r border-white/[0.05] text-white/45 hover:text-white hover:bg-white/[0.06] transition-all"
-          >
-            <Menu className="w-[18px] h-[18px]" strokeWidth={1.8} />
-          </motion.button>
-        )}
-      </AnimatePresence>
-
       {/* Desktop sidebar */}
       <motion.aside
         initial={false}
