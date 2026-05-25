@@ -92,6 +92,11 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <body className="bg-[#0A0A0A] text-white antialiased">
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `try{if(localStorage.getItem('belablaze-compact')==='true')document.body.classList.add('compact')}catch(e){}`
+            }}
+          />
           {children}
         </body>
       </html>

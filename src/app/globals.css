@@ -339,6 +339,22 @@ body {
   border-radius: 8px;
 }
 
+/* Modo compacto */
+body.compact .px-6 { padding-left: 1rem; padding-right: 1rem; }
+body.compact .px-8 { padding-left: 1.25rem; padding-right: 1.25rem; }
+body.compact .py-6 { padding-top: 1rem; padding-bottom: 1rem; }
+body.compact .py-8 { padding-top: 1.25rem; padding-bottom: 1.25rem; }
+body.compact .gap-6 { gap: 1rem; }
+body.compact .gap-8 { gap: 1.25rem; }
+body.compact .mb-6 { margin-bottom: 1rem; }
+body.compact .mb-8 { margin-bottom: 1.25rem; }
+body.compact .p-6  { padding: 1rem; }
+body.compact .p-8  { padding: 1.25rem; }
+body.compact .text-2xl { font-size: 1.25rem; }
+body.compact .text-3xl { font-size: 1.5rem; }
+body.compact .h-16 { height: 3.25rem; }
+body.compact .h-14 { height: 3rem; }
+
 /* Reduced motion: respect OS preference */
 @media (prefers-reduced-motion: reduce) {
   *,

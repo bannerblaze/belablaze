@@ -73,6 +73,20 @@ export function SettingsClient({ role, accountType, organization, creator }: Set
   const [tab, setTab] = useState("profile");
   const [saving, setSaving] = useState(false);
   const [savingNotifs, setSavingNotifs] = useState(false);
+  const [compactMode, setCompactMode] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("belablaze-compact") === "true";
+  });
+
+  useEffect(() => {
+    if (compactMode) {
+      document.body.classList.add("compact");
+      localStorage.setItem("belablaze-compact", "true");
+    } else {
+      document.body.classList.remove("compact");
+      localStorage.setItem("belablaze-compact", "false");
+    }
+  }, [compactMode]);
 
   const roleLabel: Record<UserRole, string> = {
     ADMIN: "Administrador",
@@ -329,7 +343,7 @@ export function SettingsClient({ role, accountType, organization, creator }: Set
                 <span className="text-xs text-white/50">COP $</span>
               </SettingRow>
               <SettingRow label="Modo compacto" description="Reduce el espaciado en tablas y listas">
-                <Toggle checked={false} onChange={() => {}} />
+                <Toggle checked={compactMode} onChange={() => setCompactMode(prev => !prev)} />
               </SettingRow>
             </CardContent>
           </Card>
