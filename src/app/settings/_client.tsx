@@ -1,20 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   User, Bell, Shield, Palette, Globe, Zap,
   Save, Mail, Phone,
-  Building2, Key, BadgeCheck,
+  Building2, Key, BadgeCheck, ExternalLink,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AccountProfileCard, type OrgProfileView, type CreatorProfileView } from "@/components/settings/account-profile-card";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useClerk } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import type { UserRole, AccountType } from "@/types";
+import { saveNotificationPrefs, type NotificationPrefs } from "@/actions/notifications";
 
 const SETTING_TABS = [
   { key: "profile", label: "Perfil", icon: <User className="w-4 h-4" /> },
@@ -67,8 +69,10 @@ export type SettingsClientProps = {
 
 export function SettingsClient({ role, accountType, organization, creator }: SettingsClientProps) {
   const { user, isLoaded } = useUser();
+  const { openUserProfile } = useClerk();
   const [tab, setTab] = useState("profile");
   const [saving, setSaving] = useState(false);
+  const [savingNotifs, setSavingNotifs] = useState(false);
 
   const roleLabel: Record<UserRole, string> = {
     ADMIN: "Administrador",
@@ -97,18 +101,25 @@ export function SettingsClient({ role, accountType, organization, creator }: Set
     });
   }, [isLoaded, user]);
 
-  const [notifs, setNotifs] = useState({
-    approvals: true,
-    campaigns: true,
-    screens: false,
-    weekly: true,
-    realtime: true,
+  // Notification prefs — read from Clerk unsafeMetadata, fall back to defaults
+  const savedPrefs = user?.unsafeMetadata?.notificationPrefs as NotificationPrefs | undefined;
+  const [notifs, setNotifs] = useState<NotificationPrefs>({
+    approvals: savedPrefs?.approvals ?? true,
+    campaigns: savedPrefs?.campaigns ?? true,
+    screens:   savedPrefs?.screens   ?? false,
+    weekly:    savedPrefs?.weekly    ?? true,
+    realtime:  savedPrefs?.realtime  ?? false,
   });
+
+  // Re-sync when Clerk finishes loading unsafeMetadata
+  useEffect(() => {
+    const saved = user?.unsafeMetadata?.notificationPrefs as NotificationPrefs | undefined;
+    if (saved) setNotifs(saved);
+  }, [user?.unsafeMetadata]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Persist into Clerk public metadata where supported
       if (user) {
         await user.update({
           firstName: profile.name.split(" ")[0],
@@ -124,6 +135,18 @@ export function SettingsClient({ role, accountType, organization, creator }: Set
       toast.error("No se pudieron guardar los cambios.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveNotifs = async () => {
+    setSavingNotifs(true);
+    try {
+      await saveNotificationPrefs(notifs);
+      toast.success("Preferencias guardadas.");
+    } catch {
+      toast.error("No se pudieron guardar las preferencias.");
+    } finally {
+      setSavingNotifs(false);
     }
   };
 
@@ -232,6 +255,12 @@ export function SettingsClient({ role, accountType, organization, creator }: Set
               <SettingRow label="Métricas en tiempo real" description="Actualizaciones automáticas del dashboard">
                 <Toggle checked={notifs.realtime} onChange={() => setNotifs(n => ({ ...n, realtime: !n.realtime }))} />
               </SettingRow>
+
+              <div className="flex justify-end pt-4 mt-1 border-t border-white/[0.05]">
+                <Button variant="brand" size="sm" loading={savingNotifs} icon={<Save className="w-3.5 h-3.5" />} onClick={handleSaveNotifs}>
+                  Guardar preferencias
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -239,32 +268,38 @@ export function SettingsClient({ role, accountType, organization, creator }: Set
         {tab === "security" && (
           <Card>
             <CardContent className="p-5 space-y-4">
-              <SettingRow label="Contraseña" description="Última actualización hace 3 meses">
-                <Button variant="secondary" size="sm" icon={<Key className="w-3.5 h-3.5" />}>Cambiar</Button>
+              <SettingRow label="Contraseña" description="Actualiza la contraseña de tu cuenta">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<Key className="w-3.5 h-3.5" />}
+                  onClick={() => openUserProfile()}
+                >
+                  Cambiar
+                </Button>
               </SettingRow>
               <SettingRow label="Autenticación 2FA" description="Protege tu cuenta con un segundo factor">
-                <Badge variant="warning" size="sm">No configurado</Badge>
+                <Button variant="secondary" size="sm" onClick={() => openUserProfile()}>
+                  Configurar
+                </Button>
               </SettingRow>
               <SettingRow label="Sesiones activas" description="Gestiona dispositivos donde has iniciado sesión">
-                <Button variant="outline" size="sm">Ver sesiones</Button>
+                <Link
+                  href="/settings/security"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-[#B8EB23] hover:text-[#B8EB23]/80 transition-colors"
+                >
+                  Ver sesiones
+                  <ExternalLink className="w-3 h-3" />
+                </Link>
               </SettingRow>
 
-              <div className="mt-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                <p className="text-xs font-semibold text-white/60 mb-2">Último acceso</p>
-                <div className="space-y-1.5">
-                  {[
-                    { device: "MacBook Pro — Chrome", location: "Medellín, Colombia", time: "Ahora" },
-                    { device: "iPhone 16 — Safari", location: "Medellín, Colombia", time: "Hace 2 horas" },
-                  ].map((s) => (
-                    <div key={s.device} className="flex items-center justify-between text-xs">
-                      <div>
-                        <p className="text-white/70">{s.device}</p>
-                        <p className="text-white/30">{s.location}</p>
-                      </div>
-                      <span className="text-white/40">{s.time}</span>
-                    </div>
-                  ))}
-                </div>
+              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                <p className="text-xs text-white/40 leading-relaxed">
+                  Gestiona tus sesiones activas desde{" "}
+                  <Link href="/settings/security" className="text-[#B8EB23] hover:underline font-medium">
+                    Seguridad avanzada →
+                  </Link>
+                </p>
               </div>
             </CardContent>
           </Card>
