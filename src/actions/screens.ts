@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { requireOrgContext } from "@/lib/org-context";
+import { getCurrentUser } from "@/lib/auth";
+import { db } from "@/lib/db";
 import { logAudit } from "@/actions/audit";
 import {
   createScreen as repoCreate,
@@ -141,17 +143,30 @@ export async function updateScreen(
     longitude?: number;
   },
 ) {
-  const ctx = await requireOrgContext();
+  const prismaData = {
+    ...data,
+    type: data.type as import("@prisma/client").ScreenType | undefined,
+  };
 
+  const dbUser = await getCurrentUser().catch(() => null);
+  const isInternal = dbUser?.accountType === "INTERNAL";
+
+  if (isInternal) {
+    await db.screen.update({ where: { id: screenId }, data: prismaData });
+    await logAudit({ action: "screen.update", entityType: "Screen", entityId: screenId, metadata: data });
+    revalidatePath("/screens");
+    revalidatePath(`/screens/${screenId}`);
+    return { success: true };
+  }
+
+  const ctx = await requireOrgContext();
   const screen = await loadOrgScreen(ctx.organizationId, screenId);
   if (!screen) throw new Error("Pantalla no encontrada");
 
-  await repoUpdate(screenId, ctx.organizationId, {
-    ...data,
-    type: data.type as import("@prisma/client").ScreenType | undefined,
-  });
+  await repoUpdate(screenId, ctx.organizationId, prismaData);
   await logAudit({ action: "screen.update", entityType: "Screen", entityId: screenId, metadata: data });
   revalidatePath("/screens");
+  revalidatePath(`/screens/${screenId}`);
   return { success: true };
 }
 
