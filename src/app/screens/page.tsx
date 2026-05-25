@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { ScreensClient } from "./_client";
 import { requireOrgContext } from "@/lib/org-context";
+import { getCurrentUser } from "@/lib/auth";
 
 /* ──────────────────────────────────────────────────────────────────────
  * /screens — DOOH fleet operations console.
@@ -33,8 +34,13 @@ function ScreensSkeleton() {
 async function ScreensData() {
   await connection();
 
-  const ctx = await requireOrgContext().catch(() => null);
-  if (!ctx) redirect("/onboarding");
+  const dbUser = await getCurrentUser().catch(() => null);
+  const isInternal = dbUser?.accountType === "INTERNAL";
+
+  if (!isInternal) {
+    const ctx = await requireOrgContext().catch(() => null);
+    if (!ctx) redirect("/onboarding");
+  }
 
   let screens: Awaited<ReturnType<typeof import("@/services/screens.service")["getScreens"]>> = [];
 

@@ -1,4 +1,5 @@
 import { getOrgContext } from "@/lib/org-context";
+import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { FilterOptions } from "@/types";
 import {
@@ -33,10 +34,18 @@ function serializeDates<T extends { lastPingAt: Date | null; lastSeenAt: Date | 
 
 export async function getScreens(filters: FilterOptions = {}) {
   try {
-    const ctx = await getOrgContext();
-    if (!ctx) return [];
+    const dbUser = await getCurrentUser();
+    const isInternal = dbUser?.accountType === "INTERNAL";
 
-    const where: Record<string, unknown> = { organizationId: ctx.organizationId };
+    // INTERNAL ve todas las pantallas de la plataforma
+    // Empresa/Creator ve solo las de su org
+    let where: Record<string, unknown> = {};
+
+    if (!isInternal) {
+      const ctx = await getOrgContext();
+      if (!ctx) return [];
+      where = { organizationId: ctx.organizationId };
+    }
 
     if (filters.search) {
       where.OR = [
