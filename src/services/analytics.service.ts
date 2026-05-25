@@ -218,3 +218,36 @@ export async function getRecentActivity(limit = 8) {
     return [];
   }
 }
+
+export async function getHourlyImpressions(
+  days: number = 30
+): Promise<{ hour: string; impressions: number }[]> {
+  try {
+    const ctx = await getOrgContext();
+    if (!ctx) return Array.from({ length: 24 }, (_, h) => ({ hour: `${String(h).padStart(2, "0")}:00`, impressions: 0 }));
+
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+
+    const rows = await db.metric.groupBy({
+      by: ["hour"],
+      where: {
+        ad: { campaign: { organizationId: ctx.organizationId } },
+        date: { gte: since },
+        hour: { not: null },
+      },
+      _sum: { impressions: true },
+      orderBy: { hour: "asc" },
+    });
+
+    return Array.from({ length: 24 }, (_, h) => {
+      const found = rows.find((r) => r.hour === h);
+      return {
+        hour: `${String(h).padStart(2, "0")}:00`,
+        impressions: found?._sum.impressions ?? 0,
+      };
+    });
+  } catch {
+    return Array.from({ length: 24 }, (_, h) => ({ hour: `${String(h).padStart(2, "0")}:00`, impressions: 0 }));
+  }
+}

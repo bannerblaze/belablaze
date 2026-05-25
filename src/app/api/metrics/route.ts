@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getDashboardMetrics, getChartData, getTopCampaigns, getCityMetrics } from "@/services/analytics.service";
+import { getDashboardMetrics, getChartData, getTopCampaigns, getCityMetrics, getHourlyImpressions } from "@/services/analytics.service";
 
 export async function GET(req: NextRequest) {
   try {
@@ -24,6 +24,11 @@ export async function GET(req: NextRequest) {
     if (type === "cities") {
       const data = await getCityMetrics();
       return NextResponse.json({ data });
+    }
+
+    if (type === "hourly") {
+      const data = await getHourlyImpressions(days);
+      return NextResponse.json({ hourly: data });
     }
 
     const [metrics, chartData, topCampaigns, cityMetrics] = await Promise.all([

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
@@ -21,13 +21,6 @@ import { formatNumber, formatCurrency, cn } from "@/lib/utils";
 const DATE_RANGES = ["7d", "14d", "30d", "90d"];
 const CITY_COLORS = ["#B8EB23", "#3B82F6", "#A78BFA", "#F59E0B", "#EC4899"];
 
-// Deterministic jitter via sine — avoids Math.random() hydration mismatch
-// (module-level Math.random() produces different values on server vs client).
-const HOUR_DATA = Array.from({ length: 24 }, (_, h) => {
-  const base = h >= 7 && h <= 22 ? (h >= 11 && h <= 14 ? 120000 : h >= 17 && h <= 20 ? 150000 : 60000) : 8000;
-  const jitter = Math.floor(Math.abs(Math.sin(h * 1.7 + 0.5)) * 18000);
-  return { hour: `${h.toString().padStart(2, "0")}:00`, impressions: base + jitter };
-});
 
 const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ dataKey: string; color: string; name: string; value: number }>; label?: string }) => {
   if (!active || !payload?.length) return null;
@@ -129,6 +122,16 @@ function exportToCSV(
 
 export function AnalyticsClient({ chartData, metrics: m, topCampaigns, cityMetrics }: AnalyticsClientProps) {
   const [range, setRange] = useState("30d");
+  const [hourlyData, setHourlyData] = useState<{ hour: string; impressions: number }[]>([]);
+  const [hourlyLoading, setHourlyLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/metrics?type=hourly")
+      .then((r) => r.json())
+      .then((data) => { if (data.hourly) setHourlyData(data.hourly); })
+      .catch(console.error)
+      .finally(() => setHourlyLoading(false));
+  }, []);
 
   const chartSlice = range === "7d" ? chartData.slice(-7)
     : range === "14d" ? chartData.slice(-14)
@@ -255,25 +258,32 @@ export function AnalyticsClient({ chartData, metrics: m, topCampaigns, cityMetri
 
         {/* Hourly chart */}
         <Card>
-          <CardHeader title="Pico de impresiones por hora" subtitle="Distribución típica del día" />
+          <CardHeader title="Pico de impresiones por hora" subtitle="Distribución real de los últimos 30 días" />
           <CardContent className="pt-4">
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={HOUR_DATA} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                <XAxis dataKey="hour" tick={{ fill: "rgba(255,255,255,0.25)", fontSize: 9 }} axisLine={false} tickLine={false} interval={3} />
-                <YAxis tick={{ fill: "rgba(255,255,255,0.25)", fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatNumber(v, true)} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="impressions" name="Impresiones" radius={[3, 3, 0, 0]}>
-                  {HOUR_DATA.map((entry, i) => (
-                    <Cell key={i} fill={
-                      entry.impressions > 140000 ? "#B8EB23" :
-                      entry.impressions > 100000 ? "rgba(184,235,35,0.5)" :
-                      "rgba(255,255,255,0.06)"
-                    } />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            {hourlyLoading ? (
+              <div className="h-[180px] rounded-xl bg-white/[0.03] animate-pulse" />
+            ) : (() => {
+              const maxHourly = Math.max(...hourlyData.map((d) => d.impressions), 1);
+              return (
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={hourlyData} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                    <XAxis dataKey="hour" tick={{ fill: "rgba(255,255,255,0.25)", fontSize: 9 }} axisLine={false} tickLine={false} interval={3} />
+                    <YAxis tick={{ fill: "rgba(255,255,255,0.25)", fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatNumber(v, true)} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar dataKey="impressions" name="Impresiones" radius={[3, 3, 0, 0]}>
+                      {hourlyData.map((entry, i) => (
+                        <Cell key={i} fill={
+                          entry.impressions > maxHourly * 0.75 ? "#B8EB23" :
+                          entry.impressions > maxHourly * 0.4 ? "rgba(184,235,35,0.5)" :
+                          "rgba(255,255,255,0.06)"
+                        } />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              );
+            })()}
             <div className="flex items-center justify-end gap-3 mt-2">
               {[["#B8EB23", "Alto tráfico"], ["rgba(184,235,35,0.5)", "Medio"], ["rgba(255,255,255,0.06)", "Bajo"]].map(([color, label]) => (
                 <div key={label} className="flex items-center gap-1.5 text-[11px] text-white/40">
