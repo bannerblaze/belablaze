@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ScreensOverview, deriveFleetMetrics } from "@/components/screens/screens-overview";
 import { ScreensFleetMap } from "@/components/screens/screens-fleet-map";
@@ -62,8 +63,21 @@ interface Props {
 }
 
 export function ScreensClient({ screens, canCreate = false, canManage = false }: Props) {
+  const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState(Date.now());
+
+  // Track when screens data was last received from the server.
+  useEffect(() => {
+    setLastRefreshed(Date.now());
+  }, [screens]);
+
+  // Silently refresh server-component data every 30 seconds.
+  useEffect(() => {
+    const id = setInterval(() => router.refresh(), 30_000);
+    return () => clearInterval(id);
+  }, [router]);
 
   const metrics = useMemo(() => deriveFleetMetrics(screens), [screens]);
   const selectedScreen = useMemo(
@@ -122,6 +136,7 @@ export function ScreensClient({ screens, canCreate = false, canManage = false }:
         screens={screens}
         selectedId={selectedId}
         onSelect={(id) => setSelectedId(id)}
+        lastRefreshed={lastRefreshed}
       />
 
       {/* ───────── 3. inventory ───────── */}

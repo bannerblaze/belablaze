@@ -70,6 +70,8 @@ function ScreenPin({
     <motion.div
       className="relative flex items-center justify-center"
       style={{ width: 28, height: 28, cursor: "pointer" }}
+      initial={{ scale: 0, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
       whileHover={{ scale: 1.2 }}
       transition={{ type: "spring", stiffness: 400, damping: 20 }}
     >
@@ -346,7 +348,7 @@ export function DOOHNetworkMap({
 
           return (
             <Marker
-              key={screen.id}
+              key={`${screen.id}-${screen.status}`}
               longitude={lng}
               latitude={lat}
               anchor="center"

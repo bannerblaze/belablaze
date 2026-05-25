@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { Radio } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -41,10 +41,19 @@ interface Props {
   screens: FleetScreen[];
   selectedId?: string | null;
   onSelect: (id: string) => void;
+  lastRefreshed?: number;
 }
 
-export function ScreensFleetMap({ screens, selectedId, onSelect }: Props) {
+export function ScreensFleetMap({ screens, selectedId, onSelect, lastRefreshed }: Props) {
   const [statusFilter, setStatusFilter] = useState<ScreenStatus | "ALL">("ALL");
+  const [secondsAgo, setSecondsAgo] = useState(0);
+
+  // Reset counter and tick every second when lastRefreshed changes.
+  useEffect(() => {
+    setSecondsAgo(0);
+    const id = setInterval(() => setSecondsAgo((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [lastRefreshed]);
 
   const onlineCount = useMemo(
     () => screens.filter((s) => s.status === "ONLINE").length,
@@ -71,7 +80,9 @@ export function ScreensFleetMap({ screens, selectedId, onSelect }: Props) {
                 <span>de {screens.length} activas</span>
               </span>
               <span className="text-white/20">•</span>
-              <span>monitoreo en tiempo real</span>
+              <span className="tabular-nums">
+                actualizado hace {secondsAgo}s
+              </span>
             </p>
           </div>
         </div>
