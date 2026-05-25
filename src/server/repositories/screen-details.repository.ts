@@ -9,9 +9,9 @@ import { db } from "@/lib/db";
  *   getScreenImpressionsTotal — aggregate impressions across all linked ads
  * ────────────────────────────────────────────────────────────────────── */
 
-export async function getScreenWithFullData(screenId: string, organizationId: string) {
+export async function getScreenWithFullData(screenId: string, organizationId?: string) {
   return db.screen.findFirst({
-    where: { id: screenId, organizationId },
+    where: organizationId ? { id: screenId, organizationId } : { id: screenId },
     include: {
       /* Campaign-level assignments */
       screenCampaigns: {
@@ -48,12 +48,11 @@ export async function getScreenWithFullData(screenId: string, organizationId: st
   });
 }
 
-export async function getScreenAuditLog(screenId: string, organizationId: string, limit = 25) {
+export async function getScreenAuditLog(screenId: string, organizationId?: string, limit = 25) {
   return db.auditLog.findMany({
-    where: {
-      organizationId,
-      entityId: screenId,
-    },
+    where: organizationId
+      ? { organizationId, entityId: screenId }
+      : { entityId: screenId },
     include: {
       user: { select: { name: true, avatar: true } },
     },

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import { requireOrgContext } from "@/lib/org-context";
+import { getCurrentUser } from "@/lib/auth";
 import { getScreenDetails } from "@/services/screen-details.service";
 import { ScreenStatusBadge } from "@/components/screens/screen-status-badge";
 import { getScreenTypeLabel } from "@/lib/utils";
@@ -46,8 +47,13 @@ function Skeleton() {
 }
 
 async function ScreenContent({ screenId }: { screenId: string }) {
-  const ctx = await requireOrgContext().catch(() => null);
-  if (!ctx) redirect("/onboarding");
+  const dbUser = await getCurrentUser().catch(() => null);
+  const isInternal = dbUser?.accountType === "INTERNAL";
+
+  if (!isInternal) {
+    const ctx = await requireOrgContext().catch(() => null);
+    if (!ctx) redirect("/onboarding");
+  }
 
   const data = await getScreenDetails(screenId);
   if (!data) notFound();

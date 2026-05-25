@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getOrgContext } from "@/lib/org-context";
+import { getCurrentUser } from "@/lib/auth";
 import {
   getScreenWithFullData,
   getScreenAuditLog,
@@ -207,12 +208,19 @@ function computeMetrics(
 /* ── public API ──────────────────────────────────────────────────────── */
 
 export async function getScreenDetails(screenId: string): Promise<ScreenDetailData | null> {
-  const ctx = await getOrgContext();
-  if (!ctx) return null;
+  const dbUser = await getCurrentUser().catch(() => null);
+  const isInternal = dbUser?.accountType === "INTERNAL";
+
+  let organizationId: string | undefined;
+  if (!isInternal) {
+    const ctx = await getOrgContext();
+    if (!ctx) return null;
+    organizationId = ctx.organizationId;
+  }
 
   const [raw, auditLog, impressionsTotal, trend] = await Promise.all([
-    getScreenWithFullData(screenId, ctx.organizationId),
-    getScreenAuditLog(screenId, ctx.organizationId),
+    getScreenWithFullData(screenId, organizationId),
+    getScreenAuditLog(screenId, organizationId),
     getScreenImpressionsTotal(screenId),
     getScreenTrend(screenId, 7),
   ]);
