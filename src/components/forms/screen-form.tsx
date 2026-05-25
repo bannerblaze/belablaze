@@ -24,6 +24,8 @@ const schema = z.object({
   pricePerSecond: z.number().min(0).optional(),
   orientation: z.enum(["landscape", "portrait"]).default("landscape"),
   notes: z.string().optional(),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -88,6 +90,8 @@ export function ScreenFormModal({ open, onClose, onSuccess }: ScreenFormProps) {
           pricePerSecond: data.pricePerSecond,
           orientation: data.orientation,
           notes: data.notes,
+          latitude: Number.isFinite(data.latitude) ? data.latitude : undefined,
+          longitude: Number.isFinite(data.longitude) ? data.longitude : undefined,
         });
         toast.success("Pantalla creada exitosamente");
         reset();
@@ -177,6 +181,42 @@ export function ScreenFormModal({ open, onClose, onSuccess }: ScreenFormProps) {
                 <Field label="Dirección *" error={errors.address?.message}>
                   <input {...register("address")} placeholder="Cra 43A #1 Sur" className={inputCls} />
                 </Field>
+              </div>
+
+              {/* Coordinates */}
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Latitud" error={errors.latitude?.message}>
+                    <input
+                      {...register("latitude", { valueAsNumber: true })}
+                      type="number"
+                      step="0.000001"
+                      placeholder="Ej: 6.2442"
+                      className={inputCls}
+                    />
+                  </Field>
+                  <Field label="Longitud" error={errors.longitude?.message}>
+                    <input
+                      {...register("longitude", { valueAsNumber: true })}
+                      type="number"
+                      step="0.000001"
+                      placeholder="Ej: -75.5636"
+                      className={inputCls}
+                    />
+                  </Field>
+                </div>
+                <p className="text-[11px] text-white/30 flex items-center gap-1.5">
+                  <MapPin className="w-3 h-3 flex-shrink-0" />
+                  Opcional — para pin exacto en el mapa.{" "}
+                  <a
+                    href="https://www.google.com/maps"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#B8EB23]/60 hover:text-[#B8EB23] underline underline-offset-2 transition-colors"
+                  >
+                    ¿Cómo obtener coordenadas? →
+                  </a>
+                </p>
               </div>
 
               <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-3">
