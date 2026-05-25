@@ -66,6 +66,67 @@ interface AnalyticsClientProps {
   cityMetrics: CityMetric[];
 }
 
+function exportToCSV(
+  m: DashboardMetrics,
+  totalClicks: number,
+  topCampaigns: TopCampaign[],
+  cityMetrics: CityMetric[],
+) {
+  const dateStr = new Date().toISOString().split("T")[0];
+
+  const generalRows = [
+    ["MÉTRICAS GENERALES", ""],
+    ["Fecha de exportación", dateStr],
+    ["Impresiones totales", m.totalImpressions],
+    ["Clics totales", totalClicks],
+    ["Escaneos QR", m.qrScans],
+    ["Engagement promedio", `${m.avgEngagement}%`],
+    ["Ingresos del mes", m.totalRevenue],
+    ["Campañas activas", m.activeCampaigns],
+    [""],
+  ];
+
+  const campaignHeaders = ["TOP CAMPAÑAS", "Nombre", "Impresiones", "Gastado", "Presupuesto", "Estado"];
+  const campaignRows = topCampaigns.map((c) => [
+    "",
+    c.name,
+    c.impressions,
+    c.spent,
+    c.budget,
+    c.status,
+  ]);
+
+  const cityHeaders = ["", "MÉTRICAS POR CIUDAD", "Ciudad", "Impresiones", "Clicks"];
+  const cityRows = cityMetrics.map((c) => ["", "", c.city, c.impressions, c.clicks]);
+
+  const allRows = [
+    ...generalRows,
+    campaignHeaders,
+    ...campaignRows,
+    [""],
+    cityHeaders,
+    ...cityRows,
+  ];
+
+  const csvContent = allRows
+    .map((row) =>
+      row
+        .map((cell) =>
+          typeof cell === "string" && cell.includes(",") ? `"${cell}"` : cell
+        )
+        .join(",")
+    )
+    .join("\n");
+
+  const blob = new Blob(["﻿" + csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `belablaze-analytics-${dateStr}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export function AnalyticsClient({ chartData, metrics: m, topCampaigns, cityMetrics }: AnalyticsClientProps) {
   const [range, setRange] = useState("30d");
 
@@ -100,7 +161,12 @@ export function AnalyticsClient({ chartData, metrics: m, topCampaigns, cityMetri
               </button>
             ))}
           </div>
-          <Button variant="outline" size="sm" icon={<Download className="w-3.5 h-3.5" />}>
+          <Button
+            variant="outline"
+            size="sm"
+            icon={<Download className="w-3.5 h-3.5" />}
+            onClick={() => exportToCSV(m, totalClicks, topCampaigns, cityMetrics)}
+          >
             Exportar
           </Button>
         </div>
