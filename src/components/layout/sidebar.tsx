@@ -106,11 +106,11 @@ function SidebarContent({ onClose, accountType, platformRole }: SidebarContentPr
       </div>
 
       {/* ── Nav ── */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2">
+      <nav className="flex-1 overflow-y-auto py-3 px-3">
         {sectionEntries.map(([sectionName, items], idx) => (
           <div key={sectionName}>
             <p className={cn(
-              "px-3 text-[10px] font-semibold uppercase tracking-widest text-white/25 mb-1",
+              "px-4 text-[10px] font-semibold uppercase tracking-widest text-white/25 mb-1",
               idx > 0 ? "mt-5" : "mt-1",
             )}>
               {sectionName}
@@ -125,7 +125,7 @@ function SidebarContent({ onClose, accountType, platformRole }: SidebarContentPr
                     href={item.href}
                     onClick={onClose}
                     className={cn(
-                      "relative flex items-center h-9 px-3 gap-3 transition-colors duration-150 overflow-hidden",
+                      "relative flex items-center h-9 px-4 gap-3 transition-colors duration-150 overflow-hidden",
                       active
                         ? "rounded-r-md text-white"
                         : "rounded-md text-white/55 hover:text-white/80 hover:bg-white/[0.04]",
