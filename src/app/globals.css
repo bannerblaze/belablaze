@@ -359,6 +359,49 @@ body.compact .text-3xl { font-size: 1.5rem; }
 body.compact .h-16 { height: 3.25rem; }
 body.compact .h-14 { height: 3rem; }
 
+/* ─── Mapbox GL overrides ─────────────────────────────────────────────────── */
+/* Strip default white popup background — dooh-map-popup provides its own. */
+.dooh-map-popup .mapboxgl-popup-content {
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.dooh-map-popup .mapboxgl-popup-tip {
+  display: none !important;
+}
+/* Hide Mapbox branding */
+.mapboxgl-ctrl-logo {
+  display: none !important;
+}
+.mapboxgl-ctrl-attrib {
+  display: none !important;
+}
+/* Style the native NavigationControl to match dark theme */
+.mapboxgl-ctrl-group {
+  background: rgba(10, 10, 10, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+}
+.mapboxgl-ctrl-group button {
+  background: transparent !important;
+  border: none !important;
+  width: 30px !important;
+  height: 30px !important;
+}
+.mapboxgl-ctrl-group button + button {
+  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+.mapboxgl-ctrl-icon {
+  filter: invert(1) opacity(0.5);
+}
+.mapboxgl-ctrl-group button:hover .mapboxgl-ctrl-icon {
+  filter: invert(1) opacity(0.9);
+}
+/* ──────────────────────────────────────────────────────────────────────────── */
+
 /* Reduced motion: respect OS preference */
 @media (prefers-reduced-motion: reduce) {
   *,
