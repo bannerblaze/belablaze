@@ -4,13 +4,14 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Copy, ExternalLink, RefreshCw, Zap,
-  WrenchIcon, Check, Power,
+  WrenchIcon, Check, Power, Pencil,
 } from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { pingScreen, updateScreenStatus } from "@/actions/screens";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type { ScreenDetailData } from "@/services/screen-details.service";
+import { EditScreenModal } from "@/app/screens/[screenId]/_client";
 
 /* ──────────────────────────────────────────────────────────────────────
  * ScreenControlPanel — admin action buttons for the detail page.
@@ -68,6 +69,7 @@ function ActionButton({
 export function ScreenControlPanel({ data }: Props) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [isPinging, startPing] = useTransition();
   const [isMaintenance, startMaintenance] = useTransition();
 
@@ -127,61 +129,71 @@ export function ScreenControlPanel({ data }: Props) {
   };
 
   return (
-    <Card className="h-full">
-      <CardHeader
-        title="Panel de control"
-        subtitle="Acciones sobre el dispositivo"
-        icon={<Power className="w-4 h-4" />}
-      />
-      <CardContent className="pt-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
-          <ActionButton
-            icon={copied ? Check : Copy}
-            label="Copiar URL"
-            description="URL del player DOOH"
-            onClick={handleCopyUrl}
-            variant="brand"
-          />
-          <ActionButton
-            icon={ExternalLink}
-            label="Abrir Player"
-            description="Nueva pestaña fullscreen"
-            onClick={handleOpenPlayer}
-            variant="brand"
-          />
-          <ActionButton
-            icon={Zap}
-            label="Ping"
-            description="Verificar conexión"
-            onClick={handlePing}
-            loading={isPinging}
-          />
-          <ActionButton
-            icon={RefreshCw}
-            label="Actualizar"
-            description="Refrescar datos"
-            onClick={handleRefresh}
-          />
-          <ActionButton
-            icon={WrenchIcon}
-            label={data.status === "MAINTENANCE" ? "Salir Mant." : "Mantenimiento"}
-            description="Cambiar estado del dispositivo"
-            onClick={handleMaintenance}
-            loading={isMaintenance}
-            variant={data.status === "MAINTENANCE" ? "warn" : "default"}
-          />
-        </div>
+    <>
+      <EditScreenModal open={editOpen} onClose={() => setEditOpen(false)} data={data} />
 
-        {/* Player key display */}
-        <div className="mt-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-          <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-white/25 mb-1">
-            Player Key
-          </p>
-          <p className="text-[10px] font-mono text-white/45 break-all leading-relaxed">
-            {data.playerKey}
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+      <Card className="h-full">
+        <CardHeader
+          title="Panel de control"
+          subtitle="Acciones sobre el dispositivo"
+          icon={<Power className="w-4 h-4" />}
+        />
+        <CardContent className="pt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
+            <ActionButton
+              icon={Pencil}
+              label="Editar pantalla"
+              description="Modificar configuración"
+              onClick={() => setEditOpen(true)}
+              variant="brand"
+            />
+            <ActionButton
+              icon={copied ? Check : Copy}
+              label="Copiar URL"
+              description="URL del player DOOH"
+              onClick={handleCopyUrl}
+              variant="brand"
+            />
+            <ActionButton
+              icon={ExternalLink}
+              label="Abrir Player"
+              description="Nueva pestaña fullscreen"
+              onClick={handleOpenPlayer}
+            />
+            <ActionButton
+              icon={Zap}
+              label="Ping"
+              description="Verificar conexión"
+              onClick={handlePing}
+              loading={isPinging}
+            />
+            <ActionButton
+              icon={RefreshCw}
+              label="Actualizar"
+              description="Refrescar datos"
+              onClick={handleRefresh}
+            />
+            <ActionButton
+              icon={WrenchIcon}
+              label={data.status === "MAINTENANCE" ? "Salir Mant." : "Mantenimiento"}
+              description="Cambiar estado del dispositivo"
+              onClick={handleMaintenance}
+              loading={isMaintenance}
+              variant={data.status === "MAINTENANCE" ? "warn" : "default"}
+            />
+          </div>
+
+          {/* Player key display */}
+          <div className="mt-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+            <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-white/25 mb-1">
+              Player Key
+            </p>
+            <p className="text-[10px] font-mono text-white/45 break-all leading-relaxed">
+              {data.playerKey}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </>
   );
 }

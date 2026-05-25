@@ -125,12 +125,20 @@ export async function updateScreen(
   screenId: string,
   data: {
     name?: string;
+    type?: string;
     address?: string;
     city?: string;
+    width?: number;
+    height?: number;
+    resolutionWidth?: number;
+    resolutionHeight?: number;
     dailyTraffic?: number;
     pricePerSecond?: number;
+    orientation?: string;
     notes?: string;
     isActive?: boolean;
+    latitude?: number;
+    longitude?: number;
   },
 ) {
   const ctx = await requireOrgContext();
@@ -138,7 +146,10 @@ export async function updateScreen(
   const screen = await loadOrgScreen(ctx.organizationId, screenId);
   if (!screen) throw new Error("Pantalla no encontrada");
 
-  await repoUpdate(screenId, ctx.organizationId, data);
+  await repoUpdate(screenId, ctx.organizationId, {
+    ...data,
+    type: data.type as import("@prisma/client").ScreenType | undefined,
+  });
   await logAudit({ action: "screen.update", entityType: "Screen", entityId: screenId, metadata: data });
   revalidatePath("/screens");
   return { success: true };
