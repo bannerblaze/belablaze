@@ -11,11 +11,11 @@ import { AuthBrandPanel } from "@/components/auth/auth-brand-panel";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative min-h-screen bg-[#070708] overflow-x-hidden">
+    <div className="relative min-h-screen bg-[#070708] overflow-hidden flex flex-col">
       <AuthBackground />
 
       <div
-        className="relative z-10 min-h-screen flex items-center justify-center px-5 sm:px-8 lg:px-12 py-10 lg:py-12"
+        className="relative z-10 flex-1 flex items-center justify-center px-5 sm:px-8 lg:px-12 py-10 lg:py-12"
         style={{
           paddingTop: "max(2.5rem, env(safe-area-inset-top))",
           paddingBottom: "max(2.5rem, env(safe-area-inset-bottom))",
