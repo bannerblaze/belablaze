@@ -79,3 +79,31 @@ export async function getScreenImpressionsTotal(screenId: string) {
 
   return result._sum.impressions ?? 0;
 }
+
+export async function getScreenTrend(
+  screenId: string,
+  days: number = 7,
+): Promise<{ date: string; impressions: number }[]> {
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  since.setHours(0, 0, 0, 0);
+
+  const rows = await db.metric.groupBy({
+    by: ["date"],
+    where: {
+      screenId,
+      date: { gte: since },
+    },
+    _sum: { impressions: true },
+    orderBy: { date: "asc" },
+  });
+
+  return Array.from({ length: days }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (days - 1 - i));
+    d.setHours(0, 0, 0, 0);
+    const dateStr = d.toISOString().split("T")[0]!;
+    const found = rows.find((r) => new Date(r.date).toISOString().split("T")[0] === dateStr);
+    return { date: dateStr, impressions: found?._sum.impressions ?? 0 };
+  });
+}

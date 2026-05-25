@@ -1,4 +1,7 @@
+"use client";
+
 import { Eye, Layers, Play, DollarSign, TrendingUp } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { formatNumber, formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -42,43 +45,10 @@ function MetricTile({ icon: Icon, label, value, sub, highlight }: MetricTileProp
   );
 }
 
-/* Sparkline placeholder — SVG that looks like a real chart */
-function SparklinePlaceholder({ color = "#B8EB23" }: { color?: string }) {
-  const points = [40, 25, 55, 30, 65, 45, 70, 50, 80, 60, 75, 85];
-  const max = Math.max(...points);
-  const min = Math.min(...points);
-  const h = 40;
-  const w = 200;
-  const step = w / (points.length - 1);
-
-  const pathD = points
-    .map((v, i) => {
-      const x = i * step;
-      const y = h - ((v - min) / (max - min)) * h;
-      return `${i === 0 ? "M" : "L"}${x},${y}`;
-    })
-    .join(" ");
-
-  const areaD =
-    pathD +
-    ` L${w},${h} L0,${h} Z`;
-
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: 40 }}>
-      <defs>
-        <linearGradient id={`grad-${color.replace("#", "")}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={areaD} fill={`url(#grad-${color.replace("#", "")})`} />
-      <path d={pathD} stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 export function ScreenAnalyticsCard({ data }: Props) {
   const revenueEstimate = data.dailyTraffic * data.pricePerSecond * 0.01;
+  const trend = data.metrics.trend ?? [];
 
   return (
     <Card className="h-full">
@@ -122,15 +92,49 @@ export function ScreenAnalyticsCard({ data }: Props) {
           />
         </div>
 
-        {/* Mini chart — prepared for real data */}
+        {/* Trend chart — 7-day real data from Metric.screenId */}
         <div className="rounded-xl bg-white/[0.02] border border-white/[0.04] p-3">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-white/30">
               Tendencia (7d)
             </span>
-            <span className="text-[10px] text-white/20 font-mono">PLACEHOLDER</span>
           </div>
-          <SparklinePlaceholder color="#B8EB23" />
+          {trend.every((d) => d.impressions === 0) ? (
+            <div className="h-[80px] w-full rounded bg-white/[0.03] animate-pulse" />
+          ) : (
+            <ResponsiveContainer width="100%" height={80}>
+              <AreaChart data={trend} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                <defs>
+                  <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#B8EB23" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#B8EB23" stopOpacity={0}   />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 9 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(d) => { const dt = new Date(d); return `${dt.getDate()}/${dt.getMonth() + 1}`; }}
+                />
+                <YAxis hide />
+                <Tooltip
+                  contentStyle={{ background: "#111", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, fontSize: 11 }}
+                  formatter={(v) => [v ?? 0, "Impresiones"]}
+                  labelFormatter={(d) => new Date(d).toLocaleDateString("es-CO")}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="impressions"
+                  stroke="#B8EB23"
+                  strokeWidth={1.5}
+                  fill="url(#trendGrad)"
+                  dot={false}
+                  activeDot={{ r: 3, fill: "#B8EB23", strokeWidth: 0 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Daily traffic bar */}

@@ -5,6 +5,7 @@ import {
   getScreenWithFullData,
   getScreenAuditLog,
   getScreenImpressionsTotal,
+  getScreenTrend,
 } from "@/server/repositories/screen-details.repository";
 
 const R2_BASE = (process.env.R2_PUBLIC_URL ?? "").replace(/\/$/, "");
@@ -74,6 +75,7 @@ export type ScreenMetrics = {
   totalAds: number;
   activeAds: number;
   impressionsTotal: number;
+  trend: { date: string; impressions: number }[];
 };
 
 export type ActivityEntry = {
@@ -182,7 +184,7 @@ function computeNowPlaying(
 function computeMetrics(
   campaigns: AssignedCampaign[],
   impressionsTotal: number,
-): ScreenMetrics {
+): Omit<ScreenMetrics, "trend"> {
   const now = new Date();
   const activeCampaigns = campaigns.filter(
     (sc) =>
@@ -208,10 +210,11 @@ export async function getScreenDetails(screenId: string): Promise<ScreenDetailDa
   const ctx = await getOrgContext();
   if (!ctx) return null;
 
-  const [raw, auditLog, impressionsTotal] = await Promise.all([
+  const [raw, auditLog, impressionsTotal, trend] = await Promise.all([
     getScreenWithFullData(screenId, ctx.organizationId),
     getScreenAuditLog(screenId, ctx.organizationId),
     getScreenImpressionsTotal(screenId),
+    getScreenTrend(screenId, 7),
   ]);
 
   if (!raw) return null;
@@ -273,7 +276,7 @@ export async function getScreenDetails(screenId: string): Promise<ScreenDetailDa
       : null,
   }));
 
-  const metrics = computeMetrics(campaigns, impressionsTotal);
+  const metrics = { ...computeMetrics(campaigns, impressionsTotal), trend };
   const nowPlaying = computeNowPlaying(campaigns, schedules);
 
   return {
