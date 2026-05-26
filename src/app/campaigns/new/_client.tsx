@@ -194,7 +194,7 @@ export function NewCampaignClient({ clients, isAdmin, autoClientId }: Props) {
       )}
 
       {(isAdmin || !!autoClientId) && (
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={(e) => e.preventDefault()}>
           <AnimatePresence mode="wait">
             <motion.div
               key={step}
@@ -490,10 +490,11 @@ export function NewCampaignClient({ clients, isAdmin, autoClientId }: Props) {
               </Button>
             ) : (
               <Button
-                type="submit"
+                type="button"
                 variant="brand"
                 size="sm"
                 loading={isPending}
+                onClick={handleSubmit(onSubmit)}
                 icon={isAdmin ? <CheckCircle2 className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
               >
                 {isAdmin ? "Crear campaña" : "Enviar a revisión"}
