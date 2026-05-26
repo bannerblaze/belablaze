@@ -173,6 +173,7 @@ model Organization {
   usageRecords UsageRecord[]
   apiKeys      ApiKey[]
   webhooks     Webhook[]
+  transactions Transaction[]
 
   @@index([slug])
   @@index([ownerId])
@@ -443,6 +444,7 @@ model Campaign {
   screens         CampaignScreen[]
   screenCampaigns ScreenCampaign[]
   schedules       CampaignSchedule[]
+  transactions    Transaction[]
 
   @@index([clientId])
   @@index([status])
@@ -771,4 +773,26 @@ model Webhook {
 
   @@index([organizationId])
   @@index([isActive])
+}
+
+model Transaction {
+  id             String   @id @default(cuid())
+  campaignId     String
+  organizationId String?
+  wompiId        String?  @unique
+  reference      String   @unique
+  amountInCents  Int
+  currency       String   @default("COP")
+  status         String   @default("PENDING")
+  paymentMethod  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  campaign     Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id])
+
+  @@index([campaignId])
+  @@index([wompiId])
+  @@index([organizationId])
+  @@map("transactions")
 }

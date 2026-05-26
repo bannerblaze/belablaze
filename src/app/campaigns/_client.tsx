@@ -1,11 +1,14 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import {
-  Plus, TrendingUp, DollarSign, Layers, Eye, X, ArrowUpRight,
+  Plus, TrendingUp, DollarSign, Layers, Eye, X, ArrowUpRight, CreditCard, RefreshCw,
 } from "lucide-react";
+import { createPaymentReference } from "@/actions/payments";
+import { toast } from "@/lib/toast";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,12 +17,13 @@ import { NoCampaignsEmpty, NoSearchResults } from "@/components/ui/empty-state";
 import { formatCurrency, formatNumber, formatDate, cn } from "@/lib/utils";
 
 const STATUS_TABS = [
-  { value: "all", label: "Todas" },
-  { value: "ACTIVE", label: "Activas" },
+  { value: "all",              label: "Todas"      },
+  { value: "ACTIVE",           label: "Activas"    },
+  { value: "APPROVED",         label: "Aprobadas"  },
   { value: "PENDING_APPROVAL", label: "Pendientes" },
-  { value: "DRAFT", label: "Borradores" },
-  { value: "PAUSED", label: "Pausadas" },
-  { value: "COMPLETED", label: "Completadas" },
+  { value: "DRAFT",            label: "Borradores" },
+  { value: "PAUSED",           label: "Pausadas"   },
+  { value: "COMPLETED",        label: "Completadas"},
 ];
 
 type Campaign = {
@@ -41,8 +45,52 @@ interface CampaignsClientProps {
 }
 
 export function CampaignsClient({ campaigns }: CampaignsClientProps) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
+  const [payingId, setPayingId] = useState<string | null>(null);
+
+  const handlePay = async (campaign: Campaign, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setPayingId(campaign.id);
+    try {
+      const data = await createPaymentReference(campaign.id);
+
+      // Load Wompi widget script once
+      if (!document.querySelector('script[src*="wompi"]')) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://checkout.wompi.co/widget.js";
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("No se pudo cargar el widget de pago"));
+          document.body.appendChild(script);
+        });
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const checkout = new (window as any).WidgetCheckout({
+        currency:      data.currency,
+        amountInCents: data.amountInCents,
+        reference:     data.reference,
+        publicKey:     data.publicKey,
+        signature:     { integrity: data.signature },
+        redirectUrl:   data.redirectUrl,
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      checkout.open((result: any) => {
+        setPayingId(null);
+        if (result?.transaction?.status === "APPROVED") {
+          toast.success("Pago aprobado. Activando campaña...");
+          router.refresh();
+        }
+      });
+    } catch (err) {
+      setPayingId(null);
+      toast.error(err instanceof Error ? err.message : "Error al procesar el pago");
+    }
+  };
 
   const filtered = useMemo(() => {
     let list = [...campaigns];
@@ -180,6 +228,25 @@ export function CampaignsClient({ campaigns }: CampaignsClientProps) {
                         </span>
                         <ArrowUpRight className="w-4 h-4 text-white/20 group-hover:text-[#B8EB23] transition-colors" />
                       </div>
+
+                      {campaign.status === "APPROVED" && campaign.budget > 0 && (
+                        <div
+                          className="pt-2 border-t border-[#B8EB23]/10"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        >
+                          <button
+                            disabled={payingId === campaign.id}
+                            onClick={(e) => handlePay(campaign, e)}
+                            className="w-full py-2 px-3 rounded-lg bg-[#B8EB23] text-black text-xs font-bold hover:bg-[#C5F034] active:bg-[#A5D820] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5 shadow-[0_0_16px_-2px_rgba(184,235,35,0.4)]"
+                          >
+                            {payingId === campaign.id ? (
+                              <><RefreshCw className="w-3 h-3 animate-spin" /> Procesando...</>
+                            ) : (
+                              <><CreditCard className="w-3 h-3" /> Pagar campaña</>
+                            )}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </Link>
                 </motion.div>
