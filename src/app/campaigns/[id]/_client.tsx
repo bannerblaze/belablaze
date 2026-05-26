@@ -89,6 +89,7 @@ export function CampaignDetailClient({ campaign }: CampaignDetailClientProps) {
       try {
         await deleteCampaign(campaign.id);
         toast.success("Campaña eliminada");
+        router.push("/campaigns");
       } catch {
         toast.error("Sin permisos para eliminar esta campaña");
         setShowDeleteConfirm(false);
