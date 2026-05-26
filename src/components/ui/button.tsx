@@ -18,6 +18,7 @@ export function Button({
   iconRight,
   className,
   disabled,
+  type = "button",
   ...props
 }: ButtonProps) {
   const variants = {

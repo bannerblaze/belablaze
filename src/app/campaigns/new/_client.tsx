@@ -163,6 +163,7 @@ export function NewCampaignClient({ clients, isAdmin, autoClientId }: Props) {
       {/* Header */}
       <div className="flex items-center gap-4">
         <button
+          type="button"
           onClick={() => step > 0 ? setStep(step - 1) : router.push("/campaigns")}
           className="p-2 rounded-lg hover:bg-white/[0.06] text-white/50 hover:text-white transition-all"
         >
