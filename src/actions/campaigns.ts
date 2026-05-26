@@ -82,25 +82,14 @@ export async function approveCampaign(campaignId: string) {
 
   await db.campaign.update({
     where: { id: campaignId },
-    data: { status: "ACTIVE" },
-  });
-
-  await db.ad.updateMany({
-    where: {
-      campaignId,
-      status: { in: ["PENDING_REVIEW", "APPROVED", "DRAFT"] },
-    },
-    data: {
-      status: "PUBLISHED",
-      publishedAt: new Date(),
-    },
+    data: { status: "APPROVED" },
   });
 
   await logAudit({
     action: "campaign.approve",
     entityType: "Campaign",
     entityId: campaignId,
-    metadata: { from: "PENDING_APPROVAL", to: "ACTIVE" },
+    metadata: { from: "PENDING_APPROVAL", to: "APPROVED" },
   });
 
   revalidatePath("/approvals");

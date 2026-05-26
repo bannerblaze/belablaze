@@ -38,11 +38,19 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Activate campaign on successful payment
+    // Activate campaign and publish ads on successful payment
     if (wompiTx.status === "APPROVED") {
       await db.campaign.update({
         where: { id: dbTx.campaignId },
         data:  { status: "ACTIVE" },
+      });
+
+      await db.ad.updateMany({
+        where: {
+          campaignId: dbTx.campaignId,
+          status: { in: ["PENDING_REVIEW", "APPROVED", "DRAFT"] },
+        },
+        data: { status: "PUBLISHED", publishedAt: new Date() },
       });
     }
 
