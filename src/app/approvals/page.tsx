@@ -9,7 +9,6 @@ import {
 } from "@/services/admin/approvals.service";
 import { getCurrentUser } from "@/lib/auth";
 import { isPlatformStaff } from "@/lib/platform";
-import { getOrgContext } from "@/lib/org-context";
 import { db } from "@/lib/db";
 
 function ApprovalsSkeleton() {
@@ -32,11 +31,8 @@ function ApprovalsSkeleton() {
 }
 
 async function fetchPendingCampaigns(): Promise<PendingCampaign[]> {
-  const ctx = await getOrgContext();
-  if (!ctx) return [];
-
   const rows = await db.campaign.findMany({
-    where: { organizationId: ctx.organizationId, status: "PENDING_APPROVAL" },
+    where: { status: "PENDING_APPROVAL" },
     select: {
       id: true,
       name: true,
