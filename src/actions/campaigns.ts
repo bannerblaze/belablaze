@@ -3,7 +3,7 @@
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { requireOrgContext } from "@/lib/org-context";
-import { getRole } from "@/lib/auth";
+import { getRole, getCurrentUser } from "@/lib/auth";
 import { logAudit } from "@/actions/audit";
 
 const ADMIN_ROLES = new Set(["ADMIN", "EXECUTIVE"] as const);
@@ -69,14 +69,18 @@ export async function createCampaign(formData: FormData) {
 }
 
 export async function approveCampaign(campaignId: string) {
-  const ctx = await requireOrgContext();
-  const role = await getRole();
+  const dbUser = await getCurrentUser();
+  if (!dbUser) throw new Error("No autenticado");
 
-  if (!role || !ADMIN_ROLES.has(role as "ADMIN" | "EXECUTIVE")) {
+  const role = dbUser.role;
+  if (!ADMIN_ROLES.has(role as "ADMIN" | "EXECUTIVE")) {
     throw new Error("Solo administradores pueden aprobar campañas");
   }
 
-  const campaign = await loadOrgCampaign(ctx.organizationId, campaignId);
+  const isInternal = dbUser.accountType === "INTERNAL";
+  const campaign = isInternal
+    ? await db.campaign.findFirst({ where: { id: campaignId }, select: { id: true, status: true, organizationId: true } })
+    : await loadOrgCampaign((await requireOrgContext()).organizationId, campaignId);
   if (!campaign) throw new Error("Campaña no encontrada");
   if (campaign.status !== "PENDING_APPROVAL") throw new Error("La campaña no está pendiente de aprobación");
 
@@ -100,14 +104,18 @@ export async function approveCampaign(campaignId: string) {
 }
 
 export async function rejectCampaign(campaignId: string, reason?: string) {
-  const ctx = await requireOrgContext();
-  const role = await getRole();
+  const dbUser = await getCurrentUser();
+  if (!dbUser) throw new Error("No autenticado");
 
-  if (!role || !ADMIN_ROLES.has(role as "ADMIN" | "EXECUTIVE")) {
+  const role = dbUser.role;
+  if (!ADMIN_ROLES.has(role as "ADMIN" | "EXECUTIVE")) {
     throw new Error("Solo administradores pueden rechazar campañas");
   }
 
-  const campaign = await loadOrgCampaign(ctx.organizationId, campaignId);
+  const isInternal = dbUser.accountType === "INTERNAL";
+  const campaign = isInternal
+    ? await db.campaign.findFirst({ where: { id: campaignId }, select: { id: true, status: true, organizationId: true } })
+    : await loadOrgCampaign((await requireOrgContext()).organizationId, campaignId);
   if (!campaign) throw new Error("Campaña no encontrada");
   if (campaign.status !== "PENDING_APPROVAL") throw new Error("La campaña no está pendiente de aprobación");
 
