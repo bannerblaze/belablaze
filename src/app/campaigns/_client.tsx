@@ -235,6 +235,7 @@ export function CampaignsClient({ campaigns }: CampaignsClientProps) {
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                         >
                           <button
+                            type="button"
                             disabled={payingId === campaign.id}
                             onClick={(e) => handlePay(campaign, e)}
                             className="w-full py-2 px-3 rounded-lg bg-[#B8EB23] text-black text-xs font-bold hover:bg-[#C5F034] active:bg-[#A5D820] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5 shadow-[0_0_16px_-2px_rgba(184,235,35,0.4)]"
