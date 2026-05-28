@@ -176,19 +176,12 @@ export function NewCampaignClient({ clients, isAdmin, autoClientId }: Props) {
         <StepIndicator current={step} steps={STEPS} />
       </div>
 
-      {/* Non-admin: no client yet */}
+      {/* Non-admin: profile not yet ready (transient error) */}
       {!isAdmin && !autoClientId && (
         <Card>
           <CardContent className="py-10 text-center">
             <Building2 className="w-8 h-8 text-white/20 mx-auto mb-3" />
-            <p className="text-sm text-white/50 mb-1">Necesitas un cliente antes de crear una campaña.</p>
-            <button
-              type="button"
-              onClick={() => router.push("/clients/new")}
-              className="text-xs text-[#B8EB23] hover:underline mt-1"
-            >
-              Crear cliente →
-            </button>
+            <p className="text-sm text-white/50">No se pudo cargar tu perfil de empresa. Intenta de nuevo.</p>
           </CardContent>
         </Card>
       )}

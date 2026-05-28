@@ -3,6 +3,70 @@ import type { Prisma } from "@prisma/client";
 import type { FilterOptions } from "@/types";
 import { getOrgContext } from "@/lib/org-context";
 
+async function uniqueClientSlug(name: string): Promise<string> {
+  const base = name
+    .toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60) || `client-${Date.now().toString(36)}`;
+  let candidate = base;
+  let n = 1;
+  while (await db.client.findUnique({ where: { slug: candidate }, select: { id: true } })) {
+    n++;
+    candidate = `${base}-${n}`;
+    if (n > 50) { candidate = `${base}-${Math.random().toString(36).slice(2, 6)}`; break; }
+  }
+  return candidate;
+}
+
+/**
+ * For COMPANY/CREATOR accounts: find or create the "self-client" that
+ * represents their own business. Stores the id in user.companyId so
+ * subsequent calls are instant (fast path). Returns null on failure.
+ */
+export async function getOrCreateSelfClient(): Promise<string | null> {
+  const ctx = await getOrgContext();
+  if (!ctx) return null;
+
+  const user = await db.user.findUnique({
+    where: { id: ctx.userId },
+    include: { organizationProfile: true },
+  });
+  if (!user) return null;
+
+  if (user.companyId) return user.companyId;
+
+  const existing = await db.client.findFirst({
+    where: { organizationId: ctx.organizationId },
+    select: { id: true },
+  });
+  if (existing) {
+    await db.user.update({ where: { id: ctx.userId }, data: { companyId: existing.id } });
+    return existing.id;
+  }
+
+  const profile = user.organizationProfile;
+  const name = profile?.companyName ?? user.name;
+  const slug = await uniqueClientSlug(name);
+
+  const client = await db.client.create({
+    data: {
+      name,
+      slug,
+      email: user.email,
+      industry: profile?.industry ?? null,
+      website: profile?.website ?? null,
+      city: profile?.city ?? null,
+      country: "Colombia",
+      organizationId: ctx.organizationId,
+    },
+  });
+
+  await db.user.update({ where: { id: ctx.userId }, data: { companyId: client.id } });
+  return client.id;
+}
+
 /* All client (customer brand) queries scope by active organization. */
 
 export async function getClients(filters: FilterOptions = {}) {

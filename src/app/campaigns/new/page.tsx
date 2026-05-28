@@ -1,6 +1,6 @@
 import { connection } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getClients } from "@/services/clients.service";
+import { getClients, getOrCreateSelfClient } from "@/services/clients.service";
 import { NewCampaignClient } from "./_client";
 
 export default async function NewCampaignPage() {
@@ -9,14 +9,26 @@ export default async function NewCampaignPage() {
   const user = await getCurrentUser();
   const isAdmin = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
 
-  const clients = await getClients({ limit: 100 });
-  const autoClientId = !isAdmin ? (clients[0]?.id ?? "") : undefined;
+  if (isAdmin) {
+    const clients = await getClients({ limit: 100 });
+    return (
+      <NewCampaignClient
+        clients={clients.map((c) => ({ id: c.id, name: c.name, industry: c.industry }))}
+        isAdmin={true}
+        autoClientId={undefined}
+      />
+    );
+  }
+
+  // For COMPANY/CREATOR accounts: auto-provision the self-client so they
+  // never see the "create a client first" gate.
+  const selfClientId = await getOrCreateSelfClient();
 
   return (
     <NewCampaignClient
-      clients={isAdmin ? clients.map((c) => ({ id: c.id, name: c.name, industry: c.industry })) : []}
-      isAdmin={isAdmin ?? false}
-      autoClientId={autoClientId}
+      clients={[]}
+      isAdmin={false}
+      autoClientId={selfClientId ?? undefined}
     />
   );
 }
